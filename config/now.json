@@ -4,6 +4,5 @@
     { "src": "src/**/*", "use": "@now/static" },
     { "src": "web_modules/**/*", "use": "@now/static" }
   ],
-  "cleanUrls": false,
   "trailingSlash": true
 }

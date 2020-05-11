@@ -135,11 +135,7 @@ function toIndexed(geometry) {
 class Quad extends THREE.BufferGeometry {
   constructor() {
     super();
-    var positions = [
-        [0, 0, 0],
-        [1, 0, 0],
-        [1, 1, 0],
-        [0, 1, 0]];
+    var positions = [[-1, -1, 0], [+1, -1, 0], [+1, +1, 0], [-1, +1, 0]];
     var normals = [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]];
     var uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
     var faces = [[0, 1, 2], [0, 2, 3]];

@@ -31,15 +31,12 @@ float udToFactor(float ud, float width, float aa_width) {
   in vec2 custom_uv;
 
   out vec2 Vert_uv;
-  out vec3 Vert_position;
-
 
   void main() {
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    Vert_position = position;
     Vert_uv = custom_uv;
     // Same can be achieved without custom attribute when geometry is non-indexed
-    // Vert_uv = vec2[](OZN.yy, OZN.xy, OZN.yx)[gl_VertexId % 3];
+    // Vert_uv = vec2[](OZN.yy, OZN.xy, OZN.yx)[gl_VertexID % 3];
   }
 #endif
 
@@ -49,7 +46,6 @@ float udToFactor(float ud, float width, float aa_width) {
   uniform float U_width;
   uniform float U_aa;
 
-  in vec3 Vert_position;
   in vec2 Vert_uv;
   out vec4 Frag_color;
 

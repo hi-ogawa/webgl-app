@@ -16,16 +16,26 @@ class App {
   }
 
   resize() {
-    this.width = this.renderer.domElement.clientWidth;
-    this.height = this.renderer.domElement.clientHeight;
-    this.camera.aspect = this.width / this.height;
+    var canvas = this.renderer.domElement;
+
+    const { clientWidth: w_css, clientHeight: h_css } = canvas;
+    if (this.width == w_css && this.height == h_css) { return; }
+
+    this.width = w_css;
+    this.height = h_css;
+
+    // WebGLRenderer.setSize updates canvas's width and height used below
+    this.renderer.setSize(w_css, h_css, /*updateStyle*/ false);
+
+    const { width: w_res, height: h_res } = canvas;
+    this.camera.aspect = w_res / h_res;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.width, this.height, /*updateStyle*/ false);
   }
 
   async init() {
     // Camera
     Object.assign(this.camera, { fov: 39 * 2, near : 1e-2, far : 1e2 });
+    this.camera.updateProjectionMatrix();
     this.camera.position.set(0.5, 0.4, 1).multiplyScalar(2.0);
     new OrbitControls(this.camera, this.renderer.domElement);
 
