@@ -1,0 +1,24 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "serve",
+    "test": "mocha 'src/**/*.test.js'"
+  },
+  "devDependencies": {
+    "mocha": "^7.1.2",
+    "serve": "^11.3.0",
+    "snowpack": "^2.0.0-beta.16"
+  },
+  "dependencies": {
+    "lodash": "^4.17.15",
+    "three": "^0.116.1"
+  },
+  "snowpack": {
+    "exclude": ["**/*"],
+    "knownEntrypoints": [
+      "lodash",
+      "three/build/three.module.js",
+      "three/examples/jsm/controls/OrbitControls.js"
+    ]
+  }
+}
