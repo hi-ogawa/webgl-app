@@ -1,0 +1,8 @@
+{
+  "exclude": ["**/*"],
+  "knownEntrypoints": [
+    "lodash",
+    "three/build/three.module.js",
+    "three/examples/jsm/controls/OrbitControls.js"
+  ]
+}

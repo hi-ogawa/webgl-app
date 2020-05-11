@@ -1,7 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "start": "serve",
+    "start": "serve -c config/serve.json",
+    "deploy": "now -d -A config/now.json",
     "test": "mocha 'src/**/*.test.js'"
   },
   "devDependencies": {
@@ -11,14 +12,7 @@
   },
   "dependencies": {
     "lodash": "^4.17.15",
+    "now": "^19.0.0",
     "three": "^0.116.1"
-  },
-  "snowpack": {
-    "exclude": ["**/*"],
-    "knownEntrypoints": [
-      "lodash",
-      "three/build/three.module.js",
-      "three/examples/jsm/controls/OrbitControls.js"
-    ]
   }
 }

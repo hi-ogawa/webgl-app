@@ -1,13 +1,18 @@
 WebGL shader examples using three.js
 
+- https://webgl-app.hiogawa.now.sh/
+
 ```
 # Development
 yarn install
-yarn run snowpack install
-yarn run start  # then open e.g. localhost:5000/src/ex02/
+yarn run snowpack install --config config/snowpack.config.json
+yarn run start  # then open e.g. localhost:5000/src/ex02/index.html
 
 # Testing
 yarn run test
+
+# Deployment
+yarn run deploy
 ```
 
 References
