@@ -1,8 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "src/**/*", "use": "@now/static" },
-    { "src": "web_modules/**/*", "use": "@now/static" }
+    { "src": "dist/**/*", "use": "@now/static" }
   ],
-  "trailingSlash": true
+  "routes": [
+    { "src": "/(.*)", "dest": "/dist/$1" }
+  ]
 }

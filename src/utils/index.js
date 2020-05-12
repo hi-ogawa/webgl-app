@@ -1,5 +1,5 @@
-import _ from '../../web_modules/lodash.js';
-import * as THREE from '../../web_modules/three/build/three.module.js';
+import _ from 'lodash';
+import * as THREE from 'three/build/three.module.js';
 
 
 class Array2d {

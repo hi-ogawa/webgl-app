@@ -2,9 +2,9 @@
 // A bit more organized structure
 //
 
-import _ from '../../web_modules/lodash.js';
-import * as THREE from '../../web_modules/three/build/three.module.js'
-import { OrbitControls } from '../../web_modules/three/examples/jsm/controls/OrbitControls.js';
+import _ from 'lodash';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 
 class App {
@@ -75,4 +75,4 @@ const main = async () => {
   });
 }
 
-export { main }
+main();

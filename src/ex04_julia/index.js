@@ -2,11 +2,12 @@
 // Screen quad fragment shader with interaction
 //
 
-import _ from '../../web_modules/lodash.js';
-import * as THREE from '../../web_modules/three/build/three.module.js'
-import { Vector2 } from '../../web_modules/three/build/three.module.js'
-import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js';
+import _ from 'lodash';
+import * as THREE from 'three';
+import { Vector2 }  from 'three';
+import { GUI } from 'three/examples/jsm/libs/dat.gui.module.js';
 import { Quad } from '../utils/index.js';
+import index_glsl from './index.glsl';
 
 
 class App {
@@ -115,7 +116,6 @@ ${p.name}:
     const geometry = new Quad();
     geometry.frustumCulled = false; // disable camera frustum culling
 
-    const glsl_src = await (await fetch('./index.glsl')).text();
     const glsl_header = [
       '#version 300 es',
       'precision mediump float;',
@@ -123,8 +123,8 @@ ${p.name}:
     ];
     const material = new THREE.RawShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader:   [...glsl_header, '#define COMPILE_vertex',   glsl_src].join('\n'),
-      fragmentShader: [...glsl_header, '#define COMPILE_fragment', glsl_src].join('\n'),
+      vertexShader:   [...glsl_header, '#define COMPILE_vertex',   index_glsl].join('\n'),
+      fragmentShader: [...glsl_header, '#define COMPILE_fragment', index_glsl].join('\n'),
     });
     this.scene.add(new THREE.Mesh(geometry, material));
   }
@@ -170,4 +170,4 @@ const main = async () => {
   app.start();
 }
 
-export { main }
+main();

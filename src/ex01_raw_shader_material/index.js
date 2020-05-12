@@ -2,18 +2,17 @@
 // Custom shader (GLES3)
 //
 
-import * as THREE from '../../web_modules/three/build/three.module.js'
-import { OrbitControls } from '../../web_modules/three/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import glsl_src from './index.glsl';
 
 
 var camera, scene, renderer;
 var error;
-var glsl_src;
 
 main();
 
 async function main() {
-  glsl_src = await (await fetch('./index.glsl')).text();
   init();
   animate();
 }
