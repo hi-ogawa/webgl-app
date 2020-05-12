@@ -3,7 +3,7 @@ WebGL shader examples using three.js
 ```
 # Development
 yarn install
-yarn run start  # then open e.g. localhost:5000/src/ex02/index.html
+yarn start # then open e.g. http://localhost:5000/src/ex04_julia/index.html
 
 # Testing
 yarn run test
