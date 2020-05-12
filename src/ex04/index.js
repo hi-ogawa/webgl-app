@@ -5,7 +5,9 @@
 import _ from '../../web_modules/lodash.js';
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import { Vector2 } from '../../web_modules/three/build/three.module.js'
+import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js';
 import { Quad } from '../utils/index.js';
+
 
 class App {
   constructor(renderer) {
@@ -17,8 +19,12 @@ class App {
       U_time: { value: 0 },
       U_resolution: { value: new Vector2(0, 0) },
       U_view_xy: { value: new Vector2(0, 0) },
-      U_view_zoom: { value: 0 }  // = log_2(scale)
+      U_view_zoom: { value: 0 },  // = log_2(scale)
+      U_c: { value: new Vector2(0, 0) },
+      U_use_mouse: { value: 0 },
     };
+    this.time = null;
+    this.gui = new GUI();
     this._resetSize();
   }
 
@@ -38,10 +44,45 @@ class App {
     this.uniforms.U_resolution.value.fromArray([w_res, h_res]);
   }
 
+  _updateTime() {
+    const now = performance.now();
+    this.time = this.time || now;
+    this.uniforms.U_time.value += (this.time - now) / 1000;
+    this.time = now;
+  }
+
+  _checkShaderError() {
+    const bad_programs = this.renderer.info.programs.filter(p => p.diagnostics);
+    if (bad_programs.length > 0) {
+      this.stop();
+      var message = '';
+      for (const p of bad_programs) {
+        const d = p.diagnostics;
+        message += `\
+${p.name}:
+  program:  ${d.programLog}
+  vertex:   ${d.vertexShader.log}
+  fragment: ${d.fragmentShader.log}
+`;
+      }
+      window.alert(`[ShaderError]\n${message}`);
+    }
+  }
+
+  _yflip(y) { return this.height - y - 1; }
+
   mousemove(event) {
     if (event.buttons === 1) {
-      const { movementX : dx, movementY : dy } = event;
-      this.uniforms.U_view_xy.value.add(new Vector2(-dx, +dy));
+      const { clientX : x, clientY : y, movementX : dx, movementY : dy } = event;
+      if (event.shiftKey) {
+        this.uniforms.U_view_xy.value.add(new Vector2(-dx, +dy));
+      } else {
+        const { U_view_xy, U_view_zoom, U_c } = this.uniforms;
+        U_c.value
+          .set(x, this._yflip(y))
+          .add(U_view_xy.value)
+          .multiplyScalar(Math.pow(2, U_view_zoom.value));
+      }
     }
   }
 
@@ -55,13 +96,21 @@ class App {
     // <=> view' = - mouse + (scale / scale') * (mouse + view)
     //           = - mouse + (mouse + view) / pow(2, dzoom)
     const vec = this.uniforms.U_view_xy.value;
-    const mouse_xy = [x, this.height - y - 1]; // y flip
+    const mouse_xy = [x, this._yflip(y)];
     vec.fromArray(
         _.zip(vec.toArray(), mouse_xy).map(
             ([v, m]) => - m + (m + v) / Math.pow(2, dzoom)));
   }
 
   async init() {
+    // Gui
+    const gui_params = {
+      play: true,
+      use_mouse: false,
+    }
+    this.gui.add(gui_params, 'play').onFinishChange(b => b ? this.start() : this.stop());
+    this.gui.add(gui_params, 'use_mouse').onFinishChange(b => { this.uniforms.U_use_mouse.value = b ? 1 : 0; });
+
     // Screen quad with custom shader
     const geometry = new Quad();
     geometry.frustumCulled = false; // disable camera frustum culling
@@ -80,17 +129,20 @@ class App {
     this.scene.add(new THREE.Mesh(geometry, material));
   }
 
-  _updateTime() {
-    const now = performance.now();
-    this.last_time = this.last_time || now;
-    this.uniforms.U_time.value += (this.last_time - now) / 1000;
-    this.last_time = now;
+  start() {
+    this.time = null;
+    this.renderer.setAnimationLoop(() => this.render());
+  }
+
+  stop() {
+    this.renderer.setAnimationLoop(null);
   }
 
   render() {
     this._resetSize();
     this._updateTime();
     this.renderer.render(this.scene, this.camera);
+    this._checkShaderError();
   }
 }
 
@@ -114,15 +166,8 @@ const main = async () => {
     canvas.addEventListener(name, (e) => app[name] && app[name](e));
   }
 
-  // Main loop
-  renderer.setAnimationLoop(() => {
-    app.render();
-    const bad_programs = app.renderer.info.programs.filter(p => p.diagnostics);
-    if (bad_programs.length > 0) {
-      window.alert('WebGLProgram error found');
-      renderer.setAnimationLoop(null);
-    }
-  });
+  // Start
+  app.start();
 }
 
 export { main }

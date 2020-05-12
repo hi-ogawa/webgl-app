@@ -3,16 +3,17 @@
   "scripts": {
     "start": "serve -c config/serve.json",
     "deploy": "now -d -A config/now.json",
-    "test": "mocha 'src/**/*.test.js'"
+    "test": "mocha 'src/**/*.test.js'",
+    "snow": "snowpack install --config config/snowpack.config.json"
   },
   "devDependencies": {
     "mocha": "^7.1.2",
+    "now": "^19.0.0",
     "serve": "^11.3.0",
     "snowpack": "^2.0.0-beta.16"
   },
   "dependencies": {
     "lodash": "^4.17.15",
-    "now": "^19.0.0",
     "three": "^0.116.1"
   }
 }

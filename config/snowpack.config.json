@@ -3,6 +3,7 @@
   "knownEntrypoints": [
     "lodash",
     "three/build/three.module.js",
-    "three/examples/jsm/controls/OrbitControls.js"
+    "three/examples/jsm/controls/OrbitControls.js",
+    "three/examples/jsm/libs/dat.gui.module.js"
   ]
 }
