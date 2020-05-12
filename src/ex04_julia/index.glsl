@@ -100,7 +100,6 @@ bool mandelbrot(vec2 c) {
   uniform vec2 U_view_xy;
   uniform float U_view_zoom;
   uniform float U_time;
-  uniform vec2 U_mouse;
   uniform vec2 U_c;
   uniform float U_use_mouse;
   out vec4 Frag_color;

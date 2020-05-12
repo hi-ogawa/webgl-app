@@ -2,7 +2,7 @@
 // Example from introduction
 //
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.116.0/build/three.module.js';
+import * as THREE from '../../web_modules/three/build/three.module.js'
 
 var camera, scene, renderer;
 var geometry, material, mesh;
