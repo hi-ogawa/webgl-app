@@ -4,7 +4,7 @@
     "start": "serve -c config/serve.json",
     "deploy": "now -d -A config/now.json",
     "test": "mocha 'src/**/*.test.js'",
-    "snow": "snowpack install --config config/snowpack.config.json"
+    "prepare": "snowpack install --config config/snowpack.config.json"
   },
   "devDependencies": {
     "mocha": "^7.1.2",
