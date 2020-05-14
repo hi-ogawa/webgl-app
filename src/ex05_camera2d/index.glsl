@@ -103,7 +103,6 @@ bool mandelbrot(vec2 c) {
     out vec4 Frag_color;
 
     vec4 renderPixel(vec2 frag_coord) {
-      float height = 2.5;
       vec2 p = vec2(U_window_to_world * vec4(frag_coord, 0.0, 1.0));
       mat2 dpdw = mat2(dFdx(p), dFdy(p));
 

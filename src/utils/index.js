@@ -185,17 +185,43 @@ const makeShaderMaterial = (src, defines = {}) => {
   return material;
 }
 
+const linspace = (x0, x1, num) => {
+  return (
+    _.range(num + 1)
+     .map(i => i / num)
+     .map(t => x0 + t * (x1 - x0))
+  );
+}
+
 const vec2 = (...args) => {
+  if (args.length == 1) {
+    const a = args[0];
+    if (typeof a === 'number') {
+      return vec2(a, a);
+    }
+  }
   const es = args.map(e => e.toArray ? e.toArray() : [e]).flat();
   return new Vector2(...es);
 }
 
 const vec3 = (...args) => {
+  if (args.length == 1) {
+    const a = args[0];
+    if (typeof a === 'number') {
+      return vec3(a, a, a);
+    }
+  }
   const es = args.map(e => e.toArray ? e.toArray() : [e]).flat();
   return new Vector3(...es);
 }
 
 const vec4 = (...args) => {
+  if (args.length == 1) {
+    const a = args[0];
+    if (typeof a === 'number') {
+      return vec4(a, a, a, a);
+    }
+  }
   const es = args.map(e => e.toArray ? e.toArray() : [e]).flat();
   return new Vector4(...es);
 }
@@ -263,6 +289,9 @@ const M_add = (a, b) => {
   if (a.isVector3 && b.isVector3) {
     return a.clone().add(b);
   }
+  if (a.isVector2 && b.isVector2) {
+    return a.clone().add(b);
+  }
 
   // Scalar
   if (typeof a === 'number' && typeof b === 'number') {
@@ -300,6 +329,9 @@ const M_mul = (a, b) => {
     return a.clone().multiply(b);
   }
   if (a.isVector3 && b.isVector3) {
+    return a.clone().multiply(b);
+  }
+  if (a.isVector2 && b.isVector2) {
     return a.clone().multiply(b);
   }
 
@@ -457,8 +489,10 @@ function T_rotate(t) {
 export {
   Array2d, computeTopology, subdivTriforce, toIndexed, Quad,
   makeShaderMaterial, makeBufferGeometry,
+  linspace,
   yfovFromHeight, T_orthographic,
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_mul, M_diag, M_inverse,
+  pow2,
 };

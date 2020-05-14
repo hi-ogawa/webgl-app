@@ -1,5 +1,5 @@
 //
-// Almost same as ex05_camera2d but this time draw grids/axes using Three's line and alpha blending
+// Curvature and osculating circle
 //
 
 import _ from '../../web_modules/lodash.js';
@@ -7,12 +7,13 @@ import * as THREE from '../../web_modules/three/build/three.module.js'
 import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js';
 import * as Utils from '../utils/index.js';
 
-const { PI } = Math;
+const { PI, cos, sin, sqrt } = Math;
 const { Vector2, Vector3, Vector4, Matrix3, Matrix4 } = THREE;
 const {
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_mul, M_diag, M_inverse,
   T_translate, T_rotate, T_axisAngle,
+  pow2,
 } = Utils;
 
 
@@ -25,19 +26,19 @@ class App {
     this.uniforms = {
       U_time: { value: 0 },
       U_resolution: { value: vec2(0, 0) },
-      U_c: { value: vec2(0, 0) },
       U_window_to_world: { value: mat4(1) },
       U_point_size: { value: 8 },
     };
     this.time = null;
-    this.use_mouse = false;
     this.gui = new GUI();
 
     this.camera_xy = vec2(0, 0);
     this.zoom = 0; // = log_2(scale) so it's additive
-    this.fov_height = 2.5;
+    this.fov_height = 16;
     this.window_to_world = mat4(1.0);
+    this.mouse_p = vec2(2, 0); // in world frame
 
+    this.f = (x) => 0.5 * x * sin(x);
     this._updateSize();
   }
 
@@ -77,6 +78,8 @@ class App {
       T_translate(vec3(0, 0, -1)), // to z = -1
       this.window_to_camera,
     ].reduce(M_mul)
+
+    this.uniforms.U_window_to_world.value = this.window_to_world;
   }
 
   _updateTime() {
@@ -84,16 +87,6 @@ class App {
     this.time = this.time || now;
     this.uniforms.U_time.value += (this.time - now) / 1000;
     this.time = now;
-  }
-
-  _updateUniforms() {
-    this.uniforms.U_window_to_world.value = this.window_to_world;
-
-    if (!this.use_mouse) {
-      const t = 2 * PI * this.uniforms.U_time.value / 16;
-      const c = vec2(M_mul(T_rotate(t), vec3(1.05, 0, 1)));
-      this.uniforms.U_c.value = c;
-    }
   }
 
   _checkShaderError() {
@@ -116,6 +109,19 @@ ${p.name}:
 
   _yflip(y) { return this.height - y - 1; }
 
+  $(name) {
+    return this.scene.getObjectByName(name);
+  }
+
+  mousedown(event) {
+    if (event.buttons === 1) {
+      if (event.shiftKey) { return; }
+      const { clientX : x, clientY : y } = event;
+      this.mouse_p = vec2(M_mul(
+          this.window_to_world, vec4(x, this._yflip(y), 0, 1)));
+    }
+  }
+
   mousemove(event) {
     if (event.buttons === 1) {
       const { clientX : x, clientY : y, movementX : dx, movementY : dy } = event;
@@ -123,11 +129,11 @@ ${p.name}:
         this.camera_xy.add(
             vec2(M_mul(mat3(this.window_to_camera), vec3(-dx, dy, 0))));
         this._updateMatrix();
-      } else {
-        const mouse = M_mul(
-            this.window_to_world, vec4(x, this._yflip(y), 0, 1));
-        this.uniforms.U_c.value = vec2(mouse);
+        return;
       }
+
+      this.mouse_p = vec2(M_mul(
+          this.window_to_world, vec4(x, this._yflip(y), 0, 1)));
     }
   }
 
@@ -151,77 +157,123 @@ ${p.name}:
     // Gui
     const gui_params = {
       play: true,
-      use_mouse: this.use_mouse,
+      f: '0.5 * x * sin(x)',
     }
     this.gui.add(gui_params, 'play').onFinishChange(b => b ? this.start() : this.stop());
-    this.gui.add(gui_params, 'use_mouse').onFinishChange(b => this.use_mouse = b);
+    this.gui.add(gui_params, 'f').onFinishChange(s => {
+      this.f = eval(`(x) => ${ s }`);
+      const xs = Utils.linspace(-20, 20, 256);
+      const position = xs.map(x => [x, this.f(x), 0]);
+      this.$('graph').geometry = Utils.makeBufferGeometry({ position });
+    });
 
     // Fetch glsl
     const index_glsl = await (await fetch('./index.glsl')).text();
 
-    // Screen quad with custom shader
+    // Axes/Grid
     {
-      const geometry = Utils.makeBufferGeometry({
-        position: [[-1, -1, 0], [+1, -1, 0], [+1, +1, 0], [-1, +1, 0]],
-        index: [[0, 1, 2], [0, 2, 3]]
-      });
-      geometry.applyMatrix4(M_mul(
-          M_diag(vec4(1e3, 1e3, 1, 1)), T_translate(vec3(0, 0, 1))));
+      {
+        const grid = new THREE.GridHelper(32, 32);
+        grid.applyMatrix4(mat4(T_axisAngle(vec3(1, 0, 0), 0.5 * PI)));
+        grid.position.copy(vec3(0, 0, -3));
+        this.scene.add(grid);
+      }
 
-      const material = Utils.makeShaderMaterial(index_glsl, { Main00: 1 });
-      material.uniforms = this.uniforms;
-      material.transparent = true;
-      material.premultipliedAlpha = true;
-
-      this.scene.add(new THREE.Mesh(geometry, material));
+      {
+        const geometry = Utils.makeBufferGeometry({
+          position: [[-1, 0, 0], [+1, 0, 0], [0, -1, 0], [0, +1, 0]],
+          color: [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0]],
+        });
+        const axes = new THREE.LineSegments(
+            geometry,
+            new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }))
+        axes.scale.copy(vec3(1e3, 1e3, 1));
+        axes.position.copy(vec3(0, 0, -2));
+        this.scene.add(axes);
+      }
     }
 
-    // Draw Three's lines on further background
+    // Points (tangent point and circle center)
     {
-      const grid = new THREE.GridHelper();
-      grid.geometry.applyMatrix4(mat4(T_axisAngle(vec3(1, 0, 0), 0.5 * PI)));
-      this.scene.add(grid);
-
-      const axes_geometry = Utils.makeBufferGeometry({
-        position: [[-1, 0, 0], [+1, 0, 0], [0, -1, 0], [0, +1, 0]],
-        color: [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0]],
-      });
-      axes_geometry.applyMatrix4(M_mul(
-          M_diag(vec4(1e3, 1e3, 1, 1)), T_translate(vec3(0, 0, 0))));
-      const axes = new THREE.LineSegments(
-          axes_geometry,
-          new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }))
-      this.scene.add(axes);
-    }
-
-    // Draw Three's geometry on foreground
-    {
-      const geometry = Utils.makeBufferGeometry({ position: [[0, 0, 2]] });
+      const geometry = Utils.makeBufferGeometry({ position: [[0, 0, 0], [0, 0, 0]] });
       const material = Utils.makeShaderMaterial(index_glsl, { Main01: 1 });
       material.uniforms = this.uniforms;
       material.transparent = true;
 
-      const mesh = new THREE.Points(geometry, material);
-      mesh.onBeforeRender = () => {
-        mesh.position.copy(vec3(this.uniforms.U_c.value));
-      };
-      this.scene.add(mesh);
+      const object = new THREE.Points(geometry, material);
+      object.name = 'points';
+      this.scene.add(object);
+    }
+
+    // Graph y = f(x)
+    {
+      const xs = Utils.linspace(-20, 20, 256);
+      const position = xs.map(x => [x, this.f(x), 0]);
+      const geometry = Utils.makeBufferGeometry({ position });
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial())
+      object.name = 'graph';
+      this.scene.add(object);
+    }
+
+    // circle
+    {
+      const xs = Utils.linspace(0, 2 * PI, 128);
+      const position = xs.map(x => [cos(x), sin(x), 0]);
+      const geometry = Utils.makeBufferGeometry({ position });
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial());
+      object.name = 'circle';
+      this.scene.add(object);
+    }
+
+    // line x = x0
+    {
+      const xs = Utils.linspace(0, 2 * PI, 128);
+      const position = [[0, -1e2, 0], [0, 1e2, 0]];
+      const geometry = Utils.makeBufferGeometry({ position });
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial())
+      object.name = 'x = x0';
+      this.scene.add(object);
     }
   }
 
   start() {
     this.time = null;
-    this.renderer.setAnimationLoop(() => this.render());
+    this.renderer.setAnimationLoop(() => {
+      this.update();
+      this.render();
+    });
   }
 
   stop() {
     this.renderer.setAnimationLoop(null);
   }
 
-  render() {
+  update() {
     this._updateSize();
     this._updateTime();
-    this._updateUniforms();
+
+    {
+      const x = this.mouse_p.x;
+      const y = this.f(x);
+      const dx = 1e-3;
+      const dy = (this.f(x + dx) - this.f(x - dx)) / (2 * dx);
+      const ddy = (this.f(x + dx) + this.f(x - dx) - 2 * y) / pow2(dx);
+      const ddg = M_mul(ddy / pow2(1 + pow2(dy)), vec2(-dy, 1)); // g : arc-length parametrized curve (x, f(x))
+      const k = ddg.length();
+      const u = vec2(ddg).normalize();
+      const radius = 1 / k;
+      const center = M_add(M_mul(radius, u), vec2(x, y));
+
+      this.$('x = x0').position.copy(vec3(x, 0, 0));
+      this.$('points').geometry.attributes.position.setXYZ(0, x, y, 0);
+      this.$('points').geometry.attributes.position.setXYZ(1, ...center.toArray(), 0);
+      this.$('points').geometry.attributes.position.needsUpdate = true;
+      this.$('circle').position.copy(vec3(center, 0));
+      this.$('circle').scale.copy(vec3(radius));
+    }
+  }
+
+  render() {
     this.renderer.render(this.scene, this.camera);
     this._checkShaderError();
   }
