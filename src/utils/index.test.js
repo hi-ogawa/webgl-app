@@ -68,12 +68,23 @@ describe('Matrix', () => {
 
     assert.deepEqual([26, 33, 35], M_mul(M_diag(vec3(2, 3, 5)), vec3(13, 11, 7)).toArray());
 
-    const expected = [
-       0, 1, 0,
-      -1, 0, 0,
-       0, 0, 1];
-    const actual = T_axisAngle(vec3(0, 0, 1), 0.5 * 3.141592).toArray();
-    assert(_.zip(expected, actual).every(([e, a]) => Math.abs(e - a) < 1e-4));
+    {
+      const expected = [
+        0, 1, 0,
+        -1, 0, 0,
+        0, 0, 1];
+      const actual = T_axisAngle(vec3(0, 0, 1), 0.5 * 3.141592).toArray();
+      assert(_.zip(expected, actual).every(([e, a]) => Math.abs(e - a) < 1e-4));
+    }
+
+    {
+      const expected = [
+        1, 0, 0,
+        0, 0, 1,
+        0,-1, 0];
+      const actual = T_axisAngle(vec3(1, 0, 0), 0.5 * 3.141592).toArray();
+      assert(_.zip(expected, actual).every(([e, a]) => Math.abs(e - a) < 1e-4));
+    }
   });
 
   it('works 03', () => {

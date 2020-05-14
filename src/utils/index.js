@@ -427,7 +427,6 @@ function Q_toSO3(q) {
   const s = q.w;
   const I = mat3(1);
   const Cv = cross_as_mat(v);
-  debugger;
   return (
     M_add(
       M_add(
