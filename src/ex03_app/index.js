@@ -34,9 +34,9 @@ class App {
 
   async init() {
     // Camera
-    Object.assign(this.camera, { fov: 39 * 2, near : 1e-2, far : 1e2 });
+    Object.assign(this.camera, { fov: 39, near : 1e-2, far : 1e2 });
     this.camera.updateProjectionMatrix();
-    this.camera.position.set(0.5, 0.4, 1).multiplyScalar(2.0);
+    this.camera.position.set(0.5, 0.4, 1).multiplyScalar(3.0);
     new OrbitControls(this.camera, this.renderer.domElement);
 
     // Geometry

@@ -19,7 +19,7 @@ async function main() {
 }
 
 function init() {
-  camera = new THREE.PerspectiveCamera(39 * 2, window.innerWidth / window.innerHeight, 1e-2, 1e2);
+  camera = new THREE.PerspectiveCamera(39, window.innerWidth / window.innerHeight, 1e-2, 1e2);
   camera.position.set(0.5, 0.4, 1).multiplyScalar(3.0)
 
   scene = new THREE.Scene();

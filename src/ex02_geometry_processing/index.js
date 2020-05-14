@@ -76,8 +76,8 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  camera = new THREE.PerspectiveCamera(39 * 2, window.innerWidth / window.innerHeight, 1e-2, 1e2);
-  camera.position.set(0.5, 0.4, 1).multiplyScalar(2.0)
+  camera = new THREE.PerspectiveCamera(39, window.innerWidth / window.innerHeight, 1e-2, 1e2);
+  camera.position.set(0.5, 0.4, 1).multiplyScalar(3.0)
   new OrbitControls(camera, renderer.domElement);
 
   window.addEventListener('resize', () => {
