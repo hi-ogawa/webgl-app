@@ -45,31 +45,6 @@ class App extends AppBase {
     this.cameraHelper.updateMatrix()
   }
 
-  mousedown (event) {
-    if (event.buttons === 1) {
-      if (event.shiftKey) { return }
-      const { clientX: x, clientY: y } = event
-      this.p = this.cameraHelper.windowToWorld(this.yflip(vec2(x, y)))
-    }
-  }
-
-  mousemove (event) {
-    if (event.buttons === 1) {
-      const { clientX: x, clientY: y, movementX: dx, movementY: dy } = event
-      if (event.shiftKey) {
-        this.cameraHelper.move(vec2(-dx, dy))
-        return
-      }
-      this.p = this.cameraHelper.windowToWorld(this.yflip(vec2(x, y)))
-    }
-  }
-
-  wheel (event) {
-    const { clientX: x, clientY: y, deltaY: dy } = event
-    const dzoom = dy / 1024
-    this.cameraHelper.zoom(this.yflip(vec2(x, y)), dzoom)
-  }
-
   async init () {
     await super.init()
 
@@ -157,6 +132,22 @@ class App extends AppBase {
 
   update () {
     super.update()
+
+    {
+      // Input handling
+      const { mouse, mouseDelta, wheel, buttons, shiftKey } = this.input
+      if (wheel !== 0) {
+        this.cameraHelper.zoom(mouse, wheel / 1024)
+      }
+
+      if (buttons === 1) {
+        if (shiftKey) {
+          this.cameraHelper.move(M_mul(-1, mouseDelta))
+        } else {
+          this.p = this.cameraHelper.windowToWorld(mouse)
+        }
+      }
+    }
 
     {
       // Compute osculating circle

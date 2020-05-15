@@ -3,11 +3,25 @@
 import _ from '../../web_modules/lodash.js'
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js'
+import * as Utils from './index.js'
+
+const { vec2 } = Utils
 
 const kEventNames = [
   'keydown', 'keyup',
   'mousedown', 'mouseup', 'mousemove', 'wheel'
 ]
+
+// cf. https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent
+const kInputInit = {
+  mouse: vec2(-1, -1),
+  mouseDelta: vec2(0, 0),
+  wheel: 0,
+  buttons: 0,
+  ctrlKey: 0,
+  shiftKey: 0,
+  altKey: 0
+}
 
 class AppBase {
   constructor (canvas) {
@@ -24,23 +38,44 @@ class AppBase {
     this.time_delta = null
     this.gui = new GUI()
     this.event_listeners = {}
+    this.input = _.clone(kInputInit)
   }
 
-  $ (name) {
-    return this.scene.getObjectByName(name)
+  $ (name) { return this.scene.getObjectByName(name) }
+
+  inputFromMouseEvent (e) {
+    this.input.mouse = this.yflip(vec2(e.clientX, e.clientY))
+    this.input.mouseDelta = vec2(e.movementX, -e.movementY)
+    for (const key of ['buttons', 'ctrlKey', 'shiftKey', 'altKey']) {
+      this.input[key] = e[key]
+    }
   }
 
-  yflip (xy) { return new THREE.Vector2(xy.x, this.height - xy.y - 1) }
+  mousedown (event) {
+    this.inputFromMouseEvent(event)
+  }
+
+  mousemove (event) {
+    this.inputFromMouseEvent(event)
+  }
+
+  wheel (event) {
+    this.inputFromMouseEvent(event)
+    this.input.wheel = event.deltaY
+  }
+
+  yflip (xy) { return vec2(xy.x, this.height - xy.y - 1) }
 
   updateSize () {
     const canvas = this.renderer.domElement
     const { clientWidth: w, clientHeight: h } = canvas
-    if (this.width === w && this.height === h) { return }
+    if (this.width === w && this.height === h) { return false }
 
     this.width = w
     this.height = h
     this.aspect = w / h
     this.renderer.setSize(w, h, /* updateStyle */ false)
+    return true
   }
 
   updateTime () {
@@ -86,6 +121,7 @@ ${p.name}:
     this.renderer.setAnimationLoop(() => {
       this.update()
       this.render()
+      this.endFrame()
     })
   }
 
@@ -104,6 +140,10 @@ ${p.name}:
   render () {
     this.renderer.render(this.scene, this.camera)
     this.checkShaderError()
+  }
+
+  endFrame () {
+    this.input = _.clone(kInputInit)
   }
 }
 
