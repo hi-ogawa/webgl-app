@@ -349,6 +349,10 @@ const M_mul = (a, b) => {
   throw new Error('M_mul');
 }
 
+const M_reciprocal = (m) => {
+  return m.clone().fromArray(m.toArray().map(x => 1 / x));
+}
+
 const M_diag = (p) => {
   if (p.isVector3) {
     const [a, b, c] = p.toArray();
@@ -493,6 +497,6 @@ export {
   yfovFromHeight, T_orthographic,
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
-  M_add, M_mul, M_diag, M_inverse,
+  M_add, M_mul, M_diag, M_inverse, M_reciprocal,
   pow2,
 };
