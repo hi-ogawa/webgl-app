@@ -3,6 +3,7 @@ WebGL shader examples using three.js
 ```
 # Development
 yarn install
+yarn snowpack_install
 yarn start # then open e.g. http://localhost:5000/src/ex04_julia/index.html
 
 # Testing
