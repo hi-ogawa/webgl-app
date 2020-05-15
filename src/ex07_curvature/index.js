@@ -1,14 +1,13 @@
-/* global fetch */
 /* eslint camelcase: 0 */
 
 //
-// Curvature and osculating circle
+// Osculating circle of graph (x, f(x))
 //
 
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import * as Utils from '../utils/index.js'
 import { AppBase, runApp } from '../utils/app.js'
-import { Camera2dHelper } from '../utils/misc.js'
+import { Camera2dHelper, makeDiskAlphaMap } from '../utils/misc.js'
 
 const { PI, cos, sin } = Math
 const {
@@ -62,9 +61,6 @@ class App extends AppBase {
       this.$('graph').geometry = Utils.makeBufferGeometry({ position })
     })
 
-    // Fetch glsl
-    const index_glsl = await (await fetch('./index.glsl')).text()
-
     // Axes/Grid
     {
       {
@@ -90,10 +86,17 @@ class App extends AppBase {
 
     // Points (tangent point and circle center)
     {
-      const geometry = Utils.makeBufferGeometry({ position: [[0, 0, 0], [0, 0, 0]] })
-      const material = Utils.makeShaderMaterial(index_glsl, { Main01: 1 })
-      material.uniforms = this.uniforms
-      material.transparent = true
+      const geometry = Utils.makeBufferGeometry({
+        position: [[0, 0, 0], [0, 0, 0]],
+        color: [[1, 1, 1], [1, 1, 0]]
+      })
+      const diskAlphaMap = makeDiskAlphaMap(3.5, 2)
+      const material = new THREE.PointsMaterial({
+        size: diskAlphaMap.image.width,
+        alphaMap: diskAlphaMap,
+        transparent: true,
+        vertexColors: true
+      })
 
       const object = new THREE.Points(geometry, material)
       object.name = 'points'
@@ -115,7 +118,7 @@ class App extends AppBase {
       const xs = Utils.linspace(0, 2 * PI, 128)
       const position = xs.map(x => [cos(x), sin(x), 0])
       const geometry = Utils.makeBufferGeometry({ position })
-      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial())
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffff00 }))
       object.name = 'circle'
       this.scene.add(object)
     }

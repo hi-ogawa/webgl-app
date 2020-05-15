@@ -1,11 +1,13 @@
 /* eslint camelcase: 0 */
 
+import _ from '../../web_modules/lodash.js'
+import * as THREE from '../../web_modules/three/build/three.module.js'
 import * as Utils from './index.js'
 
 const {
   vec2, vec3, vec4, mat3, mat4,
-  M_mul, M_diag, M_inverse,
-  T_translate
+  M_add, M_mul, M_diag, M_inverse,
+  T_translate, smoothstep01
 } = Utils
 
 class Camera2dHelper {
@@ -68,4 +70,22 @@ class Camera2dHelper {
   }
 }
 
-export { Camera2dHelper }
+const makeDiskAlphaMap = (radius, aa) => {
+  // cf. Main01 in ex05_camera_2d/index.glsl
+  const w = 2 * radius + 1 + aa
+  const h = 2 * radius + 1 + aa
+  const center = vec2(w / 2, h / 2)
+  const data = _.range(h).map(i => _.range(w).map(j => {
+    const coord = M_add(0.5, vec2(j, i))
+    const sd = M_add(coord, M_mul(-1, center)).length() - radius
+    const fac = 1.0 - smoothstep01(sd / aa + 0.5)
+    return [0, fac * 255, 0]
+  }))
+  const array = new Uint8Array(_.flattenDeep(data))
+  const tex = new THREE.DataTexture(array, w, h, THREE.RGBFormat)
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  return tex
+}
+
+export { Camera2dHelper, makeDiskAlphaMap }

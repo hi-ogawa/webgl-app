@@ -1,7 +1,7 @@
 import _ from '../../web_modules/lodash.js';
 import * as THREE from '../../web_modules/three/build/three.module.js';
 import { Vector2, Vector3, Vector4, Matrix3, Matrix4 } from '../../web_modules/three/build/three.module.js'
-const { tan, atan, sin, cos } = Math;
+const { tan, atan, sin, cos, max, min } = Math;
 
 
 class Array2d {
@@ -376,6 +376,10 @@ const M_inverse = (m) => {
   return m.clone().getInverse(m);
 }
 
+const smoothstep01 = (t) => {
+  t = max(0, min(1, t))
+  return (-2 * t + 3) * t * t
+}
 
 const yfovFromHeight = (height) => {
   return 2 * atan(height / 2);
@@ -498,5 +502,5 @@ export {
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_mul, M_diag, M_inverse, M_reciprocal,
-  pow2,
+  pow2, smoothstep01
 };
