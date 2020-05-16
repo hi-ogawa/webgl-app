@@ -58,7 +58,6 @@ class App extends AppBase {
 
     const g = Utils.makeBufferGeometry(UtilsMisc.makeLineAA(position))
     this.$('graph').geometry = g
-    // this.$('graph').geometry = Utils.makeBufferGeometry({ position })
   }
 
   async init () {

@@ -12,6 +12,9 @@ yarn run test
 # Linting e.g.
 yarn lint src/utils/*.js
 
+# Screenshot
+yarn screenshot_all
+
 # Deployment
 yarn run deploy
 ```

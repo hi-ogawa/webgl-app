@@ -5,7 +5,9 @@
     "deploy": "now -d -A config/now.json",
     "test": "mocha 'src/**/*.test.js'",
     "snowpack_install": "snowpack install --config config/snowpack.config.json",
-    "lint": "standard -v"
+    "lint": "standard -v",
+    "screenshot": "node scripts/screenshot.js",
+    "screenshot_all": "bash scripts/screenshot.sh"
   },
   "devDependencies": {
     "mocha": "^7.1.2",
