@@ -348,16 +348,34 @@ const M_mul = (a, b) => {
   throw new Error('M_mul')
 }
 
-const M_reciprocal = (m) => {
-  return m.clone().fromArray(m.toArray().map(x => 1 / x))
+const M_div = (a, b) => {
+  // Vector x Vector
+  if (a.isVector4 && b.isVector4) {
+    return a.clone().divide(b)
+  }
+  if (a.isVector3 && b.isVector3) {
+    return a.clone().divide(b)
+  }
+  if (a.isVector2 && b.isVector2) {
+    return a.clone().divide(b)
+  }
+
+  // Scalar
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a / b
+  }
+  if (typeof a === 'number') {
+    return b.clone().divideScalar(a)
+  }
+  if (typeof b === 'number') {
+    return a.clone().divideScalar(b)
+  }
+
+  throw new Error('M_div')
 }
 
 const M_sub = (a, b) => {
   return M_add(a, M_mul(-1, b))
-}
-
-const M_div = (a, b) => {
-  return M_mul(a, M_reciprocal(b))
 }
 
 const M_diag = (p) => {
@@ -457,6 +475,14 @@ function outer2 (v) {
   return outer(v, v)
 }
 
+function cross (u, v) {
+  return u.clone().cross(v)
+}
+
+function normalize (u) {
+  return u.clone().normalize()
+}
+
 function dot (u, v) {
   return _.sum(M_mul(u, v).toArray())
 }
@@ -500,6 +526,23 @@ function T_rotate (t) {
     0, 0, 1)
 }
 
+function toColor (p) {
+  return new THREE.Color(...p)
+}
+
+const patchThreeMath = (patch = true) => {
+  const klasses = [Vector2, Vector3, Vector4]
+  for (const klass of klasses) {
+    if (patch) {
+      Object.assign(klass.prototype, {
+        * [Symbol.iterator] () { yield * this.toArray() }
+      })
+    } else {
+      delete klass.prototype[Symbol.iterator]
+    }
+  }
+}
+
 export {
   Array2d, computeTopology, subdivTriforce, toIndexed, Quad,
   makeShaderMaterial, makeBufferGeometry,
@@ -507,6 +550,7 @@ export {
   yfovFromHeight, T_orthographic,
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
-  M_add, M_sub, M_mul, M_div, M_diag, M_inverse, M_reciprocal,
-  pow2, smoothstep01, dot, dot2, outer, outer2
+  M_add, M_sub, M_mul, M_div, M_diag, M_inverse,
+  pow2, smoothstep01, dot, dot2, outer, outer2, cross, normalize,
+  toColor, patchThreeMath
 }

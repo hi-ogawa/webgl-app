@@ -12,15 +12,14 @@ const kEventNames = [
   'mousedown', 'mouseup', 'mousemove', 'wheel'
 ]
 
-// cf. https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent
 const kInputInit = {
   mouse: vec2(-1, -1),
   mouseDelta: vec2(0, 0),
   wheel: 0,
+  // cf. https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
   buttons: 0,
-  ctrlKey: 0,
-  shiftKey: 0,
-  altKey: 0
+  // cf. https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
+  keys: {}
 }
 
 class AppBase {
@@ -43,9 +42,15 @@ class AppBase {
   inputFromMouseEvent (e) {
     this.input.mouse = this.yflip(vec2(e.clientX, e.clientY))
     this.input.mouseDelta = vec2(e.movementX, -e.movementY)
-    for (const key of ['buttons', 'ctrlKey', 'shiftKey', 'altKey']) {
-      this.input[key] = e[key]
-    }
+    this.input.buttons = e.buttons
+  }
+
+  keydown (event) {
+    this.input.keys[event.key] = true
+  }
+
+  keyup (event) {
+    this.input.keys[event.key] = false
   }
 
   mousedown (event) {
@@ -148,6 +153,8 @@ const runApp = async (AppKlass, container, contextType, contextAttrs) => {
   // Create canvas
   const canvas = document.createElement('canvas')
   container.appendChild(canvas)
+  canvas.tabIndex = 0 // allow keydown/keyup
+  canvas.focus() // initial key focus
 
   // Create context
   const context = canvas.getContext(

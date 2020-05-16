@@ -4,11 +4,16 @@ import _ from '../../web_modules/lodash.js'
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import * as Utils from './index.js'
 
+/* eslint-disable no-unused-vars */
+const { PI, cos, sin, pow } = Math
 const {
   vec2, vec3, vec4, mat3, mat4,
-  M_add, M_mul, M_diag, M_inverse,
-  T_translate, smoothstep01
+  M_add, M_sub, M_mul, M_div,
+  T_translate, T_axisAngle, M_diag, M_inverse,
+  pow2, dot, dot2, outer, outer2, cross, normalize,
+  smoothstep01
 } = Utils
+/* eslint-enable no-unused-vars */
 
 class Camera2dHelper {
   constructor (camera) {
@@ -86,6 +91,55 @@ const makeDiskAlphaMap = (radius, aa) => {
   tex.minFilter = THREE.LinearFilter
   tex.magFilter = THREE.LinearFilter
   return tex
+}
+
+const makeDiskPoints = (positions, colors, radius, aa_width) => {
+  const geometry = Utils.makeBufferGeometry({
+    position: positions,
+    color: colors
+  })
+  const diskAlphaMap = makeDiskAlphaMap(radius || 3.5, aa_width || 2)
+  const material = new THREE.PointsMaterial({
+    size: diskAlphaMap.image.width,
+    sizeAttenuation: false,
+    alphaMap: diskAlphaMap,
+    transparent: true,
+    depthTest: false,
+    vertexColors: true
+  })
+  const object = new THREE.Points(geometry, material)
+  return object
+}
+
+const makeFrame = () => {
+  const gArrow = new THREE.CylinderBufferGeometry(0, 0.05, 0.2, 12, 1)
+  const gLine = Utils.makeBufferGeometry({ position: [[0, 1, 0], [0, 0, 0]] })
+  const m = new THREE.MeshBasicMaterial()
+  const object = new THREE.Scene()
+
+  const patterns = [
+    [0xff0000, vec3(0, 0, 1), -0.5 * PI],
+    [0x00ff00, vec3(0, 0, 1), 0],
+    [0x0000ff, vec3(1, 0, 0), 0.5 * PI]
+  ]
+
+  for (const [color, axis, angle] of patterns) {
+    const mm = m.clone()
+    mm.color.set(color)
+
+    const o1 = new THREE.Mesh(gArrow, mm)
+    o1.position.copy(vec3(0, 1, 0))
+
+    const o2 = new THREE.Line(gLine, mm)
+
+    const o = new THREE.Scene()
+    o.add(o1)
+    o.add(o2)
+    o.applyMatrix4(mat4(T_axisAngle(axis, angle)))
+    object.add(o)
+  }
+
+  return object
 }
 
 const makeGrid = (axis, size) => {
@@ -185,5 +239,5 @@ const makeLineAA = (position, color) => {
 export {
   Camera2dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
-  makeLineSegmentsAA, makeLineAA
+  makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame
 }

@@ -140,13 +140,13 @@ class App extends AppBase {
 
     {
       // Input handling
-      const { mouse, mouseDelta, wheel, buttons, shiftKey } = this.input
+      const { mouse, mouseDelta, wheel, buttons, keys } = this.input
       if (wheel !== 0) {
         this.cameraHelper.zoom(mouse, wheel / 1024)
       }
 
       if (buttons === 1) {
-        if (shiftKey) {
+        if (keys.Shift) {
           this.cameraHelper.move(M_mul(-1, mouseDelta))
         } else {
           this.p = this.cameraHelper.windowToWorld(mouse)

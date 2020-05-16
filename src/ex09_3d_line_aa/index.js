@@ -124,9 +124,6 @@ class App extends AppBase {
 
       const g = new THREE.BufferGeometry()
       const object = new THREE.Mesh(g, m)
-
-      // const object = new THREE.Line(
-      //   new THREE.BufferGeometry(), new THREE.LineBasicMaterial())
       object.name = 'graph'
       this.scene.add(object)
       this.makeCurve()
@@ -135,8 +132,8 @@ class App extends AppBase {
     // Origin point
     {
       const geometry = Utils.makeBufferGeometry({
-        position: [[0, 0, 0], [0, 0, 0]],
-        color: [[1, 1, 1], [1, 1, 0]]
+        position: [[0, 0, 0]],
+        color: [[1, 1, 1]]
       })
       const diskAlphaMap = UtilsMisc.makeDiskAlphaMap(3.5, 2) // radius, aa
       const material = new THREE.PointsMaterial({

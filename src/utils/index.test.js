@@ -45,9 +45,17 @@ describe('subdivTriforce', () => {
   })
 })
 
-describe('Matrix', () => {
-  const { vec2, vec3, vec4, mat3, mat4, M_add, M_mul, M_diag, T_translate, T_axisAngle } = Utils
+/* eslint-disable no-unused-vars */
+const {
+  vec2, vec3, vec4, mat3, mat4,
+  M_add, M_sub, M_mul, M_div,
+  T_translate, T_axisAngle, M_diag,
+  pow2, dot, dot2, outer, outer2, cross, normalize,
+  toColor, patchThreeMath
+} = Utils
+/* eslint-enable no-unused-vars */
 
+describe('Matrix', () => {
   it('works 00', () => {
     const m = mat3(
       0, 1, 2,
@@ -96,5 +104,17 @@ describe('Matrix', () => {
       vec4(1, 0, 0, 1)
     ].reduce(M_mul)
     assert.deepStrictEqual([9, 11, 13, 1], actual.toArray())
+  })
+})
+
+describe('patchThreeMath', () => {
+  it('works (Symbol.iterator)', () => {
+    patchThreeMath()
+    assert.deepStrictEqual([...vec3(1)], [1, 1, 1])
+    patchThreeMath(false)
+    let error
+    try { [...vec3(1)] } catch (e) { error = e } // eslint-disable-line
+    assert(error instanceof TypeError)
+    assert(error.toString().endsWith('is not iterable'))
   })
 })

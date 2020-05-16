@@ -6,6 +6,7 @@
     "test": "mocha 'src/**/*.test.js'",
     "snowpack_install": "snowpack install --config config/snowpack.config.json",
     "lint": "standard -v",
+    "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
     "screenshot": "node scripts/screenshot.js",
     "screenshot_all": "bash scripts/screenshot.sh"
   },
