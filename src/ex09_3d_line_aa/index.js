@@ -166,6 +166,8 @@ class App extends AppBase {
   }
 }
 
-const main = () => runApp(App, document.querySelector('#root'))
+const main = () => runApp(
+  App, document.querySelector('#root'),
+  'webgl2', { antialias: false })
 
 export { main }

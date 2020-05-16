@@ -70,13 +70,14 @@ class App extends AppBase {
     }
 
     {
-      const geometry = Utils.makeBufferGeometry({
+      const g = Utils.makeBufferGeometry({
         position: [[-1, 0, 0], [+1, 0, 0], [0, -1, 0], [0, +1, 0]],
         color: [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0]]
       })
-      const axes = new THREE.LineSegments(
-        geometry,
-        new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }))
+      const m = new THREE.LineBasicMaterial({
+        vertexColors: true, toneMapped: false, linewidth: 2
+      })
+      const axes = new THREE.LineSegments(g, m)
       axes.scale.copy(vec3(1e3, 1e3, 1))
       axes.position.copy(vec3(0, 0, -2))
       this.scene.add(axes)
@@ -105,8 +106,9 @@ class App extends AppBase {
     {
       const xs = Utils.linspace(-20, 20, 256)
       const position = xs.map(x => [x, this.f(x), 0])
-      const geometry = Utils.makeBufferGeometry({ position })
-      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial())
+      const g = Utils.makeBufferGeometry({ position })
+      const m = new THREE.LineBasicMaterial({ linewidth: 2 })
+      const object = new THREE.Line(g, m)
       object.name = 'graph'
       this.scene.add(object)
     }
@@ -115,8 +117,9 @@ class App extends AppBase {
     {
       const xs = Utils.linspace(0, 2 * PI, 128)
       const position = xs.map(x => [cos(x), sin(x), 0])
-      const geometry = Utils.makeBufferGeometry({ position })
-      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffff00 }))
+      const g = Utils.makeBufferGeometry({ position })
+      const m = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 })
+      const object = new THREE.Line(g, m)
       object.name = 'circle'
       this.scene.add(object)
     }
@@ -124,8 +127,9 @@ class App extends AppBase {
     // line x = x0
     {
       const position = [[0, -1e2, 0], [0, 1e2, 0]]
-      const geometry = Utils.makeBufferGeometry({ position })
-      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial())
+      const g = Utils.makeBufferGeometry({ position })
+      const m = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 })
+      const object = new THREE.Line(g, m)
       object.name = 'x = x0'
       this.scene.add(object)
     }

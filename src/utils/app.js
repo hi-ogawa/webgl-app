@@ -24,11 +24,8 @@ const kInputInit = {
 }
 
 class AppBase {
-  constructor (canvas) {
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: canvas,
-      context: canvas.getContext('webgl2', { alpha: false, antialias: false })
-    })
+  constructor (canvas, context) {
+    this.renderer = new THREE.WebGLRenderer({ canvas, context })
     this.scene = new THREE.Scene()
     this.camera = null
     this.width = 0
@@ -147,13 +144,18 @@ ${p.name}:
   }
 }
 
-const runApp = async (AppKlass, container) => {
+const runApp = async (AppKlass, container, contextType, contextAttrs) => {
   // Create canvas
   const canvas = document.createElement('canvas')
   container.appendChild(canvas)
 
+  // Create context
+  const context = canvas.getContext(
+    (contextType || 'webgl'),
+    _.assign({ alpha: false, antialias: true }, contextAttrs))
+
   // Create app
-  const app = new AppKlass(canvas)
+  const app = new AppKlass(canvas, context)
   await app.init()
 
   // Start
