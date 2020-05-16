@@ -27,7 +27,7 @@ class AppBase {
   constructor (canvas) {
     this.renderer = new THREE.WebGLRenderer({
       canvas: canvas,
-      context: canvas.getContext('webgl2', { alpha: false })
+      context: canvas.getContext('webgl2', { alpha: false, antialias: false })
     })
     this.scene = new THREE.Scene()
     this.camera = null
