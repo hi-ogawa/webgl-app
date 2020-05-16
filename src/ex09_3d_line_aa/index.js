@@ -1,4 +1,4 @@
-/* eslint camelcase: 0 */
+/* eslint camelcase: 0, no-eval: 0 */
 /* global fetch */
 
 //
@@ -12,12 +12,14 @@ import * as Utils from '../utils/index.js'
 import * as UtilsMisc from '../utils/misc.js'
 import { AppBase, runApp } from '../utils/app.js'
 
+/* eslint-disable no-unused-vars */
 const { PI, cos, sin } = Math
 const {
   vec2, vec3, vec4, mat3,
   M_add, M_mul,
   pow2
 } = Utils
+/* eslint-enable no-unused-vars */
 
 class App extends AppBase {
   constructor () {
@@ -54,7 +56,7 @@ class App extends AppBase {
     const position = Utils.linspace(...ts).map(f)
     this.$('graph').geometry.dispose()
 
-    const g = Utils.makeBufferGeometry(UtilsMisc.makeLineAA(position));
+    const g = Utils.makeBufferGeometry(UtilsMisc.makeLineAA(position))
     this.$('graph').geometry = g
     // this.$('graph').geometry = Utils.makeBufferGeometry({ position })
   }

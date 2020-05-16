@@ -90,11 +90,11 @@ const makeDiskAlphaMap = (radius, aa) => {
 
 const makeGrid = (axis, size) => {
   const position = []
-  const jj = (axis + 1) % 3;
-  const kk = (axis + 2) % 3;
+  const jj = (axis + 1) % 3
+  const kk = (axis + 2) % 3
   for (const [j, k] of [[jj, kk], [kk, jj]]) {
     for (const l of _.range(-size, size + 1)) {
-      if (l === 0) { continue; }
+      if (l === 0) { continue }
       const [p1, p2] = [[0, 0, 0], [0, 0, 0]]
       p1[j] = p2[j] = l
       p1[k] = +size
@@ -128,7 +128,7 @@ const quadToTriIndex = ([a, b, c, d]) => [[a, b, c], [a, c, d]]
 const makeLineSegmentsAA = (position, color) => {
   // Make input for "manual geometry shader" (cf. ex09_3d_line_aa)
   const num_lines = position.length / 2
-  const index =_.chunk(_.range(4 * num_lines), 4).map(quadToTriIndex)
+  const index = _.chunk(_.range(4 * num_lines), 4).map(quadToTriIndex)
 
   const p1 = []
   const p2 = []
@@ -151,12 +151,12 @@ const makeLineSegmentsAA = (position, color) => {
   }
 
   if (color) { result.color = cc }
-  return result;
+  return result
 }
 
 const makeLineAA = (position, color) => {
   const num_lines = position.length - 1
-  const index =_.chunk(_.range(4 * num_lines), 4).map(quadToTriIndex)
+  const index = _.chunk(_.range(4 * num_lines), 4).map(quadToTriIndex)
 
   const p1 = []
   const p2 = []
@@ -179,7 +179,7 @@ const makeLineAA = (position, color) => {
   }
 
   if (color) { result.color = cc }
-  return result;
+  return result
 }
 
 export {

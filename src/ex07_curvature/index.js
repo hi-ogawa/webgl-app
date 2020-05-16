@@ -1,4 +1,4 @@
-/* eslint camelcase: 0 */
+/* eslint camelcase: 0, no-eval: 0 */
 
 //
 // Osculating circle of graph (x, f(x))
@@ -63,25 +63,23 @@ class App extends AppBase {
 
     // Axes/Grid
     {
-      {
-        const grid = new THREE.GridHelper(32, 32)
-        grid.applyMatrix4(mat4(T_axisAngle(vec3(1, 0, 0), 0.5 * PI)))
-        grid.position.copy(vec3(0, 0, -3))
-        this.scene.add(grid)
-      }
+      const grid = new THREE.GridHelper(32, 32)
+      grid.applyMatrix4(mat4(T_axisAngle(vec3(1, 0, 0), 0.5 * PI)))
+      grid.position.copy(vec3(0, 0, -3))
+      this.scene.add(grid)
+    }
 
-      {
-        const geometry = Utils.makeBufferGeometry({
-          position: [[-1, 0, 0], [+1, 0, 0], [0, -1, 0], [0, +1, 0]],
-          color: [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0]]
-        })
-        const axes = new THREE.LineSegments(
-          geometry,
-          new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }))
-        axes.scale.copy(vec3(1e3, 1e3, 1))
-        axes.position.copy(vec3(0, 0, -2))
-        this.scene.add(axes)
-      }
+    {
+      const geometry = Utils.makeBufferGeometry({
+        position: [[-1, 0, 0], [+1, 0, 0], [0, -1, 0], [0, +1, 0]],
+        color: [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0]]
+      })
+      const axes = new THREE.LineSegments(
+        geometry,
+        new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }))
+      axes.scale.copy(vec3(1e3, 1e3, 1))
+      axes.position.copy(vec3(0, 0, -2))
+      this.scene.add(axes)
     }
 
     // Points (tangent point and circle center)
