@@ -1,6 +1,7 @@
 {
   "type": "module",
   "devDependencies": {
+    "argparse": "^1.0.10",
     "puppeteer": "^3.0.4"
   }
 }

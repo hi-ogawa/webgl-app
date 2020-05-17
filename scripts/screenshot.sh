@@ -8,4 +8,4 @@ for DIR in $(ls -d src/ex*); do
   ARGS+=( scripts/screenshots/$(basename "${DIR}").png )
 done
 
-node scripts/screenshot.js "${ARGS[@]}"
+node scripts/screenshot.js "${ARGS[@]}" --width 400 --height 300

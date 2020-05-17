@@ -1,21 +1,24 @@
 /* eslint camelcase: 0 */
 
 import puppeteer from 'puppeteer'
+import argparse from 'argparse'
 import process from 'process'
 import _ from 'lodash'
 
-// TODO: support options
-// - render timeout (currently 3sec)
-// - width/height
 const main = () => {
-  const urls_outfiles = process.argv.slice(2)
-  const len = urls_outfiles.length
-  if (!(0 < len && len % 2 === 0)) {
-    console.error('Usage: <program> <url-1> <outfile-1> <url-2> <outfile-2> ...');
-    process.exitCode = 1;
-    return;
+  const parser = new (argparse.ArgumentParser)()
+  parser.addArgument('--width', { type: Number, defaultValue: 800 })
+  parser.addArgument('--height', { type: Number, defaultValue: 600 })
+  parser.addArgument('--timeout', { type: Number, defaultValue: 10 })
+  parser.addArgument('url and outfile', { nargs: '+' })
+  const args = parser.parseArgs()
+  const urls_outfiles = args['url and outfile']
+  if (!(urls_outfiles.length % 2 === 0)) {
+    console.error('[error] url and outfile is not paired')
+    process.exitCode = 1
+    return
   }
-  runBrowser(_.chunk(urls_outfiles, 2))
+  runBrowser(_.chunk(urls_outfiles, 2), args)
 }
 
 // Allow only single "requestAnimationFrame" callback
@@ -46,44 +49,57 @@ const script_onNewDocument = () => {
   window.requestAnimationFrame = newRAF
 }
 
-const script_evaluate = async () => {
+const script_evaluate = async (options) => {
+  // Remove dat.gui
+  const style = document.createElement('style')
+  style.type = 'text/css'
+  style.innerHTML = '.dg.ac { display: none; }'
+  document.body.appendChild(style)
+
   // Triggers "START"
   window._START = true
 
   return await new Promise(resolve => {
-    let timeStart = performance.now()
+    const timeStart = window.performance.now()
     // Wait for "FINISH"
     const handle = setInterval(() => {
-      let timeNow = performance.now()
-      if (3000 < timeNow - timeStart) {
-        resolve({ ok: false, message: 'Render timeout' })
+      const timeNow = window.performance.now()
+      const timeDiff = (timeNow - timeStart) / 1000
+      if (options.timeout < timeDiff) {
+        resolve({ ok: false, message: `timeout ${timeDiff}` })
       }
       if (window._FINISH) {
         clearInterval(handle)
-        resolve({ ok: true })
+        resolve({ ok: true, message: `time ${timeDiff}` })
       }
     }, 100)
   })
 }
 
-const runBrowser = async (urls_outfiles) => {
+const runBrowser = async (urls_outfiles, options) => {
   const browser = await puppeteer.launch()
   const page = await browser.newPage()
 
   page.on('console', msg => console.log(`[BROWSER-CONSOLE] ${msg.text()}`))
-  await page.setViewport({ width: 400, height: 300 })
+  await page.setViewport(_.pick(options, ['width', 'height']))
   await page.evaluateOnNewDocument(script_onNewDocument)
+
   for (const [url, outfile] of urls_outfiles) {
     console.log(`[NODE-CONSOLE]: navigate to ${url}`)
+
     await page.goto(url, { waitUntil: 'networkidle2' })
-    const result = await page.evaluate(script_evaluate)
+    const result = await page.evaluate(script_evaluate, options)
+
     if (!result.ok) {
       console.log(`[NODE-CONSOLE]: failure : ${result.message}`)
       continue
     }
-    console.log(`[NODE-CONSOLE]: savging to ${outfile}`)
+
+    console.log(`[NODE-CONSOLE]: message : ${result.message}`)
+    console.log(`[NODE-CONSOLE]: savging image to ${outfile}`)
     await page.screenshot({ path: outfile })
   }
+
   await browser.close()
 }
 
