@@ -5,11 +5,11 @@ import * as THREE from '../../web_modules/three/build/three.module.js'
 import * as Utils from './index.js'
 
 /* eslint-disable no-unused-vars */
-const { PI, cos, sin, pow } = Math
+const { PI, cos, sin, pow, sign } = Math
 const {
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_sub, M_mul, M_div,
-  T_translate, T_axisAngle, M_diag, M_inverse,
+  T_translate, T_axisAngle, M_diag, M_inverse, M_get,
   pow2, dot, dot2, outer, outer2, cross, normalize,
   smoothstep01
 } = Utils
@@ -24,11 +24,6 @@ class Camera2dHelper {
     this.height = 0
     this.aspect = 0
     this.window_to_camera = mat4(1)
-    this.window_to_world = mat4(1)
-  }
-
-  windowToWorld (xy) {
-    return vec2(M_mul(this.window_to_world, vec4(xy, 0, 1)))
   }
 
   move (dxy) {
@@ -65,13 +60,65 @@ class Camera2dHelper {
       T_translate(vec3(-1, -1, 0)), // window to ndc (translate)
       M_diag(vec4(2 / this.width, 2 / this.height, 0, 1)) // window to ndc (scale)
     ].reduce(M_mul)
+  }
+}
 
-    this.window_to_world = [
-      M_diag(vec4(1, 1, 0, 1)), // to z = 0
-      this.camera.matrix,
-      T_translate(vec3(0, 0, -1)), // to z = -1
-      this.window_to_camera
-    ].reduce(M_mul)
+class Camera3dHelper {
+  constructor (camera) {
+    this.camera = camera
+    this.camera.matrixAutoUpdate = false
+    this.yfov = 4
+    this.aspect = 1
+    this.lookat = vec3(0)
+  }
+
+  init () {
+    const up = vec3(0, 1, 0)
+    const camera_p = this.camera.position
+    const z = normalize(M_sub(camera_p, this.lookat))
+    const x = normalize(cross(up, z))
+    const y = cross(z, x)
+    this.camera.matrix = M_mul(T_translate(camera_p), mat4(mat3(x, y, z)))
+    this.update()
+  }
+
+  move (dxy) {
+    // Project `dxy` to plane of "z = lookat.z"
+    dxy = M_mul(dxy, M_sub(this.camera.position, this.lookat).length())
+    this.lookat = M_add(
+      this.lookat, M_mul(mat3(this.camera.matrix), vec3(dxy)))
+    this.camera.matrix = M_mul(
+      this.camera.matrix, T_translate(vec3(dxy, 0)))
+    this.update()
+  }
+
+  zoom (delta) {
+    const l = M_sub(this.camera.position, this.lookat).length()
+    const dl = (1 - pow(2, -delta)) * l
+    this.camera.matrix = M_mul(
+      this.camera.matrix, T_translate(vec3(0, 0, -dl)))
+    this.update()
+  }
+
+  orbit (dxy) {
+    const XX = M_get(mat3(this.camera.matrix), 0)
+    const YY = M_get(mat3(this.camera.matrix), 1)
+
+    // when camera is upside-down, we flip "horizontal" orbit direction (as in Blender).
+    const flip = sign(dot(YY, vec3(0.0, 1.0, 0.0)))
+
+    // vertical/horizontal
+    const orbit_v = T_axisAngle(XX, dxy.y)
+    const orbit_h = T_axisAngle(vec3(0, 1, 0), flip * dxy.x)
+    const orbit = M_mul(orbit_h, orbit_v)
+
+    this.camera.matrix = M_mul(mat4(orbit), this.camera.matrix)
+    this.update()
+  }
+
+  update () {
+    this.camera.applyMatrix4(mat4(1)) // trigger `decompose`
+    this.camera.updateMatrixWorld(true)
   }
 }
 
@@ -237,7 +284,7 @@ const makeLineAA = (position, color) => {
 }
 
 export {
-  Camera2dHelper,
+  Camera2dHelper, Camera3dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
   makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame
 }

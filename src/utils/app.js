@@ -5,7 +5,12 @@ import * as THREE from '../../web_modules/three/build/three.module.js'
 import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js'
 import * as Utils from './index.js'
 
-const { vec2 } = Utils
+/* eslint-disable no-unused-vars, camelcase */
+const {
+  vec2, vec3, vec4, mat3, mat4,
+  M_add, M_sub, M_mul, M_div, M_get
+} = Utils
+/* eslint-enable no-unused-vars */
 
 const kEventNames = [
   'keydown', 'keyup',
@@ -53,6 +58,7 @@ class AppBase {
     this.input.keys[event.key] = false
   }
 
+  // TODO: by this approach, some mouse event can be lost (cf. https://github.com/mrdoob/three.js/issues/19101)
   mousedown (event) {
     this.inputFromMouseEvent(event)
   }
@@ -67,6 +73,29 @@ class AppBase {
   }
 
   yflip (xy) { return vec2(xy.x, this.height - xy.y - 1) }
+
+  // TODO: implement this as mat4 (update logic can be sketchy though)
+  windowToCamera (xy) {
+    const [x, y] = xy.toArray()
+    const m00 = M_get(this.camera.projectionMatrix, 0, 0)
+    const m11 = M_get(this.camera.projectionMatrix, 1, 1)
+    const [w, h] = [this.width, this.height]
+    return vec2((2 * x / w - 1) / m00, (2 * y / h - 1) / m11)
+  }
+
+  windowToCameraDelta (dxy) {
+    return M_sub(this.windowToCamera(dxy), this.windowToCamera(vec2(0)))
+  }
+
+  windowToWorld (xy) {
+    return M_mul(
+      mat3(this.camera.matrix),
+      vec3(this.windowToCamera(xy), -1))
+  }
+
+  windowToWorldDelta (dxy) {
+    return M_sub(this.windowToWorld(dxy), this.windowToWorld(vec2(0)))
+  }
 
   updateSize () {
     const canvas = this.renderer.domElement

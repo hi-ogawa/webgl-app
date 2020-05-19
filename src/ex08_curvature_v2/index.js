@@ -175,20 +175,6 @@ class App extends AppBase {
     this.updateOsculatingCircle(0)
   }
 
-  windowToCamera (xy) {
-    const [x, y] = xy.toArray()
-    const m00 = this.camera.projectionMatrix.elements[0]
-    const m11 = this.camera.projectionMatrix.elements[5]
-    const [w, h] = [this.width, this.height]
-    return vec2((2 * x / w - 1) / m00, (2 * y / h - 1) / m11)
-  }
-
-  windowToWorld (xy) {
-    return M_mul(
-      mat3(this.camera.matrix),
-      vec3(this.windowToCamera(xy), -1))
-  }
-
   updateOsculatingCircle (t) {
     const [f] = this.evalCurveParams()
 
@@ -202,7 +188,7 @@ class App extends AppBase {
     const ddF = M_div(M_sub(M_add(FtP, FtN), M_mul(2, Ft)), dt * dt)
 
     // Find osculating circle parameter (G is arc-length parametrized curve)
-    // cf. https://hi-ogawa.github.io/markdown-tex/?id=e40372524f96337f1f2066ad332b4d2b&filename=curvature-00-1d-on-2d
+    // cf. https://hi-ogawa.github.io/markdown-tex/?id=e40372524f96337f1f2066ad332b4d2b&filename=curvature
     const ddG = M_mul(-1 / pow(dF.length(), 4), cross(dF, cross(dF, ddF)))
     const k = ddG.length()
     const u = M_div(ddG, k)

@@ -401,6 +401,19 @@ const M_inverse = (m) => {
   return m.clone().getInverse(m)
 }
 
+const M_get = (m, i, j) => {
+  let size
+  let ctor
+  if (m.isMatrix3) { size = 3; ctor = vec3 } else
+  if (m.isMatrix4) { size = 4; ctor = vec4 } else { throw new Error('M_get') }
+
+  const column = m.elements.slice(size * i, size * (i + 1))
+  if (j !== undefined) {
+    return column[j]
+  }
+  return ctor(...column)
+}
+
 const smoothstep01 = (t) => {
   t = max(0, min(1, t))
   return (-2 * t + 3) * t * t
@@ -422,6 +435,21 @@ const T_orthographic = (yfov, aspect_ratio, near, far) => {
     0, d, 0, 0,
     0, 0, a, 0,
     0, 0, b, 1)
+}
+
+const T_perspective = (yfov, aspect_ratio, near, far) => {
+  const half_h = tan(yfov / 2.0)
+  const half_w = aspect_ratio * half_h
+  const a = -(far + near) / (far - near)
+  const b = -2 * far * near / (far - near)
+  const c = 1.0 / half_w
+  const d = 1.0 / half_h
+  const e = -1.0
+  return mat4(
+    c, 0, 0, 0,
+    0, d, 0, 0,
+    0, 0, a, e,
+    0, 0, b, 0)
 }
 
 const T_scale = (p) => {
@@ -547,10 +575,10 @@ export {
   Array2d, computeTopology, subdivTriforce, toIndexed, Quad,
   makeShaderMaterial, makeBufferGeometry,
   linspace,
-  yfovFromHeight, T_orthographic,
+  yfovFromHeight, T_orthographic, T_perspective,
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
-  M_add, M_sub, M_mul, M_div, M_diag, M_inverse,
+  M_add, M_sub, M_mul, M_div, M_diag, M_inverse, M_get,
   pow2, smoothstep01, dot, dot2, outer, outer2, cross, normalize,
   toColor, patchThreeMath
 }

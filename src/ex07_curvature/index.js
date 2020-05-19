@@ -149,14 +149,14 @@ class App extends AppBase {
         if (keys.Shift) {
           this.cameraHelper.move(M_mul(-1, mouseDelta))
         } else {
-          this.p = this.cameraHelper.windowToWorld(mouse)
+          this.p = vec2(this.windowToWorld(mouse))
         }
       }
     }
 
     {
       // Compute osculating circle
-      // cf. https://hi-ogawa.github.io/markdown-tex/?id=e40372524f96337f1f2066ad332b4d2b&filename=curvature-00-1d-on-2d
+      // cf. https://hi-ogawa.github.io/markdown-tex/?id=e40372524f96337f1f2066ad332b4d2b&filename=curvature
       const x = this.p.x
       const y = this.f(x)
       const dx = 1e-3

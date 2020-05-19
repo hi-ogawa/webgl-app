@@ -49,7 +49,7 @@ describe('subdivTriforce', () => {
 const {
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_sub, M_mul, M_div,
-  T_translate, T_axisAngle, M_diag,
+  T_translate, T_axisAngle, M_diag, M_get,
   pow2, dot, dot2, outer, outer2, cross, normalize,
   toColor, patchThreeMath
 } = Utils
@@ -104,6 +104,17 @@ describe('Matrix', () => {
       vec4(1, 0, 0, 1)
     ].reduce(M_mul)
     assert.deepStrictEqual([9, 11, 13, 1], actual.toArray())
+  })
+
+  it('works 04', () => {
+    const m = mat3(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    assert.strictEqual(M_get(m, 0, 2), 3)
+    assert.strictEqual(M_get(m, 2, 1), 8)
+    assert.deepStrictEqual(M_get(m, 2).toArray(), [7, 8, 9])
+  })
+
+  it('works 05', () => {
+    assert.deepStrictEqual(M_mul(vec2(-1, -1), vec2(1, 1)).toArray(), [-1, -1])
   })
 })
 
