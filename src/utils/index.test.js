@@ -129,3 +129,9 @@ describe('patchThreeMath', () => {
     assert(error.toString().endsWith('is not iterable'))
   })
 })
+
+describe('linspace', () => {
+  it('works', () => {
+    assert.deepStrictEqual(Utils.linspace(1, 3, 4), [1, 1.5, 2, 2.5, 3])
+  })
+})

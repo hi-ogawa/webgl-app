@@ -401,6 +401,9 @@ const M_inverse = (m) => {
   return m.clone().getInverse(m)
 }
 
+const diag = M_diag
+const inverse = M_inverse
+
 const M_get = (m, i, j) => {
   let size
   let ctor
@@ -579,6 +582,7 @@ export {
   T_scale, T_translate, T_axisAngle, T_rotate,
   vec2, vec3, vec4, mat3, mat4,
   M_add, M_sub, M_mul, M_div, M_diag, M_inverse, M_get,
-  pow2, smoothstep01, dot, dot2, outer, outer2, cross, normalize,
+  dot, inverse, cross, normalize,
+  diag, pow2, smoothstep01, dot2, outer, outer2,
   toColor, patchThreeMath
 }

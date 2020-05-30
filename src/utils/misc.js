@@ -63,12 +63,13 @@ class Camera2dHelper {
   }
 }
 
+// TODO:
+// when using this (instead of usual OrbitControls), screenshot.js fails to render lines.
+// probably, it's because some necessarily matrix update is skipped?
 class Camera3dHelper {
   constructor (camera) {
     this.camera = camera
     this.camera.matrixAutoUpdate = false
-    this.yfov = 4
-    this.aspect = 1
     this.lookat = vec3(0)
   }
 

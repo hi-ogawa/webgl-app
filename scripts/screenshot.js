@@ -26,6 +26,7 @@ const main = () => {
 
 const script_onNewDocument = () => {
   window._FRAME_ID = 0
+  window._NUM_FRAMES = 1
   window._START = false
   window._FINISH = false
 
@@ -37,8 +38,8 @@ const script_onNewDocument = () => {
       return
     }
     oldRAF(() => {
-      if (window._FRAME_ID === 0) {
-        callback(0) // eslint-disable-line
+      if (window._FRAME_ID < window._NUM_FRAMES) {
+        callback(window._FRAME_ID * 1000 / 60) // eslint-disable-line
       } else {
         // 2nd call of RAF triggers "FINISH"
         window._FINISH = true
