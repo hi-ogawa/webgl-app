@@ -7,11 +7,13 @@ import * as Utils from './index.js'
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, sign } = Math
 const {
-  vec2, vec3, vec4, mat3, mat4,
-  M_add, M_sub, M_mul, M_div,
-  T_translate, T_axisAngle, M_diag, M_inverse, M_get,
-  pow2, dot, dot2, outer, outer2, cross, normalize,
-  smoothstep01
+  vec2, vec3, vec4, mat2, mat3, mat4,
+  M_add, M_sub, M_mul, M_div, M_get,
+  T_translate, T_axisAngle,
+  dot, inverse, cross, normalize, transpose,
+  diag, pow2, smoothstep01, dot2, outer, outer2,
+  eigen_mat2, sqrt_mat2,
+  toColor
 } = Utils
 /* eslint-enable no-unused-vars */
 
@@ -55,10 +57,10 @@ class Camera2dHelper {
       this.aspect, 0, 1e4)
 
     this.window_to_camera = [
-      M_diag(vec4(1, 1, 0, 1)), // to z = 0
-      M_inverse(this.camera.projectionMatrix), // inverse projection
+      diag(vec4(1, 1, 0, 1)), // to z = 0
+      inverse(this.camera.projectionMatrix), // inverse projection
       T_translate(vec3(-1, -1, 0)), // window to ndc (translate)
-      M_diag(vec4(2 / this.width, 2 / this.height, 0, 1)) // window to ndc (scale)
+      diag(vec4(2 / this.width, 2 / this.height, 0, 1)) // window to ndc (scale)
     ].reduce(M_mul)
   }
 }
@@ -68,6 +70,7 @@ class Camera2dHelper {
 // probably, it's because some necessarily matrix update is skipped?
 class Camera3dHelper {
   constructor (camera) {
+    // NOTE: actually `camera` doesn't have to be `Camera` class
     this.camera = camera
     this.camera.matrixAutoUpdate = false
     this.lookat = vec3(0)
@@ -108,12 +111,19 @@ class Camera3dHelper {
     // when camera is upside-down, we flip "horizontal" orbit direction (as in Blender).
     const flip = sign(dot(YY, vec3(0.0, 1.0, 0.0)))
 
-    // vertical/horizontal
+    // vertical/horizontal orbit
     const orbit_v = T_axisAngle(XX, dxy.y)
     const orbit_h = T_axisAngle(vec3(0, 1, 0), flip * dxy.x)
     const orbit = M_mul(orbit_h, orbit_v)
 
-    this.camera.matrix = M_mul(mat4(orbit), this.camera.matrix)
+    // "lookat" frame
+    const toLookat = T_translate(M_mul(-1, this.lookat))
+    const fromLookat = T_translate(this.lookat)
+
+    this.camera.matrix = [
+      fromLookat, mat4(orbit), toLookat, this.camera.matrix
+    ].reduce(M_mul)
+
     this.update()
   }
 
@@ -284,8 +294,66 @@ const makeLineAA = (position, color) => {
   return result
 }
 
+const makeDisk = (n) => {
+  const circle = Utils.linspace(0, 2 * PI, n).map(x => [cos(x), sin(x), 0])
+  const position = circle.concat([[0, 0, 0]])
+  return Utils.makeBufferGeometry({
+    position: position,
+    normal: Array(position.length).fill([0, 0, 1]),
+    index: _.range(n).map(i => [i, (i + 1) % n, n])
+  })
+}
+
+const getAttributeElement = (geometry, name, index) => {
+  let attribute, itemSize
+  if (name === 'index') {
+    attribute = geometry.index
+    itemSize = 3
+  } else {
+    attribute = geometry.attributes[name]
+    itemSize = attribute.itemSize
+  }
+  return Array.from(attribute.array.slice(itemSize * index, itemSize * (index + 1)))
+}
+
+// no change in z
+const makeWindowToNdc = (w, h) => {
+  return [
+    T_translate(vec3(-1, -1, 0)),
+    diag(vec4(2 / w, 2 / h, 1, 1))
+  ].reduce(M_mul)
+}
+
+// force z = -1
+const makeNdcToCamera = (camera) => {
+  const m00 = M_get(camera.projectionMatrix, 0, 0)
+  const m11 = M_get(camera.projectionMatrix, 1, 1)
+  return [
+    T_translate(vec3(0, 0, -1)), // to z = -1
+    diag(vec4(1 / m00, 1 / m11, 0, 1)) // inverse projection to z = 0
+  ].reduce(M_mul)
+}
+
+const makeWindowToCamera = (w, h, camera) => {
+  const windowToNdc = makeWindowToNdc(w, h)
+  const ndcToCamera = makeNdcToCamera(camera)
+  return M_mul(ndcToCamera, windowToNdc)
+}
+
+const makeWindowToRay = (w, h, camera) => {
+  const windowToCamera = makeWindowToCamera(w, h, camera)
+  return M_mul(mat4(mat3(camera.matrixWorld)), windowToCamera)
+}
+
+const makeWindowToWorld = (w, h, camera) => {
+  const windowToCamera = makeWindowToCamera(w, h, camera)
+  return M_mul(camera.matrixWorld, windowToCamera)
+}
+
 export {
   Camera2dHelper, Camera3dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
-  makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame
+  makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame,
+  makeDisk, getAttributeElement,
+  makeWindowToCamera, makeWindowToWorld, makeWindowToRay
 }

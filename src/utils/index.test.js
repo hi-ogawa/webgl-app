@@ -46,11 +46,14 @@ describe('subdivTriforce', () => {
 })
 
 /* eslint-disable no-unused-vars */
+const { abs } = Math
 const {
-  vec2, vec3, vec4, mat3, mat4,
+  vec2, vec3, vec4, mat2, mat3, mat4,
   M_add, M_sub, M_mul, M_div,
   T_translate, T_axisAngle, M_diag, M_get,
-  pow2, dot, dot2, outer, outer2, cross, normalize,
+  dot, cross, inverse, normalize, transpose,
+  diag, pow2, dot2, outer, outer2,
+  eigenvalues_mat2, eigen_mat2, sqrt_mat2,
   toColor, patchThreeMath
 } = Utils
 /* eslint-enable no-unused-vars */
@@ -115,6 +118,46 @@ describe('Matrix', () => {
 
   it('works 05', () => {
     assert.deepStrictEqual(M_mul(vec2(-1, -1), vec2(1, 1)).toArray(), [-1, -1])
+  })
+
+  it('works 06', () => {
+    patchThreeMath()
+    const m = mat2(1, 2, 3, 4)
+    const v = vec2(5, 6)
+    assert.deepStrictEqual(M_mul(m, v).toArray(), [23, 34])
+    patchThreeMath(false)
+  })
+
+  it('works 07', () => {
+    patchThreeMath()
+    const a = diag(vec2(2, 3))
+    const m = mat2(0, 1, -1, 0)
+    const mt = transpose(m)
+    assert(M_sub(a, [a, m, mt].reduce(M_mul)).elements.every(x => abs(x) < 1e-6))
+    patchThreeMath(false)
+  })
+
+  it('works 08', () => {
+    patchThreeMath()
+    const m = mat2(1, 2, 3, 4)
+    const A = M_mul(transpose(m), m) // positive definite
+    const [[l1, l2], [v1, v2]] = eigen_mat2(A)
+    const P = mat2(v1, v2)
+    const D = diag(vec2(l1, l2))
+    assert(M_sub(M_mul(A, v1), M_mul(l1, v1)).length() < 1e-6)
+    assert(M_sub(M_mul(A, v2), M_mul(l2, v2)).length() < 1e-6)
+    assert(M_sub(M_mul(P, transpose(P)), mat2(1)).elements.every(x => abs(x) < 1e-6))
+    assert(M_sub(A, [P, D, inverse(P)].reduce(M_mul)).elements.every(x => abs(x) < 1e-6))
+    patchThreeMath(false)
+  })
+
+  it('works 09', () => {
+    patchThreeMath()
+    const m = mat2(1, 2, 3, 4)
+    const A = M_mul(transpose(m), m) // positive definite
+    const B = sqrt_mat2(A)
+    assert(M_sub(A, pow2(B)).elements.every(x => abs(x) < 1e-6))
+    patchThreeMath(false)
   })
 })
 

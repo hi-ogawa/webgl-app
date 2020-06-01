@@ -2,8 +2,9 @@
 
 import _ from '../../web_modules/lodash.js'
 import * as THREE from '../../web_modules/three/build/three.module.js'
+import { Matrix2, Vector2_applyMatrix2 } from './Matrix2.js'
 
-const { tan, atan, sin, cos, max, min } = Math
+const { tan, atan, sin, cos, max, min, sqrt, abs } = Math
 const { Vector2, Vector3, Vector4, Matrix3, Matrix4 } = THREE
 
 class Array2d {
@@ -225,6 +226,22 @@ const vec4 = (...args) => {
   return new Vector4(...es)
 }
 
+const mat2 = (...args) => {
+  if (args.length === 1) {
+    const a = args[0]
+    if (typeof a === 'number') {
+      return M_mul(a, new Matrix2())
+    }
+  }
+  const es = args.map(e => e.toArray ? e.toArray() : [e]).flat()
+  if (es.length === 4) {
+    const m = new Matrix2()
+    m.elements = es
+    return m
+  }
+  throw new Error('mat2')
+}
+
 const mat3 = (...args) => {
   if (args.length === 1) {
     const a = args[0]
@@ -280,6 +297,9 @@ const M_add = (a, b) => {
   if (a.isMatrix3 && b.isMatrix3) {
     return mat3(..._.zip(a.toArray(), b.toArray()).map(([c, d]) => c + d))
   }
+  if (a.isMatrix2 && b.isMatrix2) {
+    return mat2(..._.zip(a.toArray(), b.toArray()).map(([c, d]) => c + d))
+  }
 
   // Vector + Vector
   if (a.isVector4 && b.isVector4) {
@@ -314,6 +334,9 @@ const M_mul = (a, b) => {
   if (a.isMatrix3 && b.isMatrix3) {
     return new Matrix3().multiplyMatrices(a, b)
   }
+  if (a.isMatrix2 && b.isMatrix2) {
+    return new Matrix2().multiplyMatrices(a, b)
+  }
 
   // Matrix x Vector
   if (a.isMatrix4 && b.isVector4) {
@@ -321,6 +344,9 @@ const M_mul = (a, b) => {
   }
   if (a.isMatrix3 && b.isVector3) {
     return b.clone().applyMatrix3(a)
+  }
+  if (a.isMatrix2 && b.isVector2) {
+    return b.clone().applyMatrix2(a)
   }
 
   // Vector x Vector
@@ -379,6 +405,12 @@ const M_sub = (a, b) => {
 }
 
 const M_diag = (p) => {
+  if (p.isVector2) {
+    const [a, b] = p.toArray()
+    return mat2(
+      a, 0,
+      0, b)
+  }
   if (p.isVector3) {
     const [a, b, c] = p.toArray()
     return mat3(
@@ -403,10 +435,12 @@ const M_inverse = (m) => {
 
 const diag = M_diag
 const inverse = M_inverse
+const transpose = (m) => m.clone().transpose()
 
 const M_get = (m, i, j) => {
   let size
   let ctor
+  if (m.isMatrix2) { size = 2; ctor = vec2 } else
   if (m.isMatrix3) { size = 3; ctor = vec3 } else
   if (m.isMatrix4) { size = 4; ctor = vec4 } else { throw new Error('M_get') }
 
@@ -561,15 +595,101 @@ function toColor (p) {
   return new THREE.Color(...p)
 }
 
+const eigenvalues_mat2 = (m) => {
+  const [a, c, b, d] = m.elements
+  const p = a + d
+  const q = a * d - b * c
+  const r = pow2(p) - 4 * q
+  // Support only real eigenvalues
+  if (r < 0) {
+    throw new Error('eigenvalues_mat2')
+  }
+  return [
+    (p - sqrt(r)) / 2,
+    (p + sqrt(r)) / 2
+  ]
+}
+
+const eigenvector_mat2 = (m, l) => {
+  // Wielandt's inverse iteration
+  const eps = 1e-3
+  const N = 100
+
+  const I = diag(vec2(1, 1))
+  const A = M_sub(m, M_mul(l + eps, I))
+  const Ainv = inverse(A)
+
+  // TODO: make it reproducable (use hash)
+  let v = normalize(vec2(Math.random(), Math.random()))
+
+  for (const i of _.range(N)) { // eslint-disable-line
+    const u = normalize(M_mul(Ainv, v))
+    const det = v.x * u.y - v.y * u.x
+    if (abs(det) < 1e-6) { return v }
+    v = u
+  }
+  throw new Error('eigenvector_mat2')
+}
+
+const eigen_mat2 = (m) => {
+  // assume m : diagonalizable
+  const [l1, l2] = eigenvalues_mat2(m)
+  if (abs(l1 - l2) < 1e-3) {
+    throw new Error('eigen_mat2')
+  }
+  const v1 = eigenvector_mat2(m, l1)
+  const v2 = eigenvector_mat2(m, l2)
+  return [[l1, l2], [v1, v2]]
+}
+
+const sqrt_mat2 = (m) => {
+  // assume m : positive semidefinite
+  const [[l1, l2], [v1, v2]] = eigen_mat2(m)
+  if (!(l1 >= 0 && l2 >= 0)) {
+    throw new Error('sqrt_mat2')
+  }
+  const P = mat2(v1, v2)
+  const D = diag(vec2(sqrt(l1), sqrt(l2)))
+  return [P, D, inverse(P)].reduce(M_mul)
+}
+
+const kPatches = [
+  [
+    Vector2.prototype,
+    {
+      * [Symbol.iterator] () { yield * this.toArray() },
+      applyMatrix2 (m) { return Vector2_applyMatrix2(this, m) }
+    }
+  ],
+  [
+    Vector3.prototype,
+    {
+      * [Symbol.iterator] () { yield * this.toArray() }
+    }
+  ],
+  [
+    Vector4.prototype,
+    {
+      * [Symbol.iterator] () { yield * this.toArray() }
+    }
+  ]
+]
+
 const patchThreeMath = (patch = true) => {
-  const klasses = [Vector2, Vector3, Vector4]
-  for (const klass of klasses) {
-    if (patch) {
-      Object.assign(klass.prototype, {
-        * [Symbol.iterator] () { yield * this.toArray() }
-      })
-    } else {
-      delete klass.prototype[Symbol.iterator]
+  if (patch) {
+    for (const [target, data] of kPatches) {
+      Object.assign(target, data)
+    }
+  } else {
+    for (const [target, data] of kPatches) {
+      for (const key in data) {
+        delete target[key]
+      }
+      // It's silly but `Symbol.iterator` is not `in data`
+      const key = Symbol.iterator
+      if (data[key]) {
+        delete target[key]
+      }
     }
   }
 }
@@ -580,9 +700,10 @@ export {
   linspace,
   yfovFromHeight, T_orthographic, T_perspective,
   T_scale, T_translate, T_axisAngle, T_rotate,
-  vec2, vec3, vec4, mat3, mat4,
+  vec2, vec3, vec4, mat2, mat3, mat4,
   M_add, M_sub, M_mul, M_div, M_diag, M_inverse, M_get,
-  dot, inverse, cross, normalize,
+  dot, inverse, cross, normalize, transpose,
   diag, pow2, smoothstep01, dot2, outer, outer2,
+  eigenvalues_mat2, eigen_mat2, sqrt_mat2,
   toColor, patchThreeMath
 }
