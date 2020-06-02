@@ -1,31 +1,11 @@
 /* eslint camelcase: 0, no-eval: 0 */
 
 //
-// Flower-like geometry
+// Aframe inspector
 //
 
 import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
-import * as Utils from '../utils/index.js'
-import { patchAframeThree } from '../utils/aframe/misc.js'
-import '../utils/aframe/input.js'
-import '../utils/aframe/orbit-controls.js'
-import '../utils/aframe/coordinate-grid.js'
-import '../utils/aframe/parametric-surface.js'
-
-/* eslint-disable no-unused-vars */
-const THREE = AFRAME.THREE
-const { PI, cos, sin, pow, sqrt, cosh, sinh } = Math
-const {
-  vec2, vec3, vec4, mat2, mat3, mat4,
-  M_add, M_sub, M_mul, M_div, M_get,
-  T_translate, T_axisAngle,
-  dot, inverse, cross, normalize, transpose,
-  diag, pow2, smoothstep01, dot2, outer, outer2,
-  eigen_mat2, sqrt_mat2,
-  toColor
-} = Utils
-/* eslint-enable no-unused-vars */
 
 const stringToElement = (s) => {
   const template = document.createElement('template')
@@ -80,9 +60,15 @@ AFRAME.registerComponent('flower', {
   }
 })
 
+AFRAME.registerSystem('open-inspector', {
+  init () {
+    this.el.sceneEl.addEventListener('loaded', () => {
+      document.querySelector('#flower').inspect()
+    }, { once: true })
+  }
+})
+
 const main = () => {
-  Utils.patchThreeMath()
-  patchAframeThree(AFRAME)
   const $ = (...args) => document.querySelector(...args)
   const scene = $('#scene').content.cloneNode(true)
   $('#root').appendChild(scene)
