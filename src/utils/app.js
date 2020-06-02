@@ -46,7 +46,8 @@ class AppBase {
 
   inputFromMouseEvent (e) {
     this.input.mouse = this.yflip(vec2(e.clientX, e.clientY))
-    this.input.mouseDelta = vec2(e.movementX, -e.movementY)
+    this.input.mouseDelta =
+      M_add(this.input.mouseDelta, vec2(e.movementX, -e.movementY))
     this.input.buttons = e.buttons
   }
 
@@ -69,7 +70,7 @@ class AppBase {
 
   wheel (event) {
     this.inputFromMouseEvent(event)
-    this.input.wheel = event.deltaY
+    this.input.wheel += event.deltaY
   }
 
   yflip (xy) { return vec2(xy.x, this.height - xy.y - 1) }
@@ -88,9 +89,8 @@ class AppBase {
   }
 
   windowToWorld (xy) {
-    return M_mul(
-      mat3(this.camera.matrix),
-      vec3(this.windowToCamera(xy), -1))
+    return vec3(M_mul(
+      this.camera.matrix, vec4(this.windowToCamera(xy), -1, 1)))
   }
 
   windowToWorldDelta (dxy) {

@@ -222,7 +222,7 @@ class App extends AppBase {
   updateOsculatingCircleByRaycast (mouse) {
     const raycaster = new THREE.Raycaster(
       this.camera.position,
-      normalize(this.windowToWorld(mouse)))
+      normalize(M_sub(this.windowToWorld(mouse), this.camera.position)))
     raycaster.params.Line.threshold = 0.2
 
     const isects = raycaster.intersectObject(this.$('curve'))

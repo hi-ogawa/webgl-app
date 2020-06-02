@@ -29,8 +29,8 @@ class Camera2dHelper {
   }
 
   move (dxy) {
-    this.camera.position.add(vec3(vec2(
-      M_mul(mat3(this.window_to_camera), vec3(dxy, 0)))))
+    this.camera.position.add(vec3(
+      M_mul(mat3(this.window_to_camera), vec3(dxy, 0))))
     this.updateMatrix()
   }
 
