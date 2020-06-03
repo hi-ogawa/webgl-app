@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>WebGL App</title>
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+  <div id="root"></div>
+
+  <template id="scene">
+    <a-scene
+      background="color: #233"
+      light="defaultLightsEnabled: false"
+      inspector="url: ../../web_modules/aframe-inspector.js"
+    >
+      <a-assets>
+        <a-asset-item id="shader" src="./index.glsl"></a-asset-item>
+      </a-assets>
+
+      <a-entity
+        id="display"
+        geometry="primitive: plane; width: 2; height: 2;"
+        mouse-raycaster="drawPoint: true; enable: false;"
+        mouse-raycaster-enable-on-alt
+      ></a-entity>
+      <a-entity main misc></a-entity>
+
+      <!-- Camera -->
+      <a-entity
+        camera="fov: 39; near: 1e-2; far: 1e2"
+        position="0 0 4"
+        orbit-controls="drawLookat: false;"
+      ></a-entity>
+    </a-scene>
+  </template>
+
+
+  <script>
+    // Make `AFRAME.AScene.prototype.setupRenderer` writable
+    // in order to use `webgl2` context
+    window.debug = true
+  </script>
+
+  <script type="module">
+    import { main } from './index.js';
+    main()
+  </script>
+</body>

@@ -14,6 +14,7 @@ import '../utils/aframe/input.js'
 import '../utils/aframe/orbit-controls.js'
 import '../utils/aframe/coordinate-grid.js'
 import '../utils/aframe/parametric-surface.js'
+import '../utils/aframe/mouse-raycaster.js'
 
 /* eslint-disable no-unused-vars */
 const THREE = AFRAME.THREE
@@ -28,61 +29,6 @@ const {
   toColor
 } = Utils
 /* eslint-enable no-unused-vars */
-
-AFRAME.registerComponent('mouse-raycaster', {
-  schema: {
-    drawPoint: { default: true }
-  },
-
-  init () {
-    this.intersections = []
-
-    const point = UtilsMisc.makeDiskPoints([[0, 0, 0]], [[1, 1, 0]])
-
-    // It's silly but need to convert from THREE to AFRAME.THREE
-    this.object = new AFRAME.THREE.Points(point.geometry, point.material)
-    _.assign(this.object, {
-      visible: false,
-      frustumCulled: false
-    })
-
-    this.el.sceneEl.object3D.add(this.object)
-  },
-
-  remove () {
-    this.el.sceneEl.object3D.remove(this.object)
-  },
-
-  tick () {
-    const { mouse, keys } = this.el.sceneEl.systems.input.state
-    if (!keys.Alt) { return }
-
-    const { clientWidth: w, clientHeight: h } = this.el.sceneEl.canvas
-    const { camera } = this.el.sceneEl
-    const { mesh } = this.el.object3DMap
-
-    const windowToRay = UtilsMisc.makeWindowToRay(w, h, camera)
-    const ray_o = vec3(M_get(camera.matrixWorld, 3))
-    const ray_d = normalize(vec3(M_mul(windowToRay, vec4(mouse, 0, 1))))
-    const raycaster = new THREE.Raycaster(ray_o, ray_d)
-
-    // Reset state
-    this.intersections = []
-    this.object.visible = false
-    if (!mesh) { return }
-
-    // Intersect
-    this.intersections = raycaster.intersectObject(mesh)
-    if (this.intersections.length === 0) { return }
-
-    const { point } = this.intersections[0]
-    this.object.position.copy(point)
-
-    if (this.data.drawPoint) {
-      this.object.visible = true
-    }
-  }
-})
 
 AFRAME.registerComponent('curvature-visualizer', {
   dependencies: ['geometry', 'mouse-raycaster'],
@@ -223,6 +169,13 @@ AFRAME.registerComponent('curvature-visualizer', {
     this.tangent.getObjectByName('disk1').scale.copy(vec3(1 / k1))
     this.tangent.getObjectByName('disk2').scale.copy(vec3(1 / k2))
     this.tangent.visible = true
+  }
+})
+
+AFRAME.registerComponent('mouse-raycaster-enable-on-alt', {
+  tick () {
+    const { keys } = this.el.sceneEl.systems.input.state
+    this.el.components['mouse-raycaster'].data.enable = keys.Alt
   }
 })
 

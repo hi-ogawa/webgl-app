@@ -350,10 +350,55 @@ const makeWindowToWorld = (w, h, camera) => {
   return M_mul(camera.matrixWorld, windowToCamera)
 }
 
+const checkShaderError = (renderer) => {
+  const badPrograms = renderer.info.programs.filter(p =>
+    p.diagnostics && !p.diagnostics.runnable)
+
+  if (badPrograms.length === 0) { return false }
+
+  // For some reason, webgl's log includes `\x00` (NULL)
+  const format = (str) => str.replace(/\x00/g, ' ').trim() || '- - -' // eslint-disable-line
+
+  let message = ''
+  for (const p of badPrograms) {
+    message += `\
+${p.name}:
+  program:  ${format(p.diagnostics.programLog)}
+  vertex:   ${format(p.diagnostics.vertexShader.log)}
+  fragment: ${format(p.diagnostics.fragmentShader.log)}
+`
+  }
+  return message
+}
+
+const promiseLoaded = async (el) => {
+  if (el.hasLoaded) { return el }
+  await new Promise(resolve =>
+    el.addEventListener('loaded', resolve, { once: true }))
+  return el
+}
+
+const makeShaderMaterialV2 = (src, defines = []) => {
+  const header = []
+  const lines = src.split('\n')
+  if (lines[0].startsWith('#version')) {
+    header.push(lines.shift())
+  }
+  header.push(...defines.map(v => `#define ${v}`))
+  const material = new THREE.RawShaderMaterial({
+    vertexShader: [...header, '#define COMPILE_VERTEX', ...lines].join('\n'),
+    fragmentShader: [...header, '#define COMPILE_FRAGMENT', ...lines].join('\n')
+  })
+  return material
+}
+
+const $ = (...args) => document.querySelector(...args)
+
 export {
   Camera2dHelper, Camera3dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
   makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame,
   makeDisk, getAttributeElement,
-  makeWindowToCamera, makeWindowToWorld, makeWindowToRay
+  makeWindowToCamera, makeWindowToWorld, makeWindowToRay,
+  checkShaderError, promiseLoaded, makeShaderMaterialV2, $
 }

@@ -21,6 +21,10 @@ const {
 AFRAME.registerComponent('orbit-controls', {
   dependencies: ['input'],
 
+  schema: {
+    drawLookat: { default: true }
+  },
+
   init () {
     this.helper = new UtilsMisc.Camera3dHelper(this.el.object3D)
     this.helper.init()
@@ -72,5 +76,6 @@ AFRAME.registerComponent('orbit-controls', {
     const size = 24 // size in pixel
     this.objectLookat.scale.copy(vec3(0.5 * size / x))
     this.objectLookat.position.copy(this.helper.lookat)
+    this.objectLookat.visible = this.data.drawLookat
   }
 })
