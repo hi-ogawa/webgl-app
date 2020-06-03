@@ -10,6 +10,7 @@ const main = () => {
   parser.addArgument('--width', { type: Number, defaultValue: 800 })
   parser.addArgument('--height', { type: Number, defaultValue: 600 })
   parser.addArgument('--timeout', { type: Number, defaultValue: 10 })
+  parser.addArgument('--frames', { type: Number, defaultValue: 1 })
   parser.addArgument('url and outfile', { nargs: '+' })
   const args = parser.parseArgs()
   const urls_outfiles = args['url and outfile']
@@ -24,9 +25,9 @@ const main = () => {
 // Allow only single "requestAnimationFrame" callback
 // cf. https://github.com/mrdoob/three.js/blob/dev/test/e2e/deterministic-injection.js
 
-const script_onNewDocument = () => {
+const script_onNewDocument = (options) => {
   window._FRAME_ID = 0
-  window._NUM_FRAMES = 1
+  window._NUM_FRAMES = options.frames
   window._START = false
   window._FINISH = false
 
@@ -83,7 +84,7 @@ const runBrowser = async (urls_outfiles, options) => {
 
   page.on('console', msg => console.log(`[BROWSER-CONSOLE] ${msg.text()}`))
   await page.setViewport(_.pick(options, ['width', 'height']))
-  await page.evaluateOnNewDocument(script_onNewDocument)
+  await page.evaluateOnNewDocument(script_onNewDocument, options)
 
   for (const [url, outfile] of urls_outfiles) {
     console.log(`[NODE-CONSOLE]: navigate to ${url}`)
