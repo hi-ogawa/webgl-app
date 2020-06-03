@@ -22,7 +22,8 @@ AFRAME.registerComponent('orbit-controls', {
   dependencies: ['input'],
 
   schema: {
-    drawLookat: { default: true }
+    drawLookat: { default: true },
+    handleTouch: { default: true }
   },
 
   init () {
@@ -44,22 +45,31 @@ AFRAME.registerComponent('orbit-controls', {
   },
 
   tick () {
-    const { mouseDelta, buttons, keys, wheel } = this.el.sceneEl.systems.input.state
+    const {
+      mouseDelta, buttons, keys, wheel,
+      touchOneDelta, touchTwoCenterDelta, touchTwoDiffDelta
+    } = this.el.sceneEl.systems.input.state
     const { clientWidth: w, clientHeight: h } = this.el.sceneEl.canvas
     const { camera } = this.el.sceneEl
 
+    //
     // Handle input
+    //
+
+    // Zoom
     if (wheel !== 0) {
       this.helper.zoom(-wheel / 800)
     }
 
     if (buttons === 1) {
+      // Move
       if (keys.Shift) {
         const windowToCamera = mat3(UtilsMisc.makeWindowToCamera(w, h, camera))
         const delta = M_mul(windowToCamera, M_mul(-1, vec3(mouseDelta, 0)))
         this.helper.move(vec2(delta))
       }
 
+      // Orbit
       if (keys.Control) {
         const delta =
           M_mul(2 * PI,
@@ -69,7 +79,30 @@ AFRAME.registerComponent('orbit-controls', {
       }
     }
 
+    if (this.data.handleTouch) {
+      // Zoom
+      this.helper.zoom(touchTwoDiffDelta / 100)
+
+      // Move
+      {
+        const windowToCamera = mat3(UtilsMisc.makeWindowToCamera(w, h, camera))
+        const delta = M_mul(windowToCamera, M_mul(-1, vec3(touchTwoCenterDelta, 0)))
+        this.helper.move(vec2(delta))
+      }
+
+      // Orbit
+      {
+        const delta =
+          M_mul(2 * PI,
+            M_mul(vec2(-1, 1),
+              M_div(touchOneDelta, vec2(w, h))))
+        this.helper.orbit(delta)
+      }
+    }
+
+    //
     // Update "lookat" marker
+    //
     const z = M_sub(this.el.object3D.position, this.helper.lookat).length()
     const p = M_mul(camera.projectionMatrix, vec4(1, 0, -z, 1))
     const x = (p.x / p.w) * (w / 2)

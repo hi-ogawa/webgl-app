@@ -23,6 +23,11 @@ AFRAME.registerSystem('input', {
     this.initState = {
       mouse: vec2(-1, -1),
       mouseDelta: vec2(0, 0),
+      touches: [],
+      touchesLast: [],
+      touchOneDelta: vec2(0, 0),
+      touchTwoCenterDelta: vec2(0, 0),
+      touchTwoDiffDelta: 0,
       wheel: 0,
       // cf. https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
       buttons: 0,
@@ -31,23 +36,21 @@ AFRAME.registerSystem('input', {
     }
     this.eventNames = [
       'mousedown', 'mouseup', 'mousemove', 'wheel',
+      'touchstart', 'touchend', 'touchmove',
       'keydown', 'keyup'
-    ]
-    this.methodNames = [
-      '__play', '__pause', ...this.eventNames
     ]
 
     this.state = _.clone(this.initState)
     this.domElement = this.el.sceneEl.canvas
 
     // Bind methods
-    for (const key of this.methodNames) {
+    for (const key of this.eventNames) {
       this[key] = this[key].bind(this)
     }
 
     // NOTE: DIY play/pause callback (aframe's documentation is wrong)
-    this.el.sceneEl.addEventListener('play', this.__play)
-    this.el.sceneEl.addEventListener('pause', this.__pause)
+    this.el.sceneEl.addEventListener('play', this.__play.bind(this))
+    this.el.sceneEl.addEventListener('pause', this.__pause.bind(this))
 
     this.domElement.tabIndex = 0 // allow keydown/keyup
     this.domElement.focus() // initial key focus
@@ -69,7 +72,10 @@ AFRAME.registerSystem('input', {
   },
 
   tock () {
-    _.assign(this.state, _.pick(this.initState, ['mouseDelta', 'wheel']))
+    _.assign(this.state, _.pick(this.initState, [
+      'mouseDelta', 'wheel',
+      'touchOneDelta', 'touchTwoCenterDelta', 'touchTwoDiffDelta'
+    ]))
   },
 
   yflip (xy) {
@@ -93,6 +99,43 @@ AFRAME.registerSystem('input', {
   },
 
   mouseup (event) {
+  },
+
+  touchstart (event) {
+    this.state.touchesLast = []
+    this.state.touches = Array.from(event.touches).map(t =>
+      this.yflip(vec2(t.clientX, t.clientY)))
+  },
+
+  touchmove (event) {
+    // Update state
+    this.state.touchesLast = this.state.touches
+    this.state.touches = Array.from(event.touches).map(t =>
+      this.yflip(vec2(t.clientX, t.clientY)))
+
+    // Update delta
+    const { touches: [t1, t2], touchesLast: [l1, l2] } = this.state
+
+    if (!t2 && !l2) {
+      this.state.touchOneDelta = M_add(
+        this.state.touchOneDelta, M_sub(t1, l1))
+    }
+
+    if (t2 && l2) {
+      const cNow = M_div(M_add(t1, t2), 2)
+      const cLast = M_div(M_add(l1, l2), 2)
+      const dNow = M_sub(t1, t2).length()
+      const dLast = M_sub(l1, l2).length()
+
+      this.state.touchTwoCenterDelta = M_add(
+        this.state.touchTwoCenterDelta, M_sub(cNow, cLast))
+      this.state.touchTwoDiffDelta += dNow - dLast
+    }
+  },
+
+  touchend (event) {
+    this.state.touchesLast = []
+    this.state.touches = []
   },
 
   wheel (event) {
