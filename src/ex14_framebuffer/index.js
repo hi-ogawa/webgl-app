@@ -87,9 +87,9 @@ AFRAME.registerComponent('main', {
     this.buffers = {
       buffer1: new DoubleBuffer(512, 512, {
         format: THREE.RGFormat,
-        type: THREE.FloatType,
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter,
+        type: THREE.HalfFloatType, // On my phone, float texture is not supported
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
         generateMipmaps: false,
         wrapS: THREE.RepeatWrapping,
         wrapT: THREE.RepeatWrapping,
@@ -146,7 +146,7 @@ AFRAME.registerComponent('main', {
     this.uniforms.U_mouse_uv = { value: isect_uv }
 
     // Solve PDE
-    const numSubsteps = 3 // TODO: make it substep independent
+    const numSubsteps = 2 // TODO: make it substep independent
     _.range(numSubsteps).forEach(() => {
       this.setUniforms(program1)
       this.render(program1)
@@ -171,14 +171,6 @@ AFRAME.registerComponent('mouse-raycaster-enable-on-alt', {
 const main = () => {
   Utils.patchThreeMath()
   patchAframeThree(AFRAME)
-
-  // Further monky-patch to create WebGL2 context
-  AFRAME.AScene.prototype.setupRenderer = function () {
-    const { canvas } = this
-    const context = canvas.getContext('webgl2', { alpha: false, antialias: true })
-    this.renderer = new THREE.WebGLRenderer({ canvas, context })
-  }
-
   const scene = $('#scene').content.cloneNode(true)
   $('#root').appendChild(scene)
 }

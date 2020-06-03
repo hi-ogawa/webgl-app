@@ -1,9 +1,12 @@
-#version 300 es
 precision highp float;
 precision highp int;
 
+//
+// Screen quad
+//
+
 #ifdef COMPILE_VERTEX
-  in vec3 position;
+  attribute vec3 position;
   void main() { gl_Position = vec4(position, 1.0); }
 #endif
 
@@ -35,10 +38,9 @@ float sdToFactor(float sd, float aa_width) {
     uniform float U_time;
     uniform float U_timeDelta;
     uniform float U_frame;
-    out highp vec4 F_color;
 
     vec4 read1(vec2 frag_coord) {
-      return textureLod(U_buffer1, frag_coord / U_buffer1_resolution, 0.0);
+      return texture2D(U_buffer1, frag_coord / U_buffer1_resolution);
     }
 
     vec2 flow_LeVeque2(vec2 p, float period) {
@@ -66,7 +68,7 @@ float sdToFactor(float sd, float aa_width) {
     }
 
     void main() {
-      F_color = renderPixel(gl_FragCoord.xy);
+      gl_FragColor = renderPixel(gl_FragCoord.xy);
     }
   #endif
 #endif
@@ -83,7 +85,6 @@ float sdToFactor(float sd, float aa_width) {
     uniform float U_timeDelta;
     uniform float U_frame;
     uniform vec2 U_mouse_uv;
-    out highp vec4 F_color;
 
     const float dt = 0.7;
     const float dx = 1.0;
@@ -93,7 +94,7 @@ float sdToFactor(float sd, float aa_width) {
     float kPeriod = 0.5;
 
     vec4 read1(vec2 frag_coord) {
-      return textureLod(U_buffer1, frag_coord / U_buffer1_resolution, 0.0);
+      return texture2D(U_buffer1, frag_coord / U_buffer1_resolution);
     }
 
     vec2 solve(vec2 p) {
@@ -143,7 +144,7 @@ float sdToFactor(float sd, float aa_width) {
     }
 
     void main() {
-      F_color = renderPixel(gl_FragCoord.xy);
+      gl_FragColor = renderPixel(gl_FragCoord.xy);
     }
   #endif
 #endif
@@ -156,14 +157,15 @@ float sdToFactor(float sd, float aa_width) {
   #ifdef COMPILE_FRAGMENT
     uniform sampler2D U_buffer1;
     uniform vec2 U_buffer1_resolution;
-    out highp vec4 F_color;
 
     float kScale = 0.3;
     vec3 kColor1 = vec3(1.0, 0.5, 0.0);
     vec3 kColor2 = vec3(0.0, 0.5, 1.0);
 
     vec4 renderPixel(vec2 frag_coord) {
-      float f = texelFetch(U_buffer1, ivec2(frag_coord), 0).x;
+      vec2 resolution = U_buffer1_resolution;
+      vec2 uv = frag_coord / resolution;
+      float f = texture2D(U_buffer1, uv).x;
       float fp = max(+f, 0.0);
       float fn = max(-f, 0.0);
       vec3 color = kScale * (fp * kColor1 + fn * kColor2);
@@ -172,7 +174,7 @@ float sdToFactor(float sd, float aa_width) {
     }
 
     void main() {
-      F_color = renderPixel(gl_FragCoord.xy);
+      gl_FragColor = renderPixel(gl_FragCoord.xy);
     }
   #endif
 #endif
