@@ -4,11 +4,12 @@
     "start": "serve -c config/serve.json",
     "deploy": "now -d -A config/now.json",
     "test": "mocha 'src/**/*.test.js'",
-    "snowpack_install": "snowpack install --config config/snowpack.config.json",
+    "build": "snowpack install --config config/snowpack.config.json",
     "lint": "standard -v",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
     "screenshot": "node scripts/screenshot.js",
-    "screenshot_all": "bash scripts/screenshot.sh"
+    "screenshot_all": "bash scripts/screenshot_all.sh",
+    "screenshot_all_with_server": "bash scripts/screenshot_all_with_server.sh"
   },
   "devDependencies": {
     "mocha": "^7.1.2",

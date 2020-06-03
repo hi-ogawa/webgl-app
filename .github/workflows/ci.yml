@@ -1,0 +1,46 @@
+# Based on three.js's ci.yml (https://github.com/mrdoob/three.js/blob/dev/.github/workflows/ci.yml)
+name: CI
+on: [push]
+jobs:
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Install node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - name: Install packages
+        run: npm ci
+      - name: === Linting ===
+        run: npm run lint src/utils/*.js
+  unit:
+    name: Unit testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Install node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - name: Install packages
+        run: npm ci && npm run build
+      - name: === Unit testing ===
+        run: npm test
+  e2e:
+    name: E2E testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Install node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - name: Install packages
+        run: npm ci && npm run build && npm ci --prefix scripts && sudo apt-get install xvfb
+      - name: === E2E testing ===
+        run: xvfb-run --auto-servernum npm run screenshot_all_with_server

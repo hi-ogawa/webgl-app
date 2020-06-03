@@ -2,23 +2,24 @@ WebGL shader examples using three.js
 
 ```
 # Development
-yarn install
-yarn snowpack_install
-yarn start # then open e.g. http://localhost:5000/src/ex04_julia/
+npm install
+npm run build
+npm start # then open e.g. http://localhost:5000/src/ex04_julia/
 
 # Testing
-yarn test
+npm test
 
 # Linting
-yarn lint src/utils/*.js # choose files
-yarn lint_diff # files from `git diff --staged`
+npm run lint src/utils/*.js # choose files
+npm run lint_diff # files from `git diff --staged`
 
 # Screenshot
-yarn screenshot http://localhost:5000/src/ex04_julia/ julia.png # single example
-yarn screenshot_all # all examples under src/
+npm install --prefix scripts
+npm run screenshot http://localhost:5000/src/ex04_julia/ julia.png # single example
+npm run screenshot_all # all examples under src/
 
 # Deployment
-yarn deploy
+npm run deploy
 ```
 
 References
