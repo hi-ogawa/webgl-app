@@ -15,7 +15,7 @@ jobs:
       - name: Install packages
         run: npm ci
       - name: === Linting ===
-        run: npm run lint src/utils/*.js
+        run: npm run lint
   unit:
     name: Unit testing
     runs-on: ubuntu-latest

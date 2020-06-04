@@ -5,7 +5,6 @@
 // (Mouse over on surface with pressing "Alt")
 //
 
-import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from '../utils/index.js'
 import * as UtilsMisc from '../utils/misc.js'

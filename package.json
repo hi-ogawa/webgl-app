@@ -5,7 +5,7 @@
     "deploy": "now -d -A config/now.json",
     "test": "mocha 'src/**/*.test.js'",
     "build": "snowpack install --config config/snowpack.config.json",
-    "lint": "standard -v",
+    "lint": "standard -v 'src/**/*.js'",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
     "screenshot": "node scripts/screenshot.js",
     "screenshot_all": "bash scripts/screenshot_all.sh",
