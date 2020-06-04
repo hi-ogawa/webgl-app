@@ -94,6 +94,7 @@ const runBrowser = async (urls_outfiles, options) => {
 
     if (!result.ok) {
       console.log(`[NODE-CONSOLE]: failure : ${result.message}`)
+      process.exitCode = 1
       continue
     }
 

@@ -34,10 +34,10 @@ AFRAME.registerGeometry('parametric-surface', {
     periodicY: { default: false },
     f: { default: '(x, y) => [x, y, 0]', type: 'string' },
     preset: {
-      default: '',
+      default: 'NA',
       type: 'string',
       oneOf: [
-        'plane', 'saddle', 'torus', 'sphere',
+        'NA', 'plane', 'saddle', 'torus', 'sphere',
         'ellipsoid', 'hyperboloid1', 'hyperboloid2'
       ]
     }
@@ -113,13 +113,14 @@ AFRAME.registerGeometry('parametric-surface', {
       segmentsY: 32,
       periodicX: true,
       periodicY: false,
+      // TODO: it's impossible to edit multiline string from inspector
       f: `
         (u, v) => {
-          const [r0, r1, r2] = [0.5, 1, 1.5]
+          const r0 = 0.75, r1 = 1, r2 = 1.25
           return [
-            r0 * sin(v) * r1 * cos(u),
-            r0 * sin(v) * r2 * sin(u),
-            r0 * cos(v)
+            r0 * sin(v) * cos(u),
+            r1 * sin(v) * sin(u),
+            r2 * cos(v)
           ]
         }
       `
