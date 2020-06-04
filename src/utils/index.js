@@ -3,6 +3,7 @@
 import _ from '../../web_modules/lodash.js'
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import { Matrix2, Vector2_applyMatrix2 } from './Matrix2.js'
+import { hash11 } from './hash.js'
 
 const { tan, atan, sin, cos, max, min, sqrt, abs } = Math
 const { Vector2, Vector3, Vector4, Matrix3, Matrix4 } = THREE
@@ -619,8 +620,7 @@ const eigenvector_mat2 = (m, l) => {
   const A = M_sub(m, M_mul(l + eps, I))
   const Ainv = inverse(A)
 
-  // TODO: make it reproducable (use hash)
-  let v = normalize(vec2(Math.random(), Math.random()))
+  let v = normalize(vec2(hash11(l), hash11(l + 0x13579)))
 
   for (const i of _.range(N)) { // eslint-disable-line
     const u = normalize(M_mul(Ainv, v))
