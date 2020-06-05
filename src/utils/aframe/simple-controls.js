@@ -59,7 +59,7 @@ AFRAME.registerComponent('simple-controls', {
         const raycaster = UtilsMisc.makeRaycasterFromWindow(mouse, w, h, camera)
         raycaster.params.Points.threshold = 0.1
         const isects = raycaster.intersectObject(object3D, /* recurse */ true)
-        if (isects.length ==- 0) { return }
+        if (isects.length === 0) { return }
 
         // if "Shift", then toggle focus
         this.focused = keys.Shift ? (!this.focused) : true

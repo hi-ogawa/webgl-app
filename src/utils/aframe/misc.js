@@ -1,11 +1,18 @@
 // Silly workaround for THREE's version difference
-const patchAframeThree = (AFRAME) => {
-  const { Object3D } = AFRAME.THREE
+import AFRAME from '../../../web_modules/aframe.js'
+
+const patchAframeThree = () => {
+  const { Object3D, BufferGeometry } = AFRAME.THREE
   const patches = [
     [
       Object3D.prototype,
       {
-        // cf. Camera3dHelper.update
+        applyMatrix4 () { this.applyMatrix(...arguments) }
+      }
+    ],
+    [
+      BufferGeometry.prototype,
+      {
         applyMatrix4 () { this.applyMatrix(...arguments) }
       }
     ]

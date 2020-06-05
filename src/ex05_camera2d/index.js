@@ -9,6 +9,7 @@ import _ from '../../web_modules/lodash.js'
 import * as THREE from '../../web_modules/three/build/three.module.js'
 import { GUI } from '../../web_modules/three/examples/jsm/libs/dat.gui.module.js'
 import * as Utils from '../utils/index.js'
+import { patchAframeThree } from '../utils/aframe/misc.js'
 
 const { PI } = Math
 const { Vector2, Vector3, Vector4, Matrix3, Matrix4 } = THREE
@@ -206,6 +207,8 @@ ${p.name}:
 }
 
 const main = async () => {
+  patchAframeThree()
+
   // Create canvas
   const canvas = document.createElement('canvas')
   document.querySelector('#root').appendChild(canvas)

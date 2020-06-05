@@ -60,12 +60,6 @@ AFRAME.registerComponent('face-visualizer', {
     const color = hue(t / (2 * PI))
     const colorProp = `color: #${toColorHex(color)}`
 
-    // const x = normalize(v1)
-    // const z = normalize(cross(x, v2))
-    // const y = cross(z, x)
-    // const xform = mat4(mat3(x, y, z))
-    // T_frameXZ(v1, cross(v1, v2))
-
     this.el.appendChild(stringToElement(/* html */`
       <a-entity>
         <!-- disk sector -->
@@ -158,7 +152,7 @@ AFRAME.registerComponent('main', {
 
 const main = () => {
   Utils.patchThreeMath()
-  patchAframeThree(AFRAME)
+  patchAframeThree()
   const scene = $('#scene').content.cloneNode(true)
   $('#root').appendChild(scene)
 }

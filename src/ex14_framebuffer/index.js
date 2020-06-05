@@ -170,7 +170,7 @@ AFRAME.registerComponent('mouse-raycaster-enable-on-alt', {
 
 const main = () => {
   Utils.patchThreeMath()
-  patchAframeThree(AFRAME)
+  patchAframeThree()
   const scene = $('#scene').content.cloneNode(true)
   $('#root').appendChild(scene)
 }

@@ -1,4 +1,4 @@
-// Sadly, we have to use AFRAME.THREE even in nodejs testing
+// Silly workaround to use AFRAME.THREE in nodejs testing
 import jsdom from 'jsdom'
 const { window } = (new jsdom.JSDOM('', { url: 'http://localhost' }))
 global.window = window

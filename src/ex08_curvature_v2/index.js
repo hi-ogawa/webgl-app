@@ -10,6 +10,7 @@ import { OrbitControls } from '../../web_modules/three/examples/jsm/controls/Orb
 import * as Utils from '../utils/index.js'
 import * as UtilsMisc from '../utils/misc.js'
 import { AppBase, runApp } from '../utils/app.js'
+import { patchAframeThree } from '../utils/aframe/misc.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow } = Math
@@ -269,6 +270,9 @@ class App extends AppBase {
   }
 }
 
-const main = () => runApp(App, document.querySelector('#root'))
+const main = () => {
+  patchAframeThree()
+  runApp(App, document.querySelector('#root'))
+}
 
 export { main }
