@@ -3,7 +3,7 @@
   "scripts": {
     "start": "serve -c config/serve.json",
     "deploy": "now -d -A config/now.json",
-    "test": "mocha 'src/**/*.test.js'",
+    "test": "mocha --file src/mocha_jsdom.js 'src/**/*.test.js'",
     "build": "snowpack install --config config/snowpack.config.json",
     "lint": "standard -v 'src/**/*.js'",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
@@ -12,6 +12,7 @@
     "screenshot_all_with_server": "bash scripts/screenshot_all_with_server.sh"
   },
   "devDependencies": {
+    "jsdom": "^16.2.2",
     "mocha": "^7.1.2",
     "now": "^19.0.0",
     "serve": "^11.3.0",

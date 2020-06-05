@@ -61,7 +61,7 @@ AFRAME.registerComponent('orbit-controls', {
       this.helper.zoom(-wheel / 800)
     }
 
-    if (buttons === 1) {
+    if (buttons === 4) { // Blender's keyboard shortcut
       // Move
       if (keys.Shift) {
         const windowToCamera = mat3(UtilsMisc.makeWindowToCamera(w, h, camera))
@@ -70,7 +70,7 @@ AFRAME.registerComponent('orbit-controls', {
       }
 
       // Orbit
-      if (keys.Control) {
+      if (!keys.Shift) {
         const delta =
           M_mul(2 * PI,
             M_mul(vec2(-1, 1),
@@ -101,14 +101,10 @@ AFRAME.registerComponent('orbit-controls', {
     }
 
     //
-    // Update "lookat" marker
+    // Update "lookat" gizmo
     //
-    const z = M_sub(this.el.object3D.position, this.helper.lookat).length()
-    const p = M_mul(camera.projectionMatrix, vec4(1, 0, -z, 1))
-    const x = (p.x / p.w) * (w / 2)
-    const size = 24 // size in pixel
-    this.objectLookat.scale.copy(vec3(0.5 * size / x))
     this.objectLookat.position.copy(this.helper.lookat)
     this.objectLookat.visible = this.data.drawLookat
+    UtilsMisc.applyPerspectiveScale(this.objectLookat, w, camera, 12)
   }
 })

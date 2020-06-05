@@ -1,8 +1,10 @@
 /* eslint camelcase: 0 */
 
 import _ from '../../web_modules/lodash.js'
-import * as THREE from '../../web_modules/three/build/three.module.js'
+import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from './index.js'
+
+const THREE = AFRAME.THREE
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, sign } = Math
@@ -294,13 +296,14 @@ const makeLineAA = (position, color) => {
   return result
 }
 
-const makeDisk = (n) => {
-  const circle = Utils.linspace(0, 2 * PI, n).map(x => [cos(x), sin(x), 0])
+const makeDisk = (n, phi = 2 * PI) => {
+  const circle = Utils.linspace(0, phi, n).map(x => [cos(x), sin(x), 0])
   const position = circle.concat([[0, 0, 0]])
+  const k = phi === 2 * PI ? n : n + 1
   return Utils.makeBufferGeometry({
     position: position,
     normal: Array(position.length).fill([0, 0, 1]),
-    index: _.range(n).map(i => [i, (i + 1) % n, n])
+    index: _.range(n).map(i => [i, (i + 1) % k, n + 1])
   })
 }
 
@@ -393,6 +396,54 @@ const makeShaderMaterialV2 = (src, defines = []) => {
 }
 
 const $ = (...args) => document.querySelector(...args)
+const $$ = (...args) => Array.from(document.querySelectorAll(...args))
+
+const stringToElement = (s) => {
+  const template = document.createElement('template')
+  template.innerHTML = s.trim()
+  return template.content.firstChild
+}
+
+const makeCircle = (n, phi = 2 * PI) => {
+  const circle = Utils.linspace(0, phi, n).map(x => [cos(x), sin(x), 0])
+  return Utils.makeBufferGeometry({ position: circle })
+}
+
+const makeRaycasterFromWindow = (xy, w, h, camera) => {
+  const windowToRay = makeWindowToRay(w, h, camera)
+  const rayO = vec3(M_get(camera.matrixWorld, 3))
+  const rayD = normalize(vec3(M_mul(windowToRay, vec4(xy, 0, 1))))
+  const raycaster = new THREE.Raycaster(rayO, rayD)
+  return raycaster
+}
+
+const windowDeltaToWorldDelta = (xyDelta, position, w, h, camera) => {
+  const windowToCamera = makeWindowToCamera(w, h, camera)
+  const deltaInCamera = M_mul(mat3(windowToCamera), vec3(xyDelta, 0))
+  const depth = -M_mul(inverse(camera.matrixWorld), vec4(position, 1)).z
+  const deltaInWorld = M_mul(mat3(camera.matrixWorld), M_mul(depth, deltaInCamera))
+  return deltaInWorld
+}
+
+const applyWindowDelta = (xyDelta, object, w, h, camera) => {
+  const position = vec3(M_get(object.matrixWorld, 3))
+  const deltaWorld = windowDeltaToWorldDelta(xyDelta, position, w, h, camera)
+  const deltaObject = M_mul(inverse(mat3(object.matrixWorld)), deltaWorld)
+  object.applyMatrix4(T_translate(deltaObject))
+}
+
+const getPerspectiveScale = (position, w, camera) => {
+  const z = M_mul(inverse(camera.matrixWorld), vec4(position, 1)).z // world -> camera
+  const p = M_mul(camera.projectionMatrix, vec4(1, 0, z, 1)) // camera -> clip
+  const x = (p.x / p.w) * (w / 2) // clip -> ndc -> window
+  return x
+}
+
+const applyPerspectiveScale = (object, w, camera, scale) => {
+  const position = vec3(M_get(object.matrixWorld, 3))
+  const perspectiveScale = getPerspectiveScale(position, w, camera)
+  object.scale.copy(vec3(scale / perspectiveScale))
+}
 
 export {
   Camera2dHelper, Camera3dHelper,
@@ -400,5 +451,8 @@ export {
   makeLineSegmentsAA, makeLineAA, makeDiskPoints, makeFrame,
   makeDisk, getAttributeElement,
   makeWindowToCamera, makeWindowToWorld, makeWindowToRay,
-  checkShaderError, promiseLoaded, makeShaderMaterialV2, $
+  checkShaderError, promiseLoaded, makeShaderMaterialV2, $, $$,
+  stringToElement, makeCircle,
+  makeRaycasterFromWindow, windowDeltaToWorldDelta, applyWindowDelta,
+  getPerspectiveScale, applyPerspectiveScale
 }

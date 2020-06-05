@@ -31,8 +31,13 @@ AFRAME.registerSystem('input', {
       wheel: 0,
       // cf. https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
       buttons: 0,
+      buttonsPressed: 0, // reset in each frame
+      buttonsReleased: 0, // reset in each frame
       // cf. https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
-      keys: {}
+      // TODO: it seems we miss keyup sometimes
+      keys: {},
+      keysPressed: {}, // reset in each frame
+      keysReleased: {} // reset in each frame
     }
     this.eventNames = [
       'mousedown', 'mouseup', 'mousemove', 'wheel',
@@ -40,7 +45,7 @@ AFRAME.registerSystem('input', {
       'keydown', 'keyup'
     ]
 
-    this.state = _.clone(this.initState)
+    this.state = _.cloneDeep(this.initState)
     this.domElement = this.el.sceneEl.canvas
 
     // Bind methods
@@ -60,7 +65,7 @@ AFRAME.registerSystem('input', {
     if (event.target !== this.el.sceneEl) { return }
     this.state = _.clone(this.initState)
     for (const name of this.eventNames) {
-      this.domElement.addEventListener(name, this[name])
+      this.domElement.addEventListener(name, this[name], { passive: true })
     }
   },
 
@@ -72,9 +77,11 @@ AFRAME.registerSystem('input', {
   },
 
   tock () {
-    _.assign(this.state, _.pick(this.initState, [
+    _.assign(this.state, _.pick(_.cloneDeep(this.initState), [
       'mouseDelta', 'wheel',
-      'touchOneDelta', 'touchTwoCenterDelta', 'touchTwoDiffDelta'
+      'touchOneDelta', 'touchTwoCenterDelta', 'touchTwoDiffDelta',
+      'buttonsPressed', 'buttonsReleased',
+      'keysPressed', 'keysReleased'
     ]))
   },
 
@@ -92,6 +99,7 @@ AFRAME.registerSystem('input', {
 
   mousedown (event) {
     this.inputFromMouseEvent(event)
+    this.state.buttonsPressed = event.buttons
   },
 
   mousemove (event) {
@@ -99,6 +107,7 @@ AFRAME.registerSystem('input', {
   },
 
   mouseup (event) {
+    this.state.buttonsReleased = event.buttons
   },
 
   touchstart (event) {
@@ -145,9 +154,11 @@ AFRAME.registerSystem('input', {
 
   keydown (event) {
     this.state.keys[event.key] = true
+    this.state.keysPressed[event.key] = true
   },
 
   keyup (event) {
     this.state.keys[event.key] = false
+    this.state.keysReleased[event.key] = true
   }
 })

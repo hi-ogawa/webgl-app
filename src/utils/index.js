@@ -1,11 +1,12 @@
 /* eslint camelcase: 0 */
 
 import _ from '../../web_modules/lodash.js'
-import * as THREE from '../../web_modules/three/build/three.module.js'
+import AFRAME from '../../web_modules/aframe.js'
 import { Matrix2, Vector2_applyMatrix2 } from './Matrix2.js'
 import { hash11 } from './hash.js'
 
-const { tan, atan, sin, cos, max, min, sqrt, abs } = Math
+const THREE = AFRAME.THREE
+const { tan, atan, sin, cos, max, min, sqrt, abs, PI, pow } = Math
 const { Vector2, Vector3, Vector4, Matrix3, Matrix4 } = THREE
 
 class Array2d {
@@ -596,6 +597,10 @@ function toColor (p) {
   return new THREE.Color(...p)
 }
 
+function toColorHex (p) {
+  return new THREE.Color(...p).getHexString()
+}
+
 const eigenvalues_mat2 = (m) => {
   const [a, c, b, d] = m.elements
   const p = a + d
@@ -664,7 +669,8 @@ const kPatches = [
   [
     Vector3.prototype,
     {
-      * [Symbol.iterator] () { yield * this.toArray() }
+      * [Symbol.iterator] () { yield * this.toArray() },
+      toString () { return [...this].join(' ') }
     }
   ],
   [
@@ -694,16 +700,49 @@ const patchThreeMath = (patch = true) => {
   }
 }
 
+const T_sphericalToCartesian = (rtp) => {
+  const [r, t, p] = rtp.toArray()
+  return M_mul(r, vec3(sin(t) * cos(p), sin(t) * sin(p), cos(t)))
+}
+
+const T_frameXZ = (x, z) => {
+  x = normalize(x)
+  z = normalize(z)
+  const y = normalize(cross(z, x))
+  return mat4(mat3(x, y, z))
+}
+
+const mix = (x0, x1, t) => {
+  return x0 + t * (x1 - x0)
+}
+
+const smoothstep = (x0, x1, t) => {
+  return smoothstep01((t - x0) / (x1 - x0))
+}
+
+const hue = (t, gamma = true) => {
+  const f = (i) => {
+    let v = 0.5 + 0.5 * cos(2 * PI * (t - i / 3))
+    if (gamma) {
+      v = pow(v, 1 / 2.2)
+    }
+    return v
+  }
+  return vec3(..._.range(3).map(f))
+}
+
 export {
   Array2d, computeTopology, subdivTriforce, toIndexed, Quad,
   makeShaderMaterial, makeBufferGeometry,
   linspace,
   yfovFromHeight, T_orthographic, T_perspective,
   T_scale, T_translate, T_axisAngle, T_rotate,
+  T_sphericalToCartesian, T_frameXZ,
   vec2, vec3, vec4, mat2, mat3, mat4,
   M_add, M_sub, M_mul, M_div, M_diag, M_inverse, M_get,
   dot, inverse, cross, normalize, transpose,
+  mix, smoothstep,
   diag, pow2, smoothstep01, dot2, outer, outer2,
-  eigenvalues_mat2, eigen_mat2, sqrt_mat2,
-  toColor, patchThreeMath
+  eigenvalues_mat2, eigen_mat2, sqrt_mat2, hue,
+  toColor, patchThreeMath, toColorHex
 }

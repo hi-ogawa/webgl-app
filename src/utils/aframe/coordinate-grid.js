@@ -31,7 +31,8 @@ AFRAME.registerComponent('coordinate-grid', {
     xy: { default: false },
     yz: { default: false },
     zx: { default: true },
-    size: { default: 10, type: 'int' }
+    size: { default: 10, type: 'int' },
+    colorAxes: { default: true }
   },
 
   init () {
@@ -64,7 +65,8 @@ AFRAME.registerComponent('coordinate-grid', {
         UtilsMisc.makeAxes(axes, data.size))
       this.axes.material.setValues({
         linewidth: 2,
-        vertexColors: true
+        vertexColors: this.data.colorAxes,
+        color: this.data.colorAxes ? '#fff' : '#444'
       })
       this.axes.frustumCulled = false
     }

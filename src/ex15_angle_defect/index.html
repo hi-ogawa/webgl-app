@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>WebGL App</title>
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+  <div id="root"></div>
+
+  <template id="scene">
+    <a-scene
+      background="color: #233"
+      light="defaultLightsEnabled: false"
+      inspector="url: ../../web_modules/aframe-inspector.js"
+    >
+      <a-entity main misc rotation="-90 0 0">
+        <a-entity geometry="primitive: sphere" material="opacity: 0.85;" scale="0.97"></a-entity>
+        <a-entity id="vertices">
+          <!-- Random generated initial vertices -->
+          <a-entity point simple-controls position="0.9218121771508592 0 -0.38763682752854256"></a-entity>
+          <a-entity point simple-controls position="0.49713291642938523 0.8610594693705876 -0.10693668037514517"></a-entity>
+          <a-entity point simple-controls position="-0.33023762291238884 0.5719883414550297 -0.7508478205686551"></a-entity>
+          <a-entity point simple-controls position="-0.9565530333491772 1.1714396105057613e-16 -0.29155838933305955"></a-entity>
+          <a-entity point simple-controls position="-0.4092298142299313 -0.7088068302182133 -0.5745640404527113"></a-entity>
+          <a-entity point simple-controls position="0.4146789077681401 -0.7182449370815868 -0.5587178302228144"></a-entity>
+        </a-entity>
+        <a-entity id="visualization"></a-entity>
+      </a-entity>
+
+      <!-- Camera and Sun light -->
+      <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 2 5" orbit-controls="drawLookat: false">
+        <a-entity light="type: directional; intensity: 0.6"></a-entity>
+      </a-entity>
+
+      <!-- Coordinate grid -->
+      <a-entity coordinate-grid="y: false; colorAxes: false;"></a-entity>
+
+      <!-- Ambient light -->
+      <a-entity light="type: ambient; intensity: 0.4"></a-entity>
+    </a-scene>
+  </template>
+
+  <script type="module">
+    import { main } from './index.js';
+    main()
+  </script>
+</body>
