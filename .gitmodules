@@ -1,0 +1,3 @@
+[submodule "thirdparty/libigl-tutorial-data"]
+	path = thirdparty/libigl-tutorial-data
+	url = git@github.com:libigl/libigl-tutorial-data.git

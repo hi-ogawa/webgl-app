@@ -3,11 +3,12 @@
 import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from './index.js'
+import * as glm from './glm.js'
 
 const THREE = AFRAME.THREE
 
 /* eslint-disable no-unused-vars */
-const { PI, cos, sin, pow, sign } = Math
+const { PI, cos, sin, pow, sign, sqrt, cosh, sinh, acos, atan2 } = Math
 const {
   vec2, vec3, vec4, mat2, mat3, mat4,
   M_add, M_sub, M_mul, M_div, M_get,
@@ -445,6 +446,101 @@ const applyPerspectiveScale = (object, w, camera, scale) => {
   object.scale.copy(vec3(scale / perspectiveScale))
 }
 
+const makeHedron20 = () => {
+  // Apply spherical-cosine rule to equilateral-triangle-piramid
+  //   cos(t) = cos(t)^2 + sin(t)^2 cos(p)
+  //   => (1 - cos(p)) * cos(t)^2 - cos(t) + cos(p) = 0
+  //   => cos(t) = cos(p) / (1 - cos(p))  (or 1)
+  const p = 2 * PI / 5
+  const t = acos(cos(p) / (1 - cos(p)))
+  const theta = [
+    0,
+    ..._.range(5).fill(t),
+    ..._.range(5).fill(PI - t),
+    PI
+  ]
+  const phi = [
+    0,
+    ..._.range(5).map(i => p * i),
+    ..._.range(5).map(i => p * (i + 0.5)),
+    0
+  ]
+  const position = _.zip(theta, phi).map(([t, p]) => [
+    sin(t) * cos(p),
+    sin(t) * sin(p),
+    cos(t)
+  ])
+
+  const index = [
+    0, 1, 2,
+    0, 2, 3,
+    0, 3, 4,
+    0, 4, 5,
+    0, 5, 1,
+
+    2, 1, 6,
+    3, 2, 7,
+    4, 3, 8,
+    5, 4, 9,
+    1, 5, 10,
+
+    6, 7, 2,
+    7, 8, 3,
+    8, 9, 4,
+    9, 10, 5,
+    10, 6, 1,
+
+    7, 6, 11,
+    8, 7, 11,
+    9, 8, 11,
+    10, 9, 11,
+    6, 10, 11
+  ]
+  return {
+    position: position,
+    index: _.chunk(index, 3)
+  }
+}
+
+// Dual of cube [-1, 1]^3
+const makeHedron8 = () => {
+  const position = [
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+    0, -1, 0,
+    0, 0, -1,
+    -1, 0, 0
+  ]
+  const index = [
+    0, 1, 2,
+    0, 2, 3,
+    0, 3, 4,
+    0, 4, 1,
+    5, 2, 1,
+    5, 3, 2,
+    5, 4, 3,
+    5, 1, 4
+  ]
+  return {
+    position: _.chunk(position, 3),
+    index: _.chunk(index, 3)
+  }
+}
+
+const makeIcosphere = (n) => {
+  const geometry = Utils.makeBufferGeometry(makeHedron20())
+  for (const _i of _.range(n)) { // eslint-disable-line
+    Utils.subdivTriforce(geometry)
+  }
+  // Convert back to array
+  const { index, attributes: { position } } = geometry
+  return {
+    position: _.chunk(position.array, 3).map(p => glm.normalize(p)),
+    index: _.chunk(index.array, 3)
+  }
+}
+
 export {
   Camera2dHelper, Camera3dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
@@ -454,5 +550,6 @@ export {
   checkShaderError, promiseLoaded, makeShaderMaterialV2, $, $$,
   stringToElement, makeCircle,
   makeRaycasterFromWindow, windowDeltaToWorldDelta, applyWindowDelta,
-  getPerspectiveScale, applyPerspectiveScale
+  getPerspectiveScale, applyPerspectiveScale,
+  makeHedron20, makeHedron8, makeIcosphere
 }

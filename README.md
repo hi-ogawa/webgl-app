@@ -10,7 +10,7 @@ npm start # then open e.g. http://localhost:5000/src/ex04_julia/
 npm test
 
 # Linting
-npm run lint src/utils/*.js # choose files
+npm run lint -- src/utils/*.js # choose files
 npm run lint_diff # files from `git diff --staged`
 
 # Screenshot
