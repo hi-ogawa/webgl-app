@@ -15,7 +15,7 @@ npm run lint_diff # files from `git diff --staged`
 
 # Screenshot
 npm install --prefix scripts
-npm run screenshot http://localhost:5000/src/ex04_julia/ julia.png # single example
+npm run screenshot -- http://localhost:5000/src/ex04_julia/ julia.png # single example
 npm run screenshot_all # all examples under src/
 
 # Deployment

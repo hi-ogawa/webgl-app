@@ -36,4 +36,31 @@ const readOFF = (data) => {
   return { verts, f2v }
 }
 
-export { readOFF }
+const readOBJ = (data) => {
+//
+// v <x> <y> <z>
+// ...
+// f <v0> <v1> <v2>
+// ...
+//
+  const lines = data.split('\n').map(l => l.trim())
+  const verts = []
+  const f2v = []
+  for (const line of lines) {
+    if (line.startsWith('v ')) {
+      const vs = line.split(' ').slice(1).map(x => Number(x))
+      verts.push(vs)
+    }
+    if (line.startsWith('f ')) {
+      let fs = line.split(' ').slice(1)
+      if (fs[0].includes('/')) {
+        fs = fs.map(f => f.split('/')[0])
+      }
+      fs = fs.map(x => Number(x) - 1)
+      f2v.push(fs)
+    }
+  }
+  return { verts, f2v }
+}
+
+export { readOFF, readOBJ }

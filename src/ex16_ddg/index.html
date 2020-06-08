@@ -19,15 +19,17 @@
         <a-asset-item id="camelhead" src="../../thirdparty/libigl-tutorial-data/camelhead.off"></a-asset-item>
       </a-assets>
 
-      <a-entity init-inspector viewer="asset: #3holes" material="vertexColors: vertex"></a-entity>
+      <a-entity
+        init-inspector
+        viewer="asset: #bunny"
+        mean-curvature-flow
+        material="vertexColors: vertex"
+      ></a-entity>
 
       <!-- Camera and Sun light -->
       <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 2 5" orbit-controls="drawLookat: true">
         <a-entity light="type: directional; intensity: 0.0"></a-entity>
       </a-entity>
-
-      <!-- Coordinate grid -->
-      <a-entity coordinate-grid="y: false; colorAxes: false;"></a-entity>
 
       <!-- Ambient light -->
       <a-entity light="type: ambient; intensity: 1.0"></a-entity>

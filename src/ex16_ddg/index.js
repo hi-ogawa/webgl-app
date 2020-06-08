@@ -54,40 +54,122 @@ const getSignedColor = (value, color0, colorP, colorN) => {
     : glm.mix(color0, colorN, -value)
 }
 
-// TODO:
+// Mutates f
+const solveImplicit = (f, L, dt) => {
+  // ∂tf = Lf
+  // ~~> f' = f + dt Lf'
+  // <=> (I - dt L) f' = f
+
+  const { add, sub, mul, div } = glm
+  const type = 'gauss-seidel'
+
+  // Power series (I - A)^{-1} = \sum_n A^n
+  // TODO: something doesn't seem right...
+  if (type === 'power') {
+    const N = 4 // "N = 1" is equivalent explicit
+    let g = _.cloneDeep(f)
+    for (const n of _.range(1, N)) { // eslint-disable-line
+      // g_tmp = dt L g
+      // f += g_tmp
+      // g = g_tmp
+      const tmp = _.range(f.length).map(() => [0, 0, 0])
+      for (const i of _.range(f.length)) {
+        for (const [j, u] of L[i]) {
+          tmp[i] = add(tmp[i], mul(dt * u, g[j]))
+        }
+        f[i] = add(f[i], tmp[i])
+      }
+      g = tmp
+    }
+  }
+
+  // Gauss-Seidel
+  if (type === 'gauss-seidel') {
+    const N = 4
+    const g = _.cloneDeep(f)
+    for (const n of _.range(N)) { // eslint-disable-line
+      for (const i of _.range(f.length)) {
+        let diag = 0
+        let rhs = g[i]
+        for (const [j, u] of L[i]) {
+          if (j === i) {
+            diag = 1 - dt * u
+            continue
+          }
+          rhs = sub(rhs, mul(-dt * u, f[j]))
+        }
+        f[i] = div(rhs, diag)
+      }
+    }
+  }
+}
+
 AFRAME.registerComponent('mean-curvature-flow', {
   schema: {
-    dt: { default: 0.1 },
+    dt: { default: 0.5 },
     run: { default: false },
-    reset: { default: false }
-  },
-
-  init () {
-    // pre-computation
-    this.geometry = null
+    reset: { default: false },
+    type: { default: 'implicit', oneOf: ['explicit', 'implicit'] }
   },
 
   update () {
-    if (this.data.run) {
-      this._run()
-    }
-    if (this.data.reset) {
-      this._reset()
-    }
+    if (this.data.run) { this._run() }
+    if (this.data.reset) { this._reset() }
     this.data.run = false
     this.data.reset = false
   },
 
   _run () {
-    // Recompute HN2
-    // TODO
+    const { dt, type } = this.data
+    const { viewer } = this.el.components
+    const { verts, L } = viewer.precomputed
+    const nV = verts.length
 
-    // Explicit PDE integratin
-    // TODO
+    if (type === 'explicit') {
+      // Compute HN2
+      const HN2 = ddg.computeMeanCurvature(verts, L)
+
+      // NOTE: HN2_primal doesn't seem to behave well even for small `dt` (TODO: prove it)
+      // const HN2_primal = _.zip(HN2, more.hodge0).map(([hn2, h0]) => glm.div(hn2, h0))
+
+      // Explicit PDE integration
+      for (const i of _.range(nV)) {
+        verts[i] = glm.add(verts[i], glm.mul(dt, HN2[i]))
+      }
+    }
+
+    if (type === 'implicit') {
+      solveImplicit(verts, L, dt)
+    }
+
+    // Update viewer
+    this._updateViewer()
   },
 
   _reset () {
-    // Reset position
+    // Reset to `initVerts`
+    const { viewer } = this.el.components
+    const { initVerts } = viewer.precomputed
+    _.assign(viewer.precomputed, { verts: initVerts })
+    this._updateViewer()
+  },
+
+  _updateViewer () {
+    const { viewer } = this.el.components
+
+    // Recompute
+    let { verts, f2v, topology, more, L } = viewer.precomputed
+    const nV = verts.length
+    more = ddg.computeMore(verts, f2v, topology)
+    L = ddg.computeLaplacian(nV, topology.e2v, more.hodge1)
+    _.assign(viewer.precomputed, { more, L })
+
+    // Update geometry
+    const { position: positionAttr } = viewer.geometry.attributes
+    positionAttr.array.set(verts.flat())
+    positionAttr.needsUpdate = true
+    viewer.geometry.computeVertexNormals()
+    viewer._update()
   }
 })
 
@@ -134,7 +216,14 @@ AFRAME.registerComponent('viewer', {
     const { e2v } = topology
     const { hodge1 } = more
     const L = ddg.computeLaplacian(nV, e2v, hodge1)
-    this.precomputed = { verts, topology, more, L }
+    this.precomputed = {
+      verts,
+      f2v,
+      topology,
+      more,
+      L,
+      initVerts: _.cloneDeep(verts)
+    }
     this._update()
   },
 
