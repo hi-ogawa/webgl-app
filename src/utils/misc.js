@@ -541,6 +541,50 @@ const makeIcosphere = (n) => {
   }
 }
 
+const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false) => {
+  const n = segmentsX
+  const m = segmentsY
+
+  // verts
+  const xx = Utils.linspace(0, 1, n)
+  const yy = Utils.linspace(0, 1, m)
+  if (periodicX) { xx.pop() }
+  if (periodicY) { yy.pop() }
+  const position = yy.map(y => xx.map(x => [x, y, 0])).flat()
+
+  // f2v
+  const index = []
+  const nn = periodicX ? n : n + 1
+  const mm = periodicY ? m : m + 1
+  for (const x of _.range(n)) {
+    for (const y of _.range(m)) {
+      const quad = [
+        nn * ((y + 0) % mm) + ((x + 0) % nn),
+        nn * ((y + 0) % mm) + ((x + 1) % nn),
+        nn * ((y + 1) % mm) + ((x + 1) % nn),
+        nn * ((y + 1) % mm) + ((x + 0) % nn)
+      ]
+      index.push(...quadToTriIndex(quad))
+    }
+  }
+
+  return { position, index }
+}
+
+const makeParametric = (f, segmentsX, segmentsY, periodicX, periodicY) => {
+  const { position, index } = makePlane(segmentsX, segmentsY, periodicX, periodicY)
+  return { position: position.map(f), index }
+}
+
+const makeTorus = (r0 = 1, r1 = 0.5, segmentsX = 32, segmentsY = 16) => {
+  const f = ([u, v]) => {
+    const y = r1 * cos(v) + r0
+    const z = r1 * sin(v)
+    return [-sin(u) * y, cos(u) * y, z]
+  }
+  return makeParametric(f, segmentsX, segmentsY, true, true)
+}
+
 export {
   Camera2dHelper, Camera3dHelper,
   makeDiskAlphaMap, makeGrid, makeAxes, quadToTriIndex,
@@ -551,5 +595,6 @@ export {
   stringToElement, makeCircle,
   makeRaycasterFromWindow, windowDeltaToWorldDelta, applyWindowDelta,
   getPerspectiveScale, applyPerspectiveScale,
-  makeHedron20, makeHedron8, makeIcosphere
+  makeHedron20, makeHedron8, makeIcosphere,
+  makePlane, makeParametric, makeTorus
 }

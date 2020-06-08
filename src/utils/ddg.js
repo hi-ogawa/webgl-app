@@ -40,7 +40,7 @@ const computeTopology = (f2v, nV) => {
   // (i.e. transpose of f2e)
   const e2f = []
 
-  // Squash f2e and e2f [[[f0, e0, +1/-1], [f1, e1, +1/-2], ..], ...]
+  // Squash f2e and e2f [[[f0, e0, +1/-1], [f1, e1, +1/-1], ..], ...]
   // (i.e. antisymmetric (face) adjacency matrix)
   const f2fe = _.range(nF).map(() => [])
 
@@ -187,6 +187,91 @@ const computeMeanCurvature = (verts, L) => {
   return HN2
 }
 
+// this also works for `f2fe` to make dual spanning tree
+const computeSpanningTree = (root, v2ve) => {
+  const nV = v2ve.length
+
+  // Subset of v2ve to make spanning tree edges
+  const tree = _.range(nV).map(() => [])
+
+  // Simple BFS (only traverses the connected component with root)
+  const visited = _.range(nV).fill(false)
+  const queue = []
+  queue.push(root)
+  visited[root] = true
+  while (queue.length > 0) {
+    const v1 = queue.shift() // "queue.pop()" makes it almost DFS
+    for (const [v2, e, o] of v2ve[v1]) {
+      if (visited[v2]) { continue }
+
+      visited[v2] = true
+      tree[v1].push([v2, e, o])
+      queue.push(v2)
+    }
+  }
+
+  return tree
+}
+
+// Avoid `invalidEdges` and return `usedEdges` for the use of `computeTreeCotree`
+const computeSpanningTreeV2 = (root, v2ve, nE, invalidEdges = null) => {
+  const nV = v2ve.length
+
+  // Subset of v2ve to make spanning tree edges
+  const tree = _.range(nV).map(() => ({ parent: null, children: [] }))
+  const usedEdges = _.range(nE).fill(false)
+
+  // Simple BFS (only traverses the connected component with root)
+  const visited = _.range(nV).fill(false)
+  const queue = []
+  queue.push(root)
+  visited[root] = true
+  while (queue.length > 0) {
+    const v1 = queue.shift() // "queue.pop()" makes it almost DFS
+    for (const [v2, e, o] of v2ve[v1]) {
+      if (visited[v2]) { continue }
+      if (invalidEdges && invalidEdges[e]) { continue }
+
+      visited[v2] = true
+      usedEdges[e] = true
+      tree[v1].children.push([v2, e, o])
+      tree[v2].parent = [v1, e, o]
+      queue.push(v2)
+    }
+  }
+
+  return { tree, usedEdges }
+}
+
+const computePathToRoot = (v0, tree) => {
+  let v = v0
+  const path = []
+  while (tree[v].parent) {
+    const veo = tree[v].parent
+    path.push(veo[1])
+    v = veo[0]
+  }
+  return path
+}
+
+const computeLoop = (e, treeF, e2f) => {
+  const [[f1, o1], [f2, o2]] = e2f[e]
+  const path1 = computePathToRoot(f1, treeF)
+  const path2 = computePathToRoot(f2, treeF)
+  const loop = [...path1.reverse(), e, ...path2]
+  return loop
+}
+
+const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
+  const nE = e2f.length
+  const { tree: treeF, usedEdges: edgesF } = computeSpanningTreeV2(rootF, f2fe, nE)
+  const { tree: treeV, usedEdges: edgesV } = computeSpanningTreeV2(rootV, v2ve, nE, edgesF)
+  const edgesFree = _.range(nE).filter(e => !edgesV[e] && !edgesF[e])
+  const loops = edgesFree.map(e => computeLoop(e, treeF, e2f))
+  return { treeF, treeV, edgesF, edgesV, edgesFree, loops }
+}
+
 export {
-  computeTopology, computeMore, computeLaplacian, computeMeanCurvature
+  computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
+  computeSpanningTree, computeSpanningTreeV2, computeTreeCotree
 }

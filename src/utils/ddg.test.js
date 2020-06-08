@@ -138,6 +138,17 @@ describe('ddg', () => {
       // Gaussign curvature of unit sphere = 1 * 1 = 1
       deepCloseTo(kG, _.range(nV).fill(1), 1e-2)
     })
+
+    // TODO
+    // it('benchmark', () => {
+    //   // V: 12  =>  V + E
+    //   // E: 30  =>  E x 2 + F x 3
+    //   // F: 20  =>  F x 4
+    //   const { position: verts, index: f2v } = UtilsMisc.makeIcosphere(3)
+    //   const nV = verts.length
+    //   const topology = ddg.computeTopology(f2v, nV)
+    //   const { hodge0, angleSum } = ddg.computeMore(verts, f2v, topology)
+    // })
   })
 
   describe('computeLaplacian', () => {
@@ -185,6 +196,69 @@ describe('ddg', () => {
       const { e2v } = topology
       const L = ddg.computeLaplacian(nV, e2v, hodge1)
       const HN2 = ddg.computeMeanCurvature(verts, L)
+    })
+  })
+
+  describe('computeSpanningTree', () => {
+    it('works 0', () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeHedron8()
+      const nV = verts.length
+      const topology = ddg.computeTopology(f2v, nV)
+      const root = 0
+      const treeV = ddg.computeSpanningTree(root, topology.v2ve)
+      const treeF = ddg.computeSpanningTree(root, topology.f2fe)
+      deepEqual(treeV.map(veos => veos.map(veo => veo[0])), [
+        [1, 2, 3, 4], [5], [], [], [], []
+      ])
+      deepEqual(treeF.map(veos => veos.map(veo => veo[0])), [
+        [3, 4, 1], [], [6], [2, 7], [5], [], [], []
+      ])
+    })
+
+    it('works 1', () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeHedron8()
+      const nV = verts.length
+      const topology = ddg.computeTopology(f2v, nV)
+      const nE = topology.e2f.length
+      const root = 0
+      const resultV = ddg.computeSpanningTreeV2(root, topology.v2ve, nE)
+      const resultF = ddg.computeSpanningTreeV2(root, topology.f2fe, nE, resultV.usedEdges)
+      const edgesV = _.range(nE).filter(e => resultV.usedEdges[e])
+      const edgesF = _.range(nE).filter(e => resultF.usedEdges[e])
+      deepEqual(edgesV, [0, 2, 4, 6, 9])
+      deepEqual(edgesF, [1, 3, 5, 7, 8, 10, 11])
+    })
+  })
+
+  describe('computeTreeCotree', () => {
+    it('works 0', () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeHedron8()
+      const nV = verts.length
+      const topology = ddg.computeTopology(f2v, nV)
+      const { v2ve, f2fe, e2f } = topology
+      const rootV = 0
+      const rootF = 0
+      const { loops } = ddg.computeTreeCotree(rootV, rootF, v2ve, f2fe, e2f)
+      deepEqual(loops, [])
+    })
+
+    it('works 1', () => {
+      // See misc.test.js for the diagram showing topology
+      const { position: verts, index: f2v } = UtilsMisc.makePlane(3, 3, true, true)
+      const nV = verts.length
+      const topology = ddg.computeTopology(f2v, nV)
+      const { e2v, v2ve, f2fe, e2f } = topology
+      const nE = e2v.length
+      const nF = f2v.length
+      equal(nV - nE + nF, 0) // g = 1
+
+      const rootV = 0
+      const rootF = 0
+      const { loops } = ddg.computeTreeCotree(rootV, rootF, v2ve, f2fe, e2f)
+      deepEqual(loops, [
+        [2, 3, 6, 7, 10, 0],
+        [1, 14, 13, 23, 8, 7, 10, 0]
+      ])
     })
   })
 })
