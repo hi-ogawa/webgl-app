@@ -1,3 +1,5 @@
+/* eslint camelcase: 0 */
+
 // Minimal lodash
 const _ = {
   range: (n) => {
@@ -99,6 +101,14 @@ const max = (a, b) => {
   return broadcast(a, b).map(([aa, bb]) => Math.max(aa, bb))
 }
 
+const Math_mix = (a, b, t) => {
+  return a + t * (b - a)
+}
+
+const mix = (a, b, t) => {
+  return broadcast(a, b).map(([aa, bb]) => Math_mix(aa, bb, t))
+}
+
 const dot = (a, b) => {
   return _.sum(mul(a, b))
 }
@@ -133,7 +143,7 @@ const normalize = (a) => {
 export {
   vec2, vec3, vec4, /* mat2, mat3, mat4, */
   add, sub, mul, div, /* mmul */
-  dot, cross, length, normalize, min, max,
+  dot, cross, length, normalize, min, max, mix,
   /* inverse, transpose, */
   pow2, dot2 /* diag, outer, outer2, */
 }

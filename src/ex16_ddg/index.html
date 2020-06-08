@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>WebGL App</title>
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+  <div id="root"></div>
+
+  <template id="scene">
+    <a-scene
+      background="color: #233"
+      light="defaultLightsEnabled: false"
+      inspector="url: ../../web_modules/aframe-inspector.js"
+    >
+      <a-assets>
+        <a-asset-item id="bunny" src="../../thirdparty/libigl-tutorial-data/bunny.off"></a-asset-item>
+        <a-asset-item id="3holes" src="../../thirdparty/libigl-tutorial-data/3holes.off"></a-asset-item>
+        <a-asset-item id="camelhead" src="../../thirdparty/libigl-tutorial-data/camelhead.off"></a-asset-item>
+      </a-assets>
+
+      <a-entity init-inspector viewer="asset: #3holes" material="vertexColors: vertex"></a-entity>
+
+      <!-- Camera and Sun light -->
+      <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 2 5" orbit-controls="drawLookat: true">
+        <a-entity light="type: directional; intensity: 0.0"></a-entity>
+      </a-entity>
+
+      <!-- Coordinate grid -->
+      <a-entity coordinate-grid="y: false; colorAxes: false;"></a-entity>
+
+      <!-- Ambient light -->
+      <a-entity light="type: ambient; intensity: 1.0"></a-entity>
+    </a-scene>
+  </template>
+
+  <script type="module">
+    import { main } from './index.js';
+    main()
+  </script>
+</body>
