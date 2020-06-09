@@ -578,6 +578,8 @@ const makeParametric = (f, segmentsX, segmentsY, periodicX, periodicY) => {
 
 const makeTorus = (r0 = 1, r1 = 0.5, segmentsX = 32, segmentsY = 16) => {
   const f = ([u, v]) => {
+    u = 2 * PI * u
+    v = 2 * PI * v
     const y = r1 * cos(v) + r0
     const z = r1 * sin(v)
     return [-sin(u) * y, cos(u) * y, z]

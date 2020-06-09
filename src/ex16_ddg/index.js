@@ -34,19 +34,6 @@ const {
 const { $, $$, stringToElement } = UtilsMisc
 /* eslint-enable no-unused-vars */
 
-AFRAME.registerGeometry('icosphere', {
-  schema: {
-    numSubdiv: { default: 2, min: 0, type: 'int' }
-  },
-
-  init (data) {
-    this.geometry = Utils.makeBufferGeometry(
-      UtilsMisc.makeIcosphere(data.numSubdiv))
-    this.geometry.computeVertexNormals()
-    data.buffer = false
-  }
-})
-
 const getSignedColor = (value, color0, colorP, colorN) => {
   // Piecewise linear with knot at value = 0
   return value > 0

@@ -146,6 +146,7 @@ const computeMore = (verts, f2v, topology) => {
   return { angleSum, hodge0, hodge1 }
 }
 
+// TODO: implement `computeLaplacianV2` which computes `L` directly without `computeMore`
 const computeLaplacian = (nV, e2v, hodge1) => {
   const nE = e2v.length
 
@@ -222,6 +223,7 @@ const computeSpanningTreeV2 = (root, v2ve, nE, invalidEdges = null) => {
   const usedEdges = _.range(nE).fill(false)
 
   // Simple BFS (only traverses the connected component with root)
+  // TODO: it might be that DFS's "tree-cotree" has nicer property?
   const visited = _.range(nV).fill(false)
   const queue = []
   queue.push(root)
@@ -262,6 +264,26 @@ const computeLoop = (e, treeF, e2f) => {
   return loop
 }
 
+// Prop. loops are homology generators
+//  0. Assume surface is 2dim-connected-closed manifold
+//  1. Writing
+//    V, E, F: number of primal mesh vertices/edges/faces
+//    V*, E*, F*: number of dual mesh vertices/edges/faces (V* = F, E* = E, F* = V)
+//    Vt, Et: number of tree vertices/edges
+//    Vt*, Et*: number of cotree vertices/edges
+//  2. Since connected, we have
+//    Vt = V and thus Et = Vt - 1 = V - 1
+//    Vt* = V* and thus Et* = Vt* - 1 = V* - 1 = F - 1
+//  3. Thus
+//    Et + Et* = V + F - 2
+//    E - (Et + Et*) = 2 - (V - E + F) = 2 - X = 2g
+//    So we found 2g loops.
+//  4. By construction, they are not contractible (i.e. doesn't disconnect surface)
+//     Moreover, any linear combination of the loops are not contractible by the same argument.
+//     Therefore, these 2g loops have to span Homology group (which is known to have 2g generators)
+// NOTE:
+// - This is actual "cotree-tree" construction.
+//   If we want "tree-cotree", then just pass its dual
 const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
   const nE = e2f.length
   const { tree: treeF, usedEdges: edgesF } = computeSpanningTreeV2(rootF, f2fe, nE)

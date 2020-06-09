@@ -3,7 +3,7 @@
 //
 import * as glm from './glm.js'
 
-// Scale to [-1, 1]^3
+// Scale a set of positions to [-1, 1]^3
 const normalizePositions = (verts) => {
   const { sub, mul, min, max } = glm
   const center = glm.div(verts.reduce(glm.add), verts.length)
@@ -14,6 +14,14 @@ const normalizePositions = (verts) => {
   return result
 }
 
+// Convienient for quick visualization of signed value
+// (piecewise linear with knot at value = 0)
+const getSignedColor = (value, color0, colorP, colorN) => {
+  return value > 0
+    ? glm.mix(color0, colorP, value)
+    : glm.mix(color0, colorN, -value)
+}
+
 export {
-  normalizePositions
+  normalizePositions, getSignedColor
 }
