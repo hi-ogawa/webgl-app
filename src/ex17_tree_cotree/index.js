@@ -32,8 +32,12 @@ const { $, $$, stringToElement } = UtilsMisc
 /* eslint-enable no-unused-vars */
 
 AFRAME.registerGeometry('my-torus', {
+  schema: {
+    genus: { default: 2, min: 0, type: 'int' }
+  },
+
   init (data) {
-    this.geometry = Utils.makeBufferGeometry(UtilsMisc.makeTorus(1, 0.5, 64, 32))
+    this.geometry = Utils.makeBufferGeometry(UtilsMisc.makeGTorus(data.genus))
     this.geometry.computeVertexNormals()
     data.buffer = false
   }

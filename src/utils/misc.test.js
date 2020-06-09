@@ -2,6 +2,7 @@
 /* global describe, it */
 
 import assert from 'assert'
+import _ from '../../web_modules/lodash.js'
 import * as UtilsMisc from './misc.js'
 
 const equal = assert.strictEqual
@@ -67,6 +68,42 @@ describe('misc', () => {
       const { position, index } = UtilsMisc.makeTorus()
       equal(position.length, 512)
       equal(index.length, 32 * 16 * 2)
+    })
+  })
+
+  describe('extrudeFaces', () => {
+    it('works 0', () => {
+      const nV = 6
+      const f2v = [[0, 1, 4, 3], [1, 2, 5, 4]]
+      const f2v_new = UtilsMisc.extrudeFaces(nV, f2v)
+      equal(f2v_new.length, 2 * 2 + 6)
+    })
+
+    it('works 1', () => {
+      // Make donut plane like this
+      //   +-+-+-+
+      //   |x|x|x|
+      //   +-+-+-+
+      //   |x| |x|
+      //   +-+-+-+
+      //   |x|x|x|
+      //   +-+-+-+
+      const { position, index } = UtilsMisc.makePlane(3, 3, false, false, false)
+      const nV = position.length
+      _.remove(index, face => _.isEqual(face, [5, 6, 10, 9])) // crop out center face
+      const f2v_new = UtilsMisc.extrudeFaces(nV, index)
+      equal(f2v_new.length, 8 * 2 + 16)
+    })
+  })
+
+  describe('makeGTorus', () => {
+    it('works 0', () => {
+      const g = 3
+      const { position, index } = UtilsMisc.makeGTorus(g)
+      const nV = position.length
+      const nF = index.length
+      const nE = nF * 3 / 2
+      equal(nV - nE + nF, 2 - 2 * g)
     })
   })
 })

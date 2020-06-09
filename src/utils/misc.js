@@ -541,7 +541,7 @@ const makeIcosphere = (n) => {
   }
 }
 
-const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false) => {
+const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true) => {
   const n = segmentsX
   const m = segmentsY
 
@@ -564,19 +564,20 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
         nn * ((y + 1) % mm) + ((x + 1) % nn),
         nn * ((y + 1) % mm) + ((x + 0) % nn)
       ]
-      index.push(...quadToTriIndex(quad))
+      const faces = triangle ? quadToTriIndex(quad) : [quad]
+      index.push(...faces)
     }
   }
 
   return { position, index }
 }
 
-const makeParametric = (f, segmentsX, segmentsY, periodicX, periodicY) => {
-  const { position, index } = makePlane(segmentsX, segmentsY, periodicX, periodicY)
+const makeParametric = (f, segmentsX, segmentsY, periodicX, periodicY, triangle) => {
+  const { position, index } = makePlane(segmentsX, segmentsY, periodicX, periodicY, triangle)
   return { position: position.map(f), index }
 }
 
-const makeTorus = (r0 = 1, r1 = 0.5, segmentsX = 32, segmentsY = 16) => {
+const makeTorus = (r0 = 1, r1 = 0.5, segmentsX = 32, segmentsY = 16, triangle = true) => {
   const f = ([u, v]) => {
     u = 2 * PI * u
     v = 2 * PI * v
@@ -584,7 +585,84 @@ const makeTorus = (r0 = 1, r1 = 0.5, segmentsX = 32, segmentsY = 16) => {
     const z = r1 * sin(v)
     return [-sin(u) * y, cos(u) * y, z]
   }
-  return makeParametric(f, segmentsX, segmentsY, true, true)
+  return makeParametric(f, segmentsX, segmentsY, true, true, triangle)
+}
+
+// f2v: int[nF, 4]
+const extrudeFaces = (nV, f2v) => {
+  // New geometry will have
+  //   V' = 2 V
+  //   E' = 2 E + Vb
+  //   F' = 2 F + Vb
+  // where
+  //   Vb (= Eb): number of boundary vertices/edges
+
+  // Flip orientation of bottom
+  const f2v_bottom = _.cloneDeep(f2v).map(vs => [...vs].reverse())
+
+  // Duplicate verts on top
+  const f2v_top = _.cloneDeep(f2v).map(vs => vs.map(v => v + nV))
+
+  // Collect boundary edges/vertices
+  const v2v = _.range(nV).map(() => [])
+  const minMax = (a, b) => a < b ? [a, b] : [b, a]
+
+  // Add-and-Remove pair so that what's left is the boundary
+  for (const vs of f2v) {
+    for (const i of _.range(vs.length)) {
+      const v0 = vs[i]
+      const v1 = vs[(i + 1) % vs.length]
+      const [vm, vM] = minMax(v0, v1)
+      const o = v0 === vm
+      const removed = _.remove(v2v[vm], ([v, o]) => v === vM)
+      if (removed.length > 0) { continue }
+      v2v[vm].push([vM, o])
+    }
+  }
+
+  const f2v_side = []
+  for (const vm of _.range(nV)) {
+    for (const [vM, o] of v2v[vm]) {
+      const [v0, v1] = o ? [vm, vM] : [vM, vm]
+      f2v_side.push([v0, v1, nV + v1, nV + v0])
+    }
+  }
+
+  return _.concat(f2v_bottom, f2v_top, f2v_side)
+}
+
+// // verts: float[nV, 3]
+// // f2v: int[nF, 4]
+// const subdivCatmulClerk = (verts, f2v) => {
+// }
+
+// TODO: make smooth one by subdividing corners
+const makeGTorusQuad = (g) => {
+  // Start from plane with enough width to make holes
+  let { position, index } = makePlane(1 + 2 * g, 3, false, false, false)
+
+  // Crop out interior faces
+  for (const i of _.range(g).reverse()) {
+    index.splice(4 + i * 6, 1)
+  }
+
+  // Extrude topology
+  const nV = position.length
+  index = extrudeFaces(nV, index)
+
+  // Make extruded vertices
+  const { add, sub, mul } = glm
+  position.push(..._.cloneDeep(position).map(p => add(p, [0, 0, 1])))
+
+  // Normalize positions
+  position = position.map(p => mul(sub(p, 0.5), [1 + 2 * g, 3, 1]))
+  return { position, index }
+}
+
+const makeGTorus = (g) => {
+  let { position, index } = makeGTorusQuad(g)
+  index = index.map(quadToTriIndex).flat()
+  return { position, index }
 }
 
 export {
@@ -598,5 +676,6 @@ export {
   makeRaycasterFromWindow, windowDeltaToWorldDelta, applyWindowDelta,
   getPerspectiveScale, applyPerspectiveScale,
   makeHedron20, makeHedron8, makeIcosphere,
-  makePlane, makeParametric, makeTorus
+  makePlane, makeParametric, makeTorus,
+  extrudeFaces, makeGTorus
 }
