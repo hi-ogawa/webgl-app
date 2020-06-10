@@ -97,6 +97,38 @@ describe('ddg', () => {
         [[9, -1], [7, -1], [11, -1]]
       ])
     })
+
+    it('works 2 (quad)', () => {
+      const { position, index } = UtilsMisc.makeQuadCube()
+      const nV = position.length
+      const { e2v, f2e } = ddg.computeTopology(index, nV)
+      assert.deepStrictEqual(e2v, [
+        [0, 3], [3, 2],
+        [2, 1], [1, 0],
+        [1, 5], [5, 4],
+        [4, 0], [2, 6],
+        [6, 5], [3, 7],
+        [7, 6], [4, 7]
+      ])
+      assert.deepStrictEqual(f2e, [
+        [[0, 1], [1, 1], [2, 1], [3, 1]],
+        [[3, -1], [4, 1], [5, 1], [6, 1]],
+        [[2, -1], [7, 1], [8, 1], [4, -1]],
+        [[1, -1], [9, 1], [10, 1], [7, -1]],
+        [[0, -1], [6, -1], [11, 1], [9, -1]],
+        [[5, -1], [8, -1], [10, -1], [11, -1]]
+      ])
+    })
+
+    it('works 3 (bunny)', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      const { verts, f2v } = readOFF(data)
+      const nV = verts.length
+      const { e2v, f2e } = ddg.computeTopology(f2v, nV)
+      const nE = e2v.length
+      const nF = f2v.length
+      equal(nV - nE + nF, 2)
+    })
   })
 
   describe('computeMore', () => {

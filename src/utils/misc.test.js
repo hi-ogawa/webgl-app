@@ -4,6 +4,7 @@
 import assert from 'assert'
 import _ from '../../web_modules/lodash.js'
 import * as UtilsMisc from './misc.js'
+import * as ddg from './ddg.js'
 
 const equal = assert.strictEqual
 const deepEqual = assert.deepStrictEqual
@@ -101,9 +102,30 @@ describe('misc', () => {
       const g = 3
       const { position, index } = UtilsMisc.makeGTorus(g)
       const nV = position.length
+      const { e2v } = ddg.computeTopology(index, nV)
+      const nE = e2v.length
       const nF = index.length
-      const nE = nF * 3 / 2
       equal(nV - nE + nF, 2 - 2 * g)
+    })
+
+    it('works 1', () => {
+      const g = 2
+      const subdiv = 2
+      const { position, index } = UtilsMisc.makeGTorus(g, subdiv)
+      const nV = position.length
+      const { e2v } = ddg.computeTopology(index, nV)
+      const nE = e2v.length
+      const nF = index.length
+      equal(nV - nE + nF, 2 - 2 * g)
+    })
+  })
+
+  describe('subdivCatmullClerk', () => {
+    it('works 0', () => {
+      let { position, index } = UtilsMisc.makeQuadCube();
+      [position, index] = UtilsMisc.subdivCatmullClerk(position, index)
+      equal(position.length, 8 + 12 + 6)
+      equal(index.length, 6 * 4)
     })
   })
 })

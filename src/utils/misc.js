@@ -4,6 +4,7 @@ import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from './index.js'
 import * as glm from './glm.js'
+import * as ddg from './ddg.js'
 
 const THREE = AFRAME.THREE
 
@@ -528,6 +529,32 @@ const makeHedron8 = () => {
   }
 }
 
+// Cube as quads
+const makeQuadCube = () => {
+  const position = [
+    0, 0, 0,
+    1, 0, 0,
+    1, 1, 0,
+    0, 1, 0,
+    0, 0, 1,
+    1, 0, 1,
+    1, 1, 1,
+    0, 1, 1
+  ]
+  const index = [
+    0, 3, 2, 1,
+    0, 1, 5, 4,
+    1, 2, 6, 5,
+    2, 3, 7, 6,
+    3, 0, 4, 7,
+    4, 5, 6, 7
+  ]
+  return {
+    position: _.chunk(position, 3),
+    index: _.chunk(index, 4)
+  }
+}
+
 const makeIcosphere = (n) => {
   const geometry = Utils.makeBufferGeometry(makeHedron20())
   for (const _i of _.range(n)) { // eslint-disable-line
@@ -603,40 +630,98 @@ const extrudeFaces = (nV, f2v) => {
   // Duplicate verts on top
   const f2v_top = _.cloneDeep(f2v).map(vs => vs.map(v => v + nV))
 
-  // Collect boundary edges/vertices
-  const v2v = _.range(nV).map(() => [])
-  const minMax = (a, b) => a < b ? [a, b] : [b, a]
-
-  // Add-and-Remove pair so that what's left is the boundary
-  for (const vs of f2v) {
-    for (const i of _.range(vs.length)) {
-      const v0 = vs[i]
-      const v1 = vs[(i + 1) % vs.length]
-      const [vm, vM] = minMax(v0, v1)
-      const o = v0 === vm
-      const removed = _.remove(v2v[vm], ([v, o]) => v === vM)
-      if (removed.length > 0) { continue }
-      v2v[vm].push([vM, o])
-    }
-  }
-
+  // Make side face along boundary edges
+  const { e2f, e2v } = ddg.computeTopology(f2v, nV)
   const f2v_side = []
-  for (const vm of _.range(nV)) {
-    for (const [vM, o] of v2v[vm]) {
-      const [v0, v1] = o ? [vm, vM] : [vM, vm]
+  const nE = e2v.length
+  for (const e of _.range(nE)) {
+    // Boundary edge <=> having single face as neighbor
+    if (e2f[e].length === 1) {
+      const [v0, v1] = e2v[e]
       f2v_side.push([v0, v1, nV + v1, nV + v0])
     }
   }
-
   return _.concat(f2v_bottom, f2v_top, f2v_side)
 }
 
-// // verts: float[nV, 3]
-// // f2v: int[nF, 4]
-// const subdivCatmulClerk = (verts, f2v) => {
-// }
+// verts: float[nV, 3]
+// f2v: int[nF, 4]
+const subdivCatmullClerk = (verts, f2v) => {
+  const nV = verts.length
+  const nF = f2v.length
+  const { e2v, v2ve, f2e } = ddg.computeTopology(f2v, nV)
+  const nE = e2v.length
 
-// TODO: make smooth one by subdividing corners
+  const newVerts = _.range(nV + nE + nF).map(() => [0, 0, 0])
+  const newF2v = []
+
+  // Offset of edge/face point within new vertices
+  const oE = nV
+  const oF = nV + nE
+
+  const { add, mul, div } = glm
+  const assign = (a, b) => b.forEach((v, i) => { a[i] = v })
+  const addAssign = (a, b) => assign(a, add(a, b))
+
+  //
+  // Subdivision mask of 3-deg 2d B-spline
+  //
+  // [ new face ]
+  //   1 --- 1
+  //   |  x  |
+  //   1 --- 1
+  //
+  // [ new edge ]
+  //   1 --- 1   =>   0 --- 0
+  //   |     |   =>   |  1  |
+  //   6 -x- 6   =>   2 -x- 2
+  //   |     |   =>   |  1  |
+  //   1 --- 1   =>   0 --- 0
+  //
+  // [ new vertex ]
+  //   1 --- 6 --- 1   =>   0 --- 1 --- 0   =>    0 ------ 1/n
+  //   |     |     |   =>   |  1  |  1  |   =>    |   1/n   |
+  //   6 --- 36--- 6   =>   1 --- 8 --- 1   =>   1/n ----- n-2
+  //   |     |     |   =>   |  1  |  1  |   =>   |    1/n
+  //   1 --- 6 --- 1   =>   0 --- 1 --- 0   =>  (Catmull-Clerk's formula for non-regular vertex)
+  //
+
+  // Assuming surface without boundary, we can compute this by single loop
+  for (const i of _.range(nF)) {
+    // Make new face data
+    const faceValue = div(f2v[i].map(v => verts[v]).reduce(add), 4)
+    newVerts[oF + i] = faceValue
+
+    for (const j of _.range(4)) {
+      const v0 = f2v[i][j]
+      const e0 = f2e[i][j][0]
+      const v1 = f2v[i][(j + 1) % 4]
+      const e1 = f2e[i][(j + 1) % 4][0]
+
+      // New face by "f -> e0 -> v1 -> e1"
+      newF2v.push([oF + i, oE + e0, v1, oE + e1])
+
+      // Accumulate data between face/edge/vert
+      // - face => edge
+      addAssign(newVerts[oE + e0], div(faceValue, 4))
+
+      // - vert => edge
+      addAssign(newVerts[oE + e0], div(verts[v0], 4))
+
+      // - ... => vert
+      const n = v2ve[v0].length
+      const acc = [
+        faceValue, // face => vert
+        verts[v1],  // vert => vert
+        mul(n - 2, verts[v0]), // vert => vert (self)
+      ]
+      addAssign(newVerts[v0], div(acc.reduce(add), n * n))
+    }
+  }
+
+  return [newVerts, newF2v]
+}
+
 const makeGTorusQuad = (g) => {
   // Start from plane with enough width to make holes
   let { position, index } = makePlane(1 + 2 * g, 3, false, false, false)
@@ -659,8 +744,11 @@ const makeGTorusQuad = (g) => {
   return { position, index }
 }
 
-const makeGTorus = (g) => {
+const makeGTorus = (g, subdiv = 0) => {
   let { position, index } = makeGTorusQuad(g)
+  _.range(subdiv).forEach(() => {
+    [position, index] = subdivCatmullClerk(position, index)
+  })
   index = index.map(quadToTriIndex).flat()
   return { position, index }
 }
@@ -675,7 +763,7 @@ export {
   stringToElement, makeCircle,
   makeRaycasterFromWindow, windowDeltaToWorldDelta, applyWindowDelta,
   getPerspectiveScale, applyPerspectiveScale,
-  makeHedron20, makeHedron8, makeIcosphere,
+  makeHedron20, makeHedron8, makeIcosphere, makeQuadCube,
   makePlane, makeParametric, makeTorus,
-  extrudeFaces, makeGTorus
+  extrudeFaces, makeGTorus, subdivCatmullClerk
 }

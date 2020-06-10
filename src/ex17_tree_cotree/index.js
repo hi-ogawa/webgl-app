@@ -15,6 +15,7 @@ import '../utils/aframe/coordinate-grid.js'
 import '../utils/aframe/init-inspector.js'
 import * as glm from '../utils/glm.js'
 import * as ddg from '../utils/ddg.js'
+import { hash11 } from '../utils/hash.js'
 
 /* eslint-disable no-unused-vars */
 const THREE = AFRAME.THREE
@@ -37,7 +38,7 @@ AFRAME.registerGeometry('my-torus', {
   },
 
   init (data) {
-    this.geometry = Utils.makeBufferGeometry(UtilsMisc.makeGTorus(data.genus))
+    this.geometry = Utils.makeBufferGeometry(UtilsMisc.makeGTorus(data.genus, 2))
     this.geometry.computeVertexNormals()
     data.buffer = false
   }
@@ -169,13 +170,17 @@ AFRAME.registerComponent('tree-cotree', {
     this.el.removeObject3D('loops')
     if (this.data.loops) {
       const objectGroup = new THREE.Group()
-      for (const loop of loops) {
+      const n = loops.length
+      for (const i of _.range(n)) {
+        const loop = loops[i]
         const loopIndex = loop.map(e => e2fSlim[e])
         const geometry = Utils.makeBufferGeometry({
-          position: vertsDual,
+          // Jitter position so that loops won't exactly overlap each other
+          position: vertsDual.map((p, j) => glm.add(p, (hash11(i * j) - 0.5) * 0.02)),
           index: loopIndex
         })
-        const material = new THREE.LineBasicMaterial({ linewidth: 2, color: '#fa4' })
+        const color = Utils.toColorHex(Utils.hue(i / n))
+        const material = new THREE.LineBasicMaterial({ linewidth: 2, color: `#${color}` })
         const object = new THREE.LineSegments(geometry, material)
         objectGroup.add(object)
       }

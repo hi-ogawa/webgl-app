@@ -15,14 +15,14 @@ const {
 /* eslint-enable no-unused-vars */
 
 // Improved version of Utils.computeTopology
-// f2v: int[n, 3]
-// nV: int
+// (this works for non-triangle mesh as well)
 const computeTopology = (f2v, nV) => {
   const nF = f2v.length
 
   // Relation from edge to vert [[v0, v1], ...]
   // orientation is encoded implicitly as [(v0, -1), (v1, +1)]
   // (i.e. sparse representation of d_0 : R^V -> R^E)
+  // (TODO: make it same format as dual conterpart `e2f`)
   const e2v = []
 
   // Relation from vert to vert/edge [[(v1, e1, +1/-1), (v2, e2, +1/-1), ..], ...]
@@ -30,7 +30,7 @@ const computeTopology = (f2v, nV) => {
   // (i.e. antisymmetric adjacent matrix)
   const v2ve = _.range(nV).map(() => [])
 
-  // Relation from face to ccw edge [[(e0, +1/-1), (e1, ..), (e2, ..)], ...]
+  // Relation from face to ccw edge [[(e0, +1/-1), (e1, ..), ..], ...]
   // where +1/-1 represents orientation wrt above e2v orientation
   // (i.e. sparse representation of d_1 : R^E -> R^F)
   const f2e = _.range(nF).map(() => [])
@@ -42,6 +42,7 @@ const computeTopology = (f2v, nV) => {
 
   // Squash f2e and e2f [[[f0, e0, +1/-1], [f1, e1, +1/-1], ..], ...]
   // (i.e. antisymmetric (face) adjacency matrix)
+  // (TODO: make separate function for computing this since it's only used for `computeTreeCotree`)
   const f2fe = _.range(nF).map(() => [])
 
   // TODO: Is this useful?
@@ -49,9 +50,10 @@ const computeTopology = (f2v, nV) => {
 
   // Loop faces
   for (const i of _.range(nF)) {
-    for (const j of _.range(3)) {
+    const n = f2v[i].length
+    for (const j of _.range(n)) {
       const v0 = f2v[i][j]
-      const v1 = f2v[i][(j + 1) % 3]
+      const v1 = f2v[i][(j + 1) % n]
       let veo = v2ve[v0].find(([v, _e, _o]) => v === v1)
       if (!veo) {
         // Register new edge
