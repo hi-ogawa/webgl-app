@@ -1,7 +1,3 @@
-//
-// TODO
-//
-
 import AFRAME from '../../../web_modules/aframe.js'
 import * as Utils from '../index.js'
 import * as UtilsMisc2 from '../misc2.js'

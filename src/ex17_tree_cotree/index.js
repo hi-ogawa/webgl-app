@@ -13,6 +13,7 @@ import '../utils/aframe/input.js'
 import '../utils/aframe/orbit-controls.js'
 import '../utils/aframe/coordinate-grid.js'
 import '../utils/aframe/init-inspector.js'
+import '../utils/aframe/geometry.js'
 import * as glm from '../utils/glm.js'
 import * as ddg from '../utils/ddg.js'
 import { hash11 } from '../utils/hash.js'
@@ -31,32 +32,6 @@ const {
 } = Utils
 const { $, $$, stringToElement } = UtilsMisc
 /* eslint-enable no-unused-vars */
-
-AFRAME.registerGeometry('my-torus', {
-  schema: {
-    genus: { default: 2, min: 0, type: 'int' }
-  },
-
-  init (data) {
-    this.geometry = Utils.makeBufferGeometry(UtilsMisc.makeGTorus(data.genus, 2))
-    this.geometry.computeVertexNormals()
-    data.buffer = false
-  }
-})
-
-AFRAME.registerGeometry('my-icosphere', {
-  schema: {
-    subdiv: { default: 0, min: 0, type: 'int' }
-  },
-
-  init (data) {
-    const { subdiv } = data
-    this.geometry = Utils.makeBufferGeometry(
-      UtilsMisc.makeIcosphere(subdiv))
-    this.geometry.computeVertexNormals()
-    data.buffer = false
-  }
-})
 
 AFRAME.registerComponent('tree-cotree', {
   dependencies: ['geometry'],
