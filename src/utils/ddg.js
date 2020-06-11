@@ -152,7 +152,7 @@ const computeMore = (verts, f2v, topology) => {
 const computeLaplacian = (nV, e2v, hodge1) => {
   const nE = e2v.length
 
-  // Laplacian = - d0^T . hodge1 . d0  (dual 2 form)
+  // Laplacian = - d0^T . hodge1 . d0 (linear operator: primal 0 form => dual 2 form)
   // sparse float[nV, nV]
   const L = _.range(nV).map(() => new Map())
 
@@ -295,7 +295,69 @@ const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
   return { treeF, treeV, edgesF, edgesV, edgesFree, loops }
 }
 
+// Solve (biased) linear system (A + hI) x = b by Gauss-Seidel
+// NOTE:
+// - If A is weak-diag-dominant, then A + h I is strict-diag-dominant,
+//   and thus, Gauss-Seidel converges.
+// - If (A + hI) x = b, then we have residue |A x - b| = h |x|
+// TODO:
+// - Check convergence
+// - Implement Cholesky decomposition for real positive definite
+const solveGaussSeidel = (A, x0, b, h, N) => {
+  const nV = x0.length
+  const x = _.cloneDeep(x0)
+  for (const n of _.range(N)) { //eslint-disable-line
+    for (const i of _.range(nV)) {
+      let diag = 0
+      let rhs = b[i]
+      for (const [j, a] of A[i]) {
+        if (j === i) {
+          diag = a + h
+          continue
+        }
+        rhs -= a * x[j]
+      }
+      x[i] = rhs / diag
+    }
+  }
+  return x
+}
+
+const negateSparse = (L) => {
+  const nV = L.length
+  const L_neg = _.range(nV).map(() => new Map())
+  for (const i of _.range(nV)) {
+    for (const [k, v] of L[i]) {
+      L_neg[i].set(k, -v)
+    }
+  }
+  return L_neg
+}
+
+const solvePoisson = (verts, f2v, rho_dual) => {
+  const nV = verts.length
+  const topology = computeTopology(f2v, nV)
+  const more = computeMore(verts, f2v, topology)
+  const L = computeLaplacian(nV, topology.e2v, more.hodge1)
+
+  // Make it weak-diag-dominant by negation
+  const L_neg = negateSparse(L)
+  const rho_dual_neg = rho_dual.map(v => -v)
+
+  // Solve (equating (integrated) dual 2-form)
+  const u0_neg = rho_dual_neg
+  const u_neg = solveGaussSeidel(L_neg, u0_neg, rho_dual_neg, 1e-6, 20)
+
+  // Since KerL = span((1, 1, ...)), we remove that component
+  // Also negate back to what we want
+  const avg = _.sum(u_neg) / nV
+  const u = u_neg.map(v => -(v - avg))
+
+  return u
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
-  computeSpanningTree, computeSpanningTreeV2, computeTreeCotree
+  computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
+  solvePoisson, solveGaussSeidel
 }

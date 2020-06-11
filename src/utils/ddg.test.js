@@ -293,4 +293,48 @@ describe('ddg', () => {
       ])
     })
   })
+
+  describe('solveGaussSeidel', () => {
+    const toSparse = (A) => {
+      const nV = A.length
+      const B = _.range(nV).map(() => new Map())
+      for (const i of _.range(nV)) {
+        for (const j of _.range(nV)) {
+          B[i].set(j, A[i][j])
+        }
+      }
+      return B
+    }
+
+    it('works 0', async () => {
+      // weak-diag-dominant matrix
+      const A = [
+        [2, -1, 0, -1],
+        [-1, 2, -1, 0],
+        [0, -1, 2, -1],
+        [-1, 0, -1, 2]
+      ]
+      const A_sparse = toSparse(A)
+      const x0 = [0, 0, 0, 0]
+      const b = [-1, 2, 0, -1]
+      const x = ddg.solveGaussSeidel(A_sparse, x0, b, 1e-6, 8)
+      const Ax = A.map(row => glm.dot(row, x))
+      deepCloseTo(Ax, b, 1e-4)
+    })
+  })
+
+  describe('solvePoisson', () => {
+    it('works 0', async () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeIcosphere(1)
+      const nV = verts.length
+      const rho_dual = _.range(nV).fill(0)
+
+      // 0/11 cooresponds to north/south pole
+      rho_dual[0] = 1
+      rho_dual[11] = -1
+
+      // TODO: test some analytically extected property
+      const u = ddg.solvePoisson(verts, f2v, rho_dual)
+    })
+  })
 })
