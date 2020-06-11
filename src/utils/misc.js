@@ -712,8 +712,8 @@ const subdivCatmullClerk = (verts, f2v) => {
       const n = v2ve[v0].length
       const acc = [
         faceValue, // face => vert
-        verts[v1],  // vert => vert
-        mul(n - 2, verts[v0]), // vert => vert (self)
+        verts[v1], // vert => vert
+        mul(n - 2, verts[v0]) // vert => vert (self)
       ]
       addAssign(newVerts[v0], div(acc.reduce(add), n * n))
     }

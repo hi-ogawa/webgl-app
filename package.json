@@ -8,6 +8,7 @@
     "lint": "standard -v",
     "lint_all": "standard -v 'src/**/*.js'",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
+    "lint:watch": "nodemon --watch src --ext js --exec \"npm run lint_all\"",
     "screenshot": "node scripts/screenshot.js",
     "screenshot_all": "bash scripts/screenshot_all.sh",
     "screenshot_all_with_server": "bash scripts/screenshot_all_with_server.sh"
@@ -15,6 +16,7 @@
   "devDependencies": {
     "jsdom": "^16.2.2",
     "mocha": "^7.1.2",
+    "nodemon": "^2.0.4",
     "now": "^19.0.0",
     "serve": "^11.3.0",
     "snowpack": "^2.0.0-beta.16",
