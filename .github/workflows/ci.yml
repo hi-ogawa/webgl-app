@@ -32,6 +32,22 @@ jobs:
         run: npm ci && npm run build
       - name: === Unit testing ===
         run: npm test
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Install node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - name: Install packages
+        run: npm ci && npm run build
+      - name: === Benchmark ===
+        run: npm run bench
   e2e:
     name: E2E testing
     runs-on: ubuntu-latest

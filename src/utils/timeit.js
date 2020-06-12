@@ -7,8 +7,8 @@ import { performance } from 'perf_hooks' // eslint-disable-line
 import _ from '../../web_modules/lodash.js'
 
 class Timer {
-  constructor (stmt = '', setup = '', teardown = '') {
-    const code = `(__n) => {
+  constructor (stmt = '', setup = '', teardown = '', args = {}) {
+    const code = `(__n, args) => {
         ${setup}
         const __t0 = performance.now()
         for (let __i = 0; __i < __n; __i++) {
@@ -20,10 +20,11 @@ class Timer {
       }
     `
     this.inner = eval(code) // eslint-disable-line
+    this.args = args
   }
 
   run (n) {
-    return this.inner(n) / 1000
+    return this.inner(n, this.args) / 1000
   }
 
   repeat (n, r = 5) {
@@ -86,8 +87,8 @@ const formatRepeatResult = (result) => {
   return `${sMean} (stddev: ${sStddev}, min: ${sMin}, max: ${sMax}, n: ${n})`
 }
 
-const timeit = (stmt, setup = '', n = null, r = 5) => {
-  const timer = new Timer(stmt, setup)
+const timeit = (stmt, setup = '', teardown = '', args = {}, n = null, r = 5) => {
+  const timer = new Timer(stmt, setup, teardown, args)
   if (!n) {
     n = timer.autoRange()
   }

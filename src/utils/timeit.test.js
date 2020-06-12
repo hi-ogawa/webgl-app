@@ -6,19 +6,25 @@ import * as timeit from './timeit.js'
 describe('timeit', () => {
   it.skip('works 0', async () => {
     const setup = `
-      const xs = new Array(10000)
+      const xs = new Float32Array(2**14).fill(1)
+      let result = 0
     `
     const stmt = `
       for (let i = 0; i < xs.length; i++) {
-        xs[i] = i.toString()
+        result += xs[i]
       }
     `
-    // On my machine
-    // 128.73 usec (stddev: 1.308, min: 126.8, max: 130.3, n: 800)
-    console.log(timeit.timeit(stmt, setup).resultString)
+    // Check if `result` is realy there
+    const teardown = `
+      console.log(result)
+    `
 
-    // Compared to python
-    // $ python -m timeit -n 800 '[str(n) for n in range(10000)]'
-    // 800 loops, best of 5: 2.1 msec per loop
+    // On my machine
+    // 27.113 usec (stddev: 0.3188, min: 26.73, max: 27.57, n: 4000)
+    console.log(timeit.timeit(stmt, setup, teardown).resultString)
+
+    // Compared to python/numpy
+    // $ python -m timeit -s 'import numpy as np; xs = np.ones(2**14, dtype=np.float32)' 'xs.sum()'
+    // 50000 loops, best of 5: 9.76 usec per loop
   })
 })

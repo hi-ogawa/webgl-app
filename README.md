@@ -19,6 +19,10 @@ npm install --prefix scripts
 npm run screenshot -- http://localhost:5000/src/ex04_julia/ julia.png # single example
 npm run screenshot_all # all examples under src/
 
+# Benchmark
+npm run bench -- -g 'readOFF bunny' # specific benchmark
+npm run bench
+
 # Deployment
 npm run deploy
 ```

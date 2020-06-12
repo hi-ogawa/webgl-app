@@ -132,7 +132,7 @@ describe('ddg', () => {
   })
 
   describe('computeMore', () => {
-  // cf. Decartes's theorem
+    // cf. Decartes's theorem
     const toEuler = (angleSum) => {
       const angleDefect = angleSum.map(a => 2 * PI - a) // aka. discrete Gaussian curvature
       const totalDefect = _.sum(angleDefect) // aka. Euler characteristics
@@ -170,17 +170,6 @@ describe('ddg', () => {
       // Gaussign curvature of unit sphere = 1 * 1 = 1
       deepCloseTo(kG, _.range(nV).fill(1), 1e-2)
     })
-
-    // TODO
-    // it('benchmark', () => {
-    //   // V: 12  =>  V + E
-    //   // E: 30  =>  E x 2 + F x 3
-    //   // F: 20  =>  F x 4
-    //   const { position: verts, index: f2v } = UtilsMisc.makeIcosphere(3)
-    //   const nV = verts.length
-    //   const topology = ddg.computeTopology(f2v, nV)
-    //   const { hodge0, angleSum } = ddg.computeMore(verts, f2v, topology)
-    // })
   })
 
   describe('computeLaplacian', () => {
