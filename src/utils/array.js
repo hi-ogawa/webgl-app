@@ -17,12 +17,13 @@ class NdArray {
     this.ndim = this.shape.length
     this.size = this.shape.reduce(_.multiply)
     this.stride = makeRawMajorStride(this.shape)
+    this.dtype = data.constructor
   }
 
   static empty (shape, Klass = Float32Array) {
     const size = shape.reduce(_.multiply)
     const data = new Klass(size)
-    return new Matrix(data, shape, 0)
+    return new NdArray(data, shape, 0)
   }
 
   index (...args) {
@@ -41,23 +42,27 @@ class NdArray {
     const v = args.pop()
     this.data[this.index(...args)] = v
   }
+
+  incr (...args) {
+    const v = args.pop()
+    this.data[this.index(...args)] += v
+  }
 }
 
 class Matrix {
-  constructor (data, shape, offset) {
+  constructor (data, shape) {
     this.data = data
     this.shape = shape
-    this.offset = offset
+    this.size = shape.reduce(_.multiply)
   }
 
   static empty (shape, Klass = Float32Array) {
-    const [n, m] = shape
-    const data = new Klass(n * m)
-    return new Matrix(data, shape, 0)
+    const data = new Klass(shape.reduce(_.multiply))
+    return new Matrix(data, shape)
   }
 
   index (i, j) {
-    return this.offset + this.shape[1] * i + j
+    return this.shape[1] * i + j
   }
 
   get (i, j) {
@@ -68,11 +73,145 @@ class Matrix {
     this.data[this.index(i, j)] = v
   }
 
-  pick (i) {
-    const m = this.shape[1]
+  row (i) {
     const offset = this.index(i, 0)
-    return new Matrix(this.data, [1, m], offset)
+    const m = this.shape[1]
+    return this.data.subarray(offset, offset + m)
+  }
+
+  forEach (func) {
+    for (let i = 0; i < this.shape[0]; i++) {
+      for (let j = 0; j < this.shape[1]; j++) {
+        func(this.get(i, j ), i, j)
+      }
+    }
+  }
+
+  incr (i, j, v) {
+    this.data[this.index(i, j)] += v
+  }
+
+  transpose () {
+    const data = new this.data.constructor(this.size)
+    const [n, m] = this.shape
+    const result = new Matrix(data, [m, n])
+    this.forEach((v, i, j) => result.set(j, i, v))
+    return result
   }
 }
 
-export { NdArray, Matrix }
+class Vector {}
+
+// COOrdinate format (cf. https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html)
+class MatrixCOO {
+  constructor (data, row, col, shape, nnz, nnzMax) {
+    this.data = data
+    this.row = row
+    this.col = col
+    this.shape = shape
+    this.nnz = nnz
+    this.nnzMax = nnzMax
+  }
+
+  static empty (shape, nnzMax, Klass = Float32Array) {
+    const data = new Klass(nnzMax)
+    const row = new Uint32Array(nnzMax)
+    const col = new Uint32Array(nnzMax)
+    const result = new MatrixCOO(data, row, col, shape, 0, nnzMax)
+    return result
+  }
+
+  toDense () {
+    const result = Matrix.empty(this.shape, this.data.constructor)
+    for (let i = 0; i < this.nnz; i++) {
+      result.incr(this.row[i], this.col[i], this.data[i])
+    }
+    return result
+  }
+
+  get (i, j) { throw new Error('[MatrixCOO]') }
+
+  set (i, j, v) {
+    if (this.nnz >= this.nnzMax) {
+      // TODO: Support increasing nnz
+      throw new Error('[MatrixCOO]')
+    }
+    this.row[this.nnz] = i
+    this.col[this.nnz] = j
+    this.data[this.nnz] = v
+    this.nnz++
+  }
+
+  matmul (y, x) {
+    // y = A x
+    // x, y: Matrix
+    // Assume y is zeros
+
+    for (let p = 0; p < this.nnz; p++) {
+      const i = this.row[p]
+      const j = this.col[p]
+      const v = this.data[p]
+      for (let k = 0; k < x.shape[1]; k++) {
+        y.incr(i, k, v * x.get(j, k))
+      }
+    }
+    return y
+  }
+}
+
+// Compressed Sparse Column format (cf. https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csc_matrix.html)
+class MatrixCSC {
+  constructor (data, indices, indptr, shape) {
+    this.data = data
+    this.indices = indices
+    this.indptr = indptr
+    this.shape = shape
+  }
+
+  static fromCOO (a) {
+    const b = new MatrixCSC()
+    b.shape = a.shape
+
+    // TODO: Sum duplicate row-col entry (cf. https://github.com/scipy/scipy/blob/adc4f4f7bab120ccfab9383aba272954a0a12fb0/scipy/sparse/sparsetools/csr.h#L1030)
+    const [n, m] = b.shape
+    b.indptr = new Uint32Array(n + 1)
+    b.indices = new Uint32Array(a.nnz)
+    b.data = new a.data.constructor(a.nnz)
+
+    //
+    // Radix sort where `row` is a supperior key over `col`
+    //
+
+    // Count non-zero column for each row
+    const counts = new Uint32Array(n)
+    for (let i = 0; i < a.nnz; i++) {
+      counts[a.row[i]]++
+    }
+
+    // Construct `indptr` by cumsum
+    for (let i = 0; i < n; i++) {
+      b.indptr[i + 1] = b.indptr[i] + counts[i]
+    }
+
+    // Construct `data` and `indices`
+    for (let i = 0; i < a.nnz; i++) {
+      const r = a.row(i)
+      counts[r]--
+      const k = b.indptr[r] + counts[r]
+      b.indices[k] = a.col[i]
+      b.data[k] = a.data[i]
+    }
+
+    return b
+  }
+
+  toDense () {
+    // TODO
+  }
+
+  matmul (out, x) {
+    // TODO
+  }
+}
+
+export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSC }

@@ -93,6 +93,25 @@ const div = (a, b) => {
   return broadcast(a, b).map(([aa, bb]) => aa / bb)
 }
 
+// TODO:
+// implement adds, addeq, addeqs
+// add(a, b) => addeq(clone(a), b)
+// adds(a, b) => addeqs(clone(a), b)
+
+const subeq = (a, b) => {
+  for (let i = 0; i < a.length; i++) {
+    a[i] = a[i] - b[i]
+  }
+  return a
+}
+
+const subeqs = (a, b) => {
+  for (let i = 0; i < a.length; i++) {
+    a[i] = a[i] - b
+  }
+  return a
+}
+
 const min = (a, b) => {
   return broadcast(a, b).map(([aa, bb]) => Math.min(aa, bb))
 }
@@ -110,16 +129,26 @@ const mix = (a, b, t) => {
 }
 
 const dot = (a, b) => {
-  return _.sum(mul(a, b))
+  let x = 0
+  for (let i = 0; i < a.length; i++) {
+    x += a[i] * b[i]
+  }
+  return x
 }
 
 const cross = (a, b) => {
-  const [a0, a1, a2] = a
-  const [b0, b1, b2] = b
+  // [ Slower variant ]
+  // const [a0, a1, a2] = a
+  // const [b0, b1, b2] = b
+  // return [
+  //   a1 * b2 - a2 * b1,
+  //   a2 * b0 - a0 * b2,
+  //   a0 * b1 - a1 * b0
+  // ]
   return [
-    a1 * b2 - a2 * b1,
-    a2 * b0 - a0 * b2,
-    a0 * b1 - a1 * b0
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
   ]
 }
 
@@ -140,10 +169,48 @@ const normalize = (a) => {
   return div(a, length(a))
 }
 
+// [ Slower variant ]
+// const clone = Array.from
+// const clone = (a) => [...a]
+// const clone = a => a.map(v => v)
+const clone = (a) => {
+  const b = new Array(a.length)
+  for (let i = 0; i < a.length; i++) {
+    b[i] = a[i]
+  }
+  return b
+}
+
+// Specialized variant (for now, the ones used in `computeLaplacianV2`)
+// TOOD: auto generate via eval
+const v3 = {
+  subeq: (a, b) => {
+    a[0] -= b[0]
+    a[1] -= b[1]
+    a[2] -= b[2]
+    return a;
+  },
+
+  dot: (a, b) => {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  },
+
+  length: (a) => {
+    return Math.sqrt(v3.dot(a, a))
+  },
+
+  clone: (a) => {
+    return [a[0], a[1], a[2]]
+  },
+}
+
 export {
   vec2, vec3, vec4, /* mat2, mat3, mat4, */
   add, sub, mul, div, /* mmul */
   dot, cross, length, normalize, min, max, mix,
   /* inverse, transpose, */
-  pow2, dot2 /* diag, outer, outer2, */
+  pow2, dot2, /* diag, outer, outer2, */
+  clone,
+  subeq,
+  v3,
 }

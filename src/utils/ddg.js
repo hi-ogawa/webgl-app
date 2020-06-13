@@ -2,6 +2,7 @@
 
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
+import { MatrixCOO } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -148,7 +149,6 @@ const computeMore = (verts, f2v, topology) => {
   return { angleSum, hodge0, hodge1 }
 }
 
-// TODO: implement `computeLaplacianV2` which computes `L` directly without `computeMore`
 const computeLaplacian = (nV, e2v, hodge1) => {
   const nE = e2v.length
 
@@ -172,6 +172,41 @@ const computeLaplacian = (nV, e2v, hodge1) => {
   return L
 }
 
+// verts: float[nV, 3]
+// f2v: uint[nF, 3]
+const computeLaplacianV2 = (verts, f2v) => {
+  const nV = verts.shape[0]
+  const nF = f2v.shape[0]
+  const nnzReserve = 3 * 4 * nF
+  const L = MatrixCOO.empty([nV, nV], nnzReserve)
+
+  const { cross } = glm
+  const { subeq, dot, length, clone } = glm.v3
+
+  for (let i = 0; i < nF; i++) {
+    // Make edge vector
+    const vs = f2v.row(i)
+    const ps = _.range(3).map(j => verts.row(vs[j]))
+    const qs = _.range(3).map(j => subeq(clone(ps[(j + 1) % 3]), ps[j]))
+
+    // Compute cotan for each angle and update sparse entry
+    for (let j = 0; j < 3; j++) {
+      const j1 = (j + 1) % 3
+      const j2 = (j + 2) % 3
+      const v1 = vs[j1]
+      const v2 = vs[j2]
+      const q0 = qs[j]
+      const q2 = qs[j2]
+      const hodge = - 0.5 * dot(q0, q2) / length(cross(q0, q2))
+      L.set(v1, v1, -hodge)
+      L.set(v2, v2, -hodge)
+      L.set(v1, v2, hodge)
+      L.set(v2, v1, hodge)
+    }
+  }
+  return L
+}
+
 const computeMeanCurvature = (verts, L) => {
   const nV = verts.length
 
@@ -188,6 +223,37 @@ const computeMeanCurvature = (verts, L) => {
   }
 
   return HN2
+}
+
+const matmul = (y, A, x) => {
+  for (let i = 0; i < x.length; i++) {
+    y[i] = 0
+    for (const [j, u] of A[i]) {
+      y[i] += u * x[j]
+    }
+  }
+}
+
+const transposeVerts = (verts) => {
+  const nV = verts.length
+  const result = []
+  for (const i of _.range(3)) {
+    const a = new Float32Array(nV)
+    for (const j of _.range(nV)) {
+      a[j] = verts[j][i]
+    }
+    result.push(a)
+  }
+  return result
+}
+
+const computeMeanCurvatureV2 = (vertsT, L) => {
+  const nV = vertsT[0].length
+  const result = _.range(3).map(() => new Float32Array(nV))
+  for (const i of _.range(3)) {
+    matmul(result[i], L, vertsT[i])
+  }
+  return result
 }
 
 // this also works for `f2fe` to make dual spanning tree
@@ -359,5 +425,7 @@ const solvePoisson = (verts, f2v, rho_dual) => {
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
-  solvePoisson, solveGaussSeidel
+  solvePoisson, solveGaussSeidel,
+  matmul, transposeVerts, computeMeanCurvatureV2,
+  computeLaplacianV2
 }

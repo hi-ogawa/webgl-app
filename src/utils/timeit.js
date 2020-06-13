@@ -3,6 +3,7 @@
 // - https://github.com/python/cpython/blob/3.8/Lib/timeit.py
 // - https://nodejs.org/api/perf_hooks.html
 
+// TODO: allow use it on browser by wrapping `performance`
 import { performance } from 'perf_hooks' // eslint-disable-line
 import _ from '../../web_modules/lodash.js'
 

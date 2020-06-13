@@ -9,6 +9,7 @@ import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
 import { readOFF } from './reader.js'
+import { Matrix } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -189,6 +190,18 @@ describe('ddg', () => {
         [0, 0, 2.3],
         [2.3, 0, 0]
       ], 1e-2)
+
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const vertsM = Matrix.empty([nV, 3])
+        vertsM.data.set(verts.flat())
+        const f2vM = Matrix.empty([nF, 3], Uint32Array)
+        f2vM.data.set(f2v.flat())
+        const L = ddg.computeLaplacianV2(vertsM, f2vM)
+        const result = L.matmul(Matrix.empty(vertsM.shape), vertsM)
+        deepCloseTo(Array.from(result.data), h2)
+      }
     })
 
     it('works 1', () => {
@@ -211,12 +224,29 @@ describe('ddg', () => {
     it('works 2', async () => {
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
       const { verts, f2v } = readOFF(data)
-      const nV = verts.length
-      const topology = ddg.computeTopology(f2v, nV)
-      const { hodge1 } = ddg.computeMore(verts, f2v, topology)
-      const { e2v } = topology
-      const L = ddg.computeLaplacian(nV, e2v, hodge1)
-      const HN2 = ddg.computeMeanCurvature(verts, L)
+      let result1
+      let result2
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const topology = ddg.computeTopology(f2v, nV)
+        const { hodge1 } = ddg.computeMore(verts, f2v, topology)
+        const { e2v } = topology
+        const L = ddg.computeLaplacian(nV, e2v, hodge1)
+        result1 = ddg.computeMeanCurvature(verts, L)
+      }
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const vertsM = Matrix.empty([nV, 3])
+        vertsM.data.set(verts.flat())
+        const f2vM = Matrix.empty([nF, 3], Uint32Array)
+        f2vM.data.set(f2v.flat())
+        const L = ddg.computeLaplacianV2(vertsM, f2vM)
+        result2 = Matrix.empty(vertsM.shape)
+        L.matmul(result2, vertsM)
+      }
+      deepCloseTo(result1.flat(), Array.from(result2.data))
     })
   })
 

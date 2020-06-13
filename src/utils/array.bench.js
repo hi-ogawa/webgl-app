@@ -1,7 +1,7 @@
 /* global describe, it */
 
 import _ from '../../web_modules/lodash.js' // eslint-disable-line
-import { Matrix, NdArray } from './array.js'
+import { Vector, Matrix, NdArray } from './array.js'
 import { timeit } from './timeit.js'
 
 describe('array', () => {
@@ -46,6 +46,41 @@ describe('array', () => {
           }
         }
         return x
+      }
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+  })
+
+  describe('Array (built-in)', () => {
+    it('works 1', async () => {
+      const run = () => {
+        const a = new Array()
+        for (let i = 0; i < 128; i++) {
+          a.push(i)
+        }
+      }
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('works 2', async () => {
+      const run = () => {
+        const a = new Array()
+        for (let i = 0; i < 128; i++) {
+          a[i] = i
+        }
+      }
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('works 3', async () => {
+      const run = () => {
+        const a = new Array()
+        for (let i = 0; i < 128; i++) {
+          a[a.length] = i
+        }
       }
       const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
