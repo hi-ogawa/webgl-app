@@ -6,7 +6,7 @@ import util from 'util'
 import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { timeit } from './timeit.js'
-import { Matrix } from './array.js'
+import { Matrix, MatrixCSC } from './array.js'
 
 const fsReadFile = util.promisify(fs.readFile)
 const readFile = (f) => fsReadFile(f).then(buffer => buffer.toString())
@@ -127,7 +127,7 @@ describe('ddg', () => {
   })
 
   describe('computeMeanCurvatureV3', () => {
-    it('bunny', async () => {
+    it('bunny (MatrixCOO.matmul)', async () => {
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
       const { verts, f2v } = readOFF(data)
       const nV = verts.length
@@ -143,7 +143,49 @@ describe('ddg', () => {
       const hn2 = Matrix.empty(vertsM.shape)
 
       const run = () => L.matmul(hn2, vertsM)
-      const { resultString } = timeit('args.run()', '', '', { run }, 4)
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('bunny (MatrixCSC.matmul)', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      const { verts, f2v } = readOFF(data)
+      const nV = verts.length
+      const nF = f2v.length
+
+      const vertsM = Matrix.empty([nV, 3])
+      vertsM.data.set(verts.flat())
+
+      const f2vM = Matrix.empty([nF, 3], Uint32Array)
+      f2vM.data.set(f2v.flat())
+
+      const L = MatrixCSC.fromCOO(ddg.computeLaplacianV2(vertsM, f2vM))
+      const hn2 = Matrix.empty(vertsM.shape)
+
+      const run = () => L.matmul(hn2, vertsM)
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('bunny (MatrixCSC.matmul (sumDuplicate)', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      const { verts, f2v } = readOFF(data)
+      const nV = verts.length
+      const nF = f2v.length
+
+      const vertsM = Matrix.empty([nV, 3])
+      vertsM.data.set(verts.flat())
+
+      const f2vM = Matrix.empty([nF, 3], Uint32Array)
+      f2vM.data.set(f2v.flat())
+
+      const L = MatrixCSC.fromCOO(ddg.computeLaplacianV2(vertsM, f2vM))
+      L.sumDuplicates()
+
+      const hn2 = Matrix.empty(vertsM.shape)
+
+      const run = () => L.matmul(hn2, vertsM)
+      const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
     })
   })

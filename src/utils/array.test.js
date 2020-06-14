@@ -93,6 +93,74 @@ describe('array', () => {
       ]))
     })
 
+    it('works 0 (sortIndices)', () => {
+      const a = MatrixCOO.empty([2, 3], 5)
+      a.set(0, 1, 11)
+      a.set(0, 2, 13)
+      a.set(1, 2, 19)
+      a.set(1, 0, 17)
+      a.set(1, 2, 23)
+
+      const b = MatrixCSC.fromCOO(a)
+
+      assert.deepStrictEqual(b.indptr, new Uint32Array([
+        0, 2, 5
+      ]))
+      assert.deepStrictEqual(b.indices, new Uint32Array([
+        2, 1, 2, 0, 2
+      ]))
+      assert.deepStrictEqual(b.data, new Float32Array([
+        13, 11, 23, 17, 19
+      ]))
+      assert.deepStrictEqual(b.toDense().data, new Float32Array([
+        0, 11, 13,
+        17, 0, 19 + 23
+      ]))
+
+      // Sort indices
+      const numDups = b.sortIndices()
+      assert.strictEqual(numDups, 1)
+      assert.deepStrictEqual(b.indptr, new Uint32Array([
+        0, 2, 5
+      ]))
+      assert.deepStrictEqual(b.indices, new Uint32Array([
+        1, 2, 0, 2, 2
+      ]))
+      assert.deepStrictEqual(b.data, new Float32Array([
+        11, 13, 17, 23, 19
+      ]))
+      assert.deepStrictEqual(b.toDense().data, new Float32Array([
+        0, 11, 13,
+        17, 0, 23 + 19
+      ]))
+    })
+
+    it('works 0 (sumDuplicates)', () => {
+      const a = MatrixCOO.empty([2, 3], 6)
+      a.set(0, 1, 11)
+      a.set(0, 2, 13)
+      a.set(0, 1, 7)
+      a.set(1, 2, 19)
+      a.set(1, 0, 17)
+      a.set(1, 2, 23)
+
+      const b = MatrixCSC.fromCOO(a)
+      b.sumDuplicates()
+      assert.deepStrictEqual(b.indptr, new Uint32Array([
+        0, 2, 4
+      ]))
+      assert.deepStrictEqual(b.indices, new Uint32Array([
+        1, 2, 0, 2
+      ]))
+      assert.deepStrictEqual(b.data, new Float32Array([
+        18, 13, 17, 42
+      ]))
+      assert.deepStrictEqual(b.toDense().data, new Float32Array([
+        0, 18, 13,
+        17, 0, 42
+      ]))
+    })
+
     it('works 1', () => {
       const a = MatrixCOO.empty([2, 3], 3)
       a.set(1, 2, 7)

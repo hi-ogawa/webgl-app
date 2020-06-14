@@ -195,10 +195,6 @@ class MatrixCSC {
     const b = new MatrixCSC()
     b.shape = a.shape
 
-    // TODO:
-    // - Sort indices for each row
-    // - Sum duplicate row-col entry
-    //   - cf. https://github.com/scipy/scipy/blob/adc4f4f7bab120ccfab9383aba272954a0a12fb0/scipy/sparse/sparsetools/csr.h#L1030
     const n = b.shape[0]
     b.indptr = new Uint32Array(n + 1)
     b.indices = new Uint32Array(a.nnz)
@@ -229,6 +225,96 @@ class MatrixCSC {
     }
 
     return b
+  }
+
+  // NOTE: convinient but not good for performance (cf. matmul below)
+  forEach (onElement, onStartRow = () => {}, onEndRow = () => {}) {
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+      onStartRow(i)
+      for (let p = p0; p < p1; p++) { // Loop A col
+        const j = this.indices[p]
+        const v = this.data[p]
+        onElement(v, i, j)
+      }
+      onEndRow(i)
+      p0 = p1
+    }
+  }
+
+  // returns `numDups` which is useful for `sumDuplicates`
+  sortIndices () {
+    const n = this.shape[0]
+    const { indptr, indices, data } = this
+    let numDups = 0
+
+    let p0 = 0
+    for (let i = 0; i < n; i++) { // Loop A row
+      const p1 = indptr[i + 1]
+
+      // For each column, apply insertion sort with counting duplicate key
+      for (let p = p0 + 1; p < p1; p++) {
+        let q = p
+        while (p0 < q) {
+          if (indices[q - 1] === indices[q]) { numDups++; break }
+          if (indices[q - 1] < indices[q]) { break }
+
+          const tmp1 = indices[q - 1]
+          indices[q - 1] = indices[q]
+          indices[q] = tmp1
+
+          const tmp2 = data[q - 1]
+          data[q - 1] = data[q]
+          data[q] = tmp2
+
+          q--
+        }
+      }
+
+      p0 = p1
+    }
+
+    return numDups
+  }
+
+  sumDuplicates () {
+    const numDups = this.sortIndices()
+    const newNnz = this.indices.length - numDups
+
+    const n = this.shape[0]
+    const newIndptr = new Uint32Array(n + 1)
+    const newIndices = new Uint32Array(newNnz)
+    const newData = new this.data.constructor(newNnz)
+
+    let p0 = 0
+    let newP = 0
+    for (let i = 0; i < n; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+
+      // Squash each column
+      newIndices[newP] = this.indices[p0]
+      newData[newP] = this.data[p0]
+      for (let p = p0 + 1; p < p1; p++) {
+        const j = this.indices[p]
+        const v = this.data[p]
+        if (j === newIndices[newP]) {
+          newData[newP] += v
+          continue
+        }
+        newP++
+        newIndices[newP] = j
+        newData[newP] = v
+      }
+
+      newP++
+      newIndptr[i + 1] = newP
+      p0 = p1
+    }
+
+    this.indptr = newIndptr
+    this.indices = newIndices
+    this.data = newData
   }
 
   static fromDense (a) {
@@ -285,6 +371,14 @@ class MatrixCSC {
   // Y = A X
   matmul (y, x) {
     y.data.fill(0)
+
+    // NOTE: `forEach` makes it about 2 tiems slower
+    // this.forEach((v, i, j) => {
+    //   for (let k = 0; k < x.shape[1]; k++) { // Loop X col
+    //     y.incr(i, k, v * x.get(j, k))
+    //   }
+    // })
+
     let p0 = 0
     for (let i = 0; i < this.shape[0]; i++) { // Loop A row
       const p1 = this.indptr[i + 1]

@@ -1,7 +1,10 @@
 /* global describe, it */
 
+import fs from 'fs'
 import _ from '../../web_modules/lodash.js' // eslint-disable-line
-import { Vector, Matrix, NdArray } from './array.js'
+import { Matrix, MatrixCSC, NdArray } from './array.js'
+import * as ddg from './ddg.js'
+import { readOFF } from './reader.js'
 import { timeit } from './timeit.js'
 
 describe('array', () => {
@@ -55,7 +58,7 @@ describe('array', () => {
   describe('Array (built-in)', () => {
     it('works 1', async () => {
       const run = () => {
-        const a = new Array()
+        const a = []
         for (let i = 0; i < 128; i++) {
           a.push(i)
         }
@@ -66,7 +69,7 @@ describe('array', () => {
 
     it('works 2', async () => {
       const run = () => {
-        const a = new Array()
+        const a = []
         for (let i = 0; i < 128; i++) {
           a[i] = i
         }
@@ -77,13 +80,53 @@ describe('array', () => {
 
     it('works 3', async () => {
       const run = () => {
-        const a = new Array()
+        const a = []
         for (let i = 0; i < 128; i++) {
           a[a.length] = i
         }
       }
       const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
+    })
+  })
+
+  describe('MatrixCSC', () => {
+    it('works', () => {
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      let L
+
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const hn2 = Matrix.empty(verts.shape)
+
+      {
+        const run = () => { L = ddg.computeLaplacianV2(verts, f2v) }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('computeLaplacianV2')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => { L = MatrixCSC.fromCOO(L) }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('MatrixCSC.fromCOO')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => { L.sumDuplicates() }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('MatrixCSC.sumDuplicates')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => { L.matmul(hn2, verts) }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('MatrixCSC.matmul')
+        console.log(resultString)
+      }
     })
   })
 })

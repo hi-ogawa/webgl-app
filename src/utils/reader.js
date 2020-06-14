@@ -6,7 +6,7 @@
 
 import _ from '../../web_modules/lodash.js'
 
-const readOFF = (data) => {
+const readOFF = (data, typedarray = false) => {
 //
 // OFF
 // <nV> <nF> <nE>
@@ -55,7 +55,10 @@ const readOFF = (data) => {
     }
   }
 
-  // TODO: for now, we still use `Array`
+  if (typedarray) {
+    return { verts, f2v }
+  }
+
   return {
     verts: _.chunk(Array.from(verts), 3),
     f2v: _.chunk(Array.from(f2v), 3)
