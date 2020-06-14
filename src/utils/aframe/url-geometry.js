@@ -41,8 +41,8 @@ AFRAME.registerComponent('url-geometry-loader', {
     UtilsMisc2.normalizePositionsV2(verts)
 
     const geometry = new THREE.BufferGeometry()
-    geometry.index = new THREE.Uint32BufferAttribute(f2v, 1)
-    geometry.attributes.position = new THREE.Float32BufferAttribute(verts.data, 3)
+    geometry.index = new THREE.BufferAttribute(f2v, 1)
+    geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
     geometry.computeVertexNormals()
 
     globalUrlGeometries[url] = geometry

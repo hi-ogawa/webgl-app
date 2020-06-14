@@ -166,7 +166,7 @@ const clone = (a) => {
 const generateOperators = (name, op, n) => {
   // e.g. add
   const code = `(a, b) => {
-    const c = []
+    const c = new Array(3)
     ${
       _.range(n).map(i =>
         `c[${i}] = ${op(`a[${i}]`, `b[${i}]`)}`
@@ -177,7 +177,7 @@ const generateOperators = (name, op, n) => {
 
   // e.g. adds
   const code_s = `(a, b) => {
-    const c = []
+    const c = new Array(3)
     ${
       _.range(n).map(i =>
         `c[${i}] = ${op(`a[${i}]`, 'b')}`

@@ -92,8 +92,7 @@ AFRAME.registerComponent('mean-curvature-flow', {
     laplacian.sumDuplicates()
     _.assign(viewer.precomputed, { laplacian, hodge0, kg })
 
-    // Update geometry (TODO: for some reason position.array !== verts.data)
-    viewer.geometry.attributes.position.array = verts.data
+    // Update geometry
     viewer.geometry.attributes.position.needsUpdate = true
     viewer.geometry.computeVertexNormals()
 
@@ -137,9 +136,9 @@ AFRAME.registerComponent('viewer', {
 
     const color = Matrix.empty(verts.shape)
     this.geometry = new THREE.BufferGeometry()
-    this.geometry.index = new THREE.Uint32BufferAttribute(f2v.data, 1)
-    this.geometry.attributes.position = new THREE.Float32BufferAttribute(verts.data, 3)
-    this.geometry.attributes.color = new THREE.Float32BufferAttribute(color.data, 3)
+    this.geometry.index = new THREE.BufferAttribute(f2v.data, 1)
+    this.geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
+    this.geometry.attributes.color = new THREE.BufferAttribute(color.data, 3)
     this.geometry.computeVertexNormals()
     this.mesh.geometry = this.geometry
 

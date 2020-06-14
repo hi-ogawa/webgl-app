@@ -110,6 +110,14 @@ class Matrix {
     return result
   }
 
+  // TODO: generate more basic operations (cf. glm.generateOperators)
+  muleqs (h) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] *= h
+    }
+    return this
+  }
+
   subeq (other) {
     other.forEach((v, i, j) => { this.incr(i, j, -v) })
     return this
@@ -125,6 +133,7 @@ class Matrix {
   dotHS2 () { return this.dotHS(this) }
 }
 
+// TODO: For now, we use Matrix with shape [n, 1]
 class Vector {}
 
 // COOrdinate format (cf. https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html)
@@ -421,7 +430,7 @@ class MatrixCSC {
     return x
   }
 
-  // I - h A
+  // I - h A (useful for implicit method for PDE)
   // Assume A have non-zero diagonal and thus no change in structure
   idsubmuls (h) {
     let p0 = 0
@@ -445,6 +454,40 @@ class MatrixCSC {
         }
 
         this.data[p] = -h * v
+      }
+
+      // Throw if A doesn't have diagonal entry
+      if (!diag) {
+        throw new Error('[MatrixCSC.idsubmuls]')
+      }
+      p0 = p1
+    }
+    return this
+  }
+
+  // - A + h I (useful for making negative semi-definite into positive definite)
+  negadddiags (h) {
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+      let diag = false
+      for (let p = p0; p < p1; p++) { // Loop A col
+        const j = this.indices[p]
+        const v = this.data[p]
+
+        if (i === j) {
+          // Handle id's contribution only once
+          if (diag) {
+            this.data[p] = -v
+            continue
+          }
+
+          diag = true
+          this.data[p] = -v + h
+          continue
+        }
+
+        this.data[p] = -v
       }
 
       // Throw if A doesn't have diagonal entry

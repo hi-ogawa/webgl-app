@@ -419,6 +419,7 @@ const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
   return { treeF, treeV, edgesF, edgesV, edgesFree, loops }
 }
 
+// NOTE: not used now (cf ex18_poisson_equation)
 // Solve (biased) linear system (A + hI) x = b by Gauss-Seidel
 // NOTE:
 // - If A is weak-diag-dominant, then A + h I is strict-diag-dominant,
@@ -459,6 +460,7 @@ const negateSparse = (L) => {
   return L_neg
 }
 
+// NOTE: not used now (cf ex18_poisson_equation)
 const solvePoisson = (verts, f2v, rho_dual) => {
   const nV = verts.length
   const topology = computeTopology(f2v, nV)

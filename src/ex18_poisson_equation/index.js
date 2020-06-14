@@ -18,18 +18,10 @@ import '../utils/aframe/url-geometry.js'
 import '../utils/aframe/geometry.js'
 import * as ddg from '../utils/ddg.js'
 import { hash11 } from '../utils/hash.js'
+import { Matrix, MatrixCSC } from '../utils/array.js'
 
 const THREE = AFRAME.THREE
 const { $, stringToElement } = UtilsMisc
-
-// Convert to our format
-const geometryToVertsAndF2v = (geometry) => {
-  const { index, attributes: { position } } = geometry
-  return {
-    verts: _.chunk(position.array, 3),
-    f2v: _.chunk(index.array, 3)
-  }
-}
 
 AFRAME.registerComponent('poisson', {
   dependencies: ['geometry'],
@@ -57,16 +49,10 @@ AFRAME.registerComponent('poisson', {
   _update () {
     if (!this.geometry.index) { return }
 
-    // Create color attribute
-    {
-      const nV = this.geometry.attributes.position.count
-      const color = _.range(nV).map(() => [1, 1, 1])
-      const colorAttr = new THREE.Float32BufferAttribute(color.flat(), 3)
-      this.geometry.attributes.color = colorAttr
-    }
-
-    const { verts, f2v } = geometryToVertsAndF2v(this.geometry)
-    const nV = verts.length
+    const { index, attributes: { position } } = this.geometry
+    const verts = new Matrix(position.array, [position.count, 3])
+    const f2v = new Matrix(index.array, [index.count / 3, 3])
+    const nV = verts.shape[0]
 
     // Create source
     const intensity = 1
@@ -79,30 +65,50 @@ AFRAME.registerComponent('poisson', {
       sources.push([j2, -intensity])
     }
 
-    // Define RHS of Poisson equation
-    // (integrated) dual 2-form i.e. delta source integrated at dual face
-    const rho_dual = _.range(nV).map(i => 0)
-    sources.forEach(([i, v]) => { rho_dual[i] = v })
+    // RHS of Poisson equation
+    const b = Matrix.empty([nV, 1])
+    sources.forEach(([i, v]) => {
+      b.data[i] = v
+    })
 
-    // Solve
-    const u = ddg.solvePoisson(verts, f2v, rho_dual)
+    // Laplacian
+    const { laplacian } = ddg.computeMoreV2(verts, f2v)
+    const L = MatrixCSC.fromCOO(laplacian)
+    L.sumDuplicates()
 
-    // Draw solution
-    {
-      const color = _.range(nV).map(i =>
-        UtilsMisc2.getSignedColor(u[i], [1, 1, 1], [1, 0, 0], [0, 0, 1]))
-      const attr = this.geometry.attributes.color
-      attr.array.set(color.flat())
-      attr.needsUpdate = true
+    // Solve (-L + h I) x = b
+    L.negadddiags(1e-6)
+    const x = b.clone().muleqs(-1) // TODO: what's good initial guess?
+    for (let i = 0; i < 128; i++) {
+      L.stepGaussSeidel(x, b)
+      const residue = L.matmul(x.clone(), x).subeq(b).dotHS2()
+      if (i % 10 === 0) {
+        console.log(`[solve] i: ${i}, residue: ${residue}`)
+      }
+      if (residue < 0.05) {
+        break
+      }
     }
 
-    // Draw source points
+    // Since KerL = span((1, 1, ...)), we remove that component
+    x.subeqs(x.sum() / nV)
+
+    // Visualize solution
+    const color = Matrix.empty(verts.shape)
+    this.geometry.attributes.color = new THREE.BufferAttribute(color.data, 3)
+    for (let i = 0; i < verts.shape[0]; i++) {
+      const c = UtilsMisc2.getSignedColor(
+        x.data[i], [1, 1, 1], [1, 0, 0], [0, 0, 1])
+      color.row(i).set(c)
+    }
+
+    // Visualize source points
     for (const [j, v] of sources) {
       const color = v > 0 ? '#f00' : '#00f'
       this.el.querySelector('#points').appendChild(stringToElement(`
         <a-entity
           mixin="point"
-          position="${verts[j].join(' ')}"
+          position="${verts.row(j).join(' ')}"
           material="color: ${color}"
         ></a-entity>
       `))
