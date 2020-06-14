@@ -1,7 +1,7 @@
 import AFRAME from '../../../web_modules/aframe.js'
-import * as Utils from '../index.js'
 import * as UtilsMisc2 from '../misc2.js'
 import * as Reader from '../reader.js'
+import { Matrix } from '../array.js'
 
 const THREE = AFRAME.THREE
 
@@ -36,10 +36,15 @@ AFRAME.registerComponent('url-geometry-loader', {
 
   _updateGeometry () {
     const { url } = this.data
-    let { verts, f2v } = Reader.readOFF(this.fileData)
-    verts = UtilsMisc2.normalizePositions(verts)
-    const geometry = Utils.makeBufferGeometry({ position: verts, index: f2v })
+    let { verts, f2v } = Reader.readOFF(this.fileData, true)
+    verts = new Matrix(verts, [verts.length / 3, 3])
+    UtilsMisc2.normalizePositionsV2(verts)
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.index = new THREE.Uint32BufferAttribute(f2v, 1)
+    geometry.attributes.position = new THREE.Float32BufferAttribute(verts.data, 3)
     geometry.computeVertexNormals()
+
     globalUrlGeometries[url] = geometry
     this.el.setAttribute('geometry', { primitive: 'url-geometry', url })
   }

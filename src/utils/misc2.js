@@ -14,6 +14,26 @@ const normalizePositions = (verts) => {
   return result
 }
 
+// verts: float[nV, 3]
+const normalizePositionsV2 = (verts) => {
+  const { addeq, subeq, muleqs, diveqs, mineq, maxeq, clone } = glm.v3
+
+  const center = [0, 0, 0]
+  const bboxMin = clone(verts.row(0))
+  const bboxMax = clone(verts.row(0))
+  for (let i = 0; i < verts.shape[0]; i++) {
+    addeq(center, verts.row(i))
+    mineq(bboxMin, verts.row(i))
+    maxeq(bboxMax, verts.row(i))
+  }
+  diveqs(center, verts.shape[0])
+
+  const size = Math.max(...subeq(bboxMax, bboxMin))
+  for (let i = 0; i < verts.shape[0]; i++) {
+    muleqs(subeq(verts.row(i), center), 2 / size)
+  }
+}
+
 // Convienient for quick visualization of signed value
 // (piecewise linear with knot at value = 0)
 const getSignedColor = (value, color0, colorP, colorN) => {
@@ -23,5 +43,6 @@ const getSignedColor = (value, color0, colorP, colorN) => {
 }
 
 export {
-  normalizePositions, getSignedColor
+  normalizePositions, normalizePositionsV2,
+  getSignedColor
 }

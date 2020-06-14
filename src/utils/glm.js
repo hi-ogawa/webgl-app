@@ -1,4 +1,4 @@
-/* eslint camelcase: 0 */
+/* eslint camelcase: 0, no-eval: 0 */
 
 // Minimal lodash
 const _ = {
@@ -162,14 +162,71 @@ const clone = (a) => {
   return b
 }
 
-// Specialized variant (for now, the ones used in `computeLaplacianV2`)
-// TOOD: auto generate via eval
-const v3 = {
-  subeq: (a, b) => {
-    a[0] -= b[0]
-    a[1] -= b[1]
-    a[2] -= b[2]
+// Generate binary operators
+const generateOperators = (name, op, n) => {
+  // e.g. add
+  const code = `(a, b) => {
+    const c = []
+    ${
+      _.range(n).map(i =>
+        `c[${i}] = ${op(`a[${i}]`, `b[${i}]`)}`
+      ).join('\n')
+    }
+    return c
+  }`
+
+  // e.g. adds
+  const code_s = `(a, b) => {
+    const c = []
+    ${
+      _.range(n).map(i =>
+        `c[${i}] = ${op(`a[${i}]`, 'b')}`
+      ).join('\n')
+    }
+    return c
+  }`
+
+  // e.g. addeq
+  const code_eq = `(a, b) => {
+    ${
+      _.range(n).map(i =>
+        `a[${i}] = ${op(`a[${i}]`, `b[${i}]`)}`
+      ).join('\n')
+    }
     return a
+  }`
+
+  // e.g. addeqs
+  const code_eqs = `(a, b) => {
+    ${
+      _.range(n).map(i =>
+        `a[${i}] = ${op(`a[${i}]`, 'b')}`
+      ).join('\n')
+    }
+  }`
+
+  return {
+    [`${name}`]: eval(code),
+    [`${name}s`]: eval(code_s),
+    [`${name}eq`]: eval(code_eq),
+    [`${name}eqs`]: eval(code_eqs)
+  }
+}
+
+const v3 = {
+  ...generateOperators('add', (lhs, rhs) => `${lhs} + ${rhs}`, 3),
+  ...generateOperators('sub', (lhs, rhs) => `${lhs} - ${rhs}`, 3),
+  ...generateOperators('mul', (lhs, rhs) => `${lhs} * ${rhs}`, 3),
+  ...generateOperators('div', (lhs, rhs) => `${lhs} / ${rhs}`, 3),
+  ...generateOperators('max', (lhs, rhs) => `Math.max(${lhs}, ${rhs})`, 3),
+  ...generateOperators('min', (lhs, rhs) => `Math.min(${lhs}, ${rhs})`, 3),
+
+  cross: (a, b) => {
+    return [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0]
+    ]
   },
 
   dot: (a, b) => {
@@ -182,6 +239,14 @@ const v3 = {
 
   length: (a) => {
     return Math.sqrt(v3.dot2(a))
+  },
+
+  normalize: (a) => {
+    return v3.divs(a, v3.length(a))
+  },
+
+  normalizeeq: (a) => {
+    return v3.diveqs(a, v3.length(a))
   },
 
   clone: (a) => {
