@@ -61,6 +61,17 @@ class Matrix {
     return new Matrix(data, shape)
   }
 
+  clone () {
+    const other = Matrix.empty(this.shape, this.data.constructor)
+    other.data.set(this.data)
+    return other
+  }
+
+  copy (other) {
+    this.data.set(other.data)
+    return this
+  }
+
   index (i, j) {
     return this.shape[1] * i + j
   }
@@ -82,7 +93,7 @@ class Matrix {
   forEach (func) {
     for (let i = 0; i < this.shape[0]; i++) {
       for (let j = 0; j < this.shape[1]; j++) {
-        func(this.get(i, j ), i, j)
+        func(this.get(i, j), i, j)
       }
     }
   }
@@ -98,6 +109,20 @@ class Matrix {
     this.forEach((v, i, j) => result.set(j, i, v))
     return result
   }
+
+  subeq (other) {
+    other.forEach((v, i, j) => { this.incr(i, j, -v) })
+    return this
+  }
+
+  // Hilbert-Schmidt inner product Tr[AT A]
+  dotHS (other) {
+    let x = 0
+    this.forEach((v, i, j) => { x += v * other.get(i, j) })
+    return x
+  }
+
+  dotHS2 () { return this.dotHS(this) }
 }
 
 class Vector {}
@@ -142,11 +167,9 @@ class MatrixCOO {
     this.nnz++
   }
 
+  // Y = A X
   matmul (y, x) {
-    // y = A x
-    // x, y: Matrix
-    // Assume y is zeros
-
+    y.data.fill(0)
     for (let p = 0; p < this.nnz; p++) {
       const i = this.row[p]
       const j = this.col[p]
@@ -172,8 +195,11 @@ class MatrixCSC {
     const b = new MatrixCSC()
     b.shape = a.shape
 
-    // TODO: Sum duplicate row-col entry (cf. https://github.com/scipy/scipy/blob/adc4f4f7bab120ccfab9383aba272954a0a12fb0/scipy/sparse/sparsetools/csr.h#L1030)
-    const [n, m] = b.shape
+    // TODO:
+    // - Sort indices for each row
+    // - Sum duplicate row-col entry
+    //   - cf. https://github.com/scipy/scipy/blob/adc4f4f7bab120ccfab9383aba272954a0a12fb0/scipy/sparse/sparsetools/csr.h#L1030
+    const n = b.shape[0]
     b.indptr = new Uint32Array(n + 1)
     b.indices = new Uint32Array(a.nnz)
     b.data = new a.data.constructor(a.nnz)
@@ -195,7 +221,7 @@ class MatrixCSC {
 
     // Construct `data` and `indices`
     for (let i = 0; i < a.nnz; i++) {
-      const r = a.row(i)
+      const r = a.row[i]
       counts[r]--
       const k = b.indptr[r] + counts[r]
       b.indices[k] = a.col[i]
@@ -205,12 +231,135 @@ class MatrixCSC {
     return b
   }
 
-  toDense () {
-    // TODO
+  static fromDense (a) {
+    const b = new MatrixCSC()
+    b.shape = a.shape
+
+    const n = b.shape[0]
+    b.indptr = new Uint32Array(n + 1)
+
+    const indices = []
+    const data = []
+    for (let i = 0; i < b.shape[0]; i++) {
+      let count = 0
+      for (let j = 0; j < b.shape[1]; j++) {
+        const v = a.get(i, j)
+        if (v === 0) { continue }
+
+        indices.push(j)
+        data.push(v)
+        count++
+      }
+      b.indptr[i + 1] = b.indptr[i] + count
+    }
+
+    b.indices = new Uint32Array(indices)
+    b.data = new a.data.constructor(data)
+    return b
   }
 
-  matmul (out, x) {
-    // TODO
+  clone () {
+    const other = new MatrixCSC()
+    other.shape = this.shape
+    other.indptr = this.indptr.slice()
+    other.indices = this.indices.slice()
+    other.data = this.data.slice()
+    return other
+  }
+
+  toDense () {
+    const result = Matrix.empty(this.shape, this.data.constructor)
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+      for (let p = p0; p < p1; p++) { // Loop A col
+        const j = this.indices[p]
+        const v = this.data[p]
+        result.incr(i, j, v)
+      }
+      p0 = p1
+    }
+    return result
+  }
+
+  // Y = A X
+  matmul (y, x) {
+    y.data.fill(0)
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+      for (let p = p0; p < p1; p++) { // Loop A col
+        const j = this.indices[p]
+        const v = this.data[p]
+        for (let k = 0; k < x.shape[1]; k++) { // Loop X col
+          y.incr(i, k, v * x.get(j, k))
+        }
+      }
+      p0 = p1
+    }
+    return y
+  }
+
+  // A X = B
+  stepGaussSeidel (x, b) {
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+
+      for (let k = 0; k < x.shape[1]; k++) { // Loop X col
+        let diag = 0
+        let rhs = b.get(i, k)
+        for (let p = p0; p < p1; p++) { // Loop A col
+          const j = this.indices[p]
+          const v = this.data[p]
+
+          if (j === i) {
+            diag += v
+            continue
+          }
+
+          rhs -= v * x.get(j, k)
+        }
+        x.set(i, k, rhs / diag)
+      }
+      p0 = p1
+    }
+    return x
+  }
+
+  // I - h A
+  // Assume A have non-zero diagonal and thus no change in structure
+  idsubmuls (h) {
+    let p0 = 0
+    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
+      const p1 = this.indptr[i + 1]
+      let diag = false
+      for (let p = p0; p < p1; p++) { // Loop A col
+        const j = this.indices[p]
+        const v = this.data[p]
+
+        if (i === j) {
+          // Handle id's contribution only once
+          if (diag) {
+            this.data[p] = -h * v
+            continue
+          }
+
+          diag = true
+          this.data[p] = 1 - h * v
+          continue
+        }
+
+        this.data[p] = -h * v
+      }
+
+      // Throw if A doesn't have diagonal entry
+      if (!diag) {
+        throw new Error('[MatrixCSC.idsubmuls]')
+      }
+      p0 = p1
+    }
+    return this
   }
 }
 

@@ -173,6 +173,81 @@ describe('ddg', () => {
     })
   })
 
+  describe('computeMoreV2', () => {
+    it('works 0', () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeHedron8()
+      let result1
+      let result2
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const topology = ddg.computeTopology(f2v, nV)
+        result1 = ddg.computeMore(verts, f2v, topology)
+      }
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const vertsM = Matrix.empty([nV, 3])
+        vertsM.data.set(verts.flat())
+        const f2vM = Matrix.empty([nF, 3], Uint32Array)
+        f2vM.data.set(f2v.flat())
+        result2 = ddg.computeMoreV2(vertsM, f2vM)
+      }
+      const kg = result1.angleSum.map(a => 2 * PI - a)
+      deepCloseTo(kg, result2.kg.data)
+      deepCloseTo(result1.hodge0, result2.hodge0.data)
+    })
+
+    it('works 1', () => {
+      const { position: verts, index: f2v } = UtilsMisc.makeIcosphere(1)
+      let result1
+      let result2
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const topology = ddg.computeTopology(f2v, nV)
+        result1 = ddg.computeMore(verts, f2v, topology)
+      }
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const vertsM = Matrix.empty([nV, 3])
+        vertsM.data.set(verts.flat())
+        const f2vM = Matrix.empty([nF, 3], Uint32Array)
+        f2vM.data.set(f2v.flat())
+        result2 = ddg.computeMoreV2(vertsM, f2vM)
+      }
+      const kg = result1.angleSum.map(a => 2 * PI - a)
+      deepCloseTo(kg, result2.kg.data)
+      deepCloseTo(result1.hodge0, result2.hodge0.data)
+    })
+
+    it('works 2', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      const { verts, f2v } = readOFF(data)
+      let result1
+      let result2
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const topology = ddg.computeTopology(f2v, nV)
+        result1 = ddg.computeMore(verts, f2v, topology)
+      }
+      {
+        const nV = verts.length
+        const nF = f2v.length
+        const vertsM = Matrix.empty([nV, 3])
+        vertsM.data.set(verts.flat())
+        const f2vM = Matrix.empty([nF, 3], Uint32Array)
+        f2vM.data.set(f2v.flat())
+        result2 = ddg.computeMoreV2(vertsM, f2vM)
+      }
+      const kg = result1.angleSum.map(a => 2 * PI - a)
+      deepCloseTo(kg, result2.kg.data)
+      deepCloseTo(result1.hodge0, result2.hodge0.data)
+    })
+  })
+
   describe('computeLaplacian', () => {
     it('works 0', () => {
       const { position: verts, index: f2v } = UtilsMisc.makeHedron8()

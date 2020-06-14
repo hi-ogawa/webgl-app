@@ -46,6 +46,25 @@ describe('ddg', () => {
     })
   })
 
+  describe('computeMoreV2', () => {
+    it('bunny', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      const { verts, f2v } = readOFF(data)
+      const nV = verts.length
+      const nF = f2v.length
+
+      const vertsM = Matrix.empty([nV, 3])
+      vertsM.data.set(verts.flat())
+
+      const f2vM = Matrix.empty([nF, 3], Uint32Array)
+      f2vM.data.set(f2v.flat())
+
+      const run = () => ddg.computeMoreV2(vertsM, f2vM)
+      const { resultString } = timeit('args.run()', '', '', { run }, 8)
+      console.log(resultString)
+    })
+  })
+
   describe('computeLaplacian', () => {
     it('bunny', async () => {
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')

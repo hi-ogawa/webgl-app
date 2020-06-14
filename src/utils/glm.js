@@ -93,25 +93,6 @@ const div = (a, b) => {
   return broadcast(a, b).map(([aa, bb]) => aa / bb)
 }
 
-// TODO:
-// implement adds, addeq, addeqs
-// add(a, b) => addeq(clone(a), b)
-// adds(a, b) => addeqs(clone(a), b)
-
-const subeq = (a, b) => {
-  for (let i = 0; i < a.length; i++) {
-    a[i] = a[i] - b[i]
-  }
-  return a
-}
-
-const subeqs = (a, b) => {
-  for (let i = 0; i < a.length; i++) {
-    a[i] = a[i] - b
-  }
-  return a
-}
-
 const min = (a, b) => {
   return broadcast(a, b).map(([aa, bb]) => Math.min(aa, bb))
 }
@@ -188,20 +169,24 @@ const v3 = {
     a[0] -= b[0]
     a[1] -= b[1]
     a[2] -= b[2]
-    return a;
+    return a
   },
 
   dot: (a, b) => {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
   },
 
+  dot2: (a) => {
+    return v3.dot(a, a)
+  },
+
   length: (a) => {
-    return Math.sqrt(v3.dot(a, a))
+    return Math.sqrt(v3.dot2(a))
   },
 
   clone: (a) => {
     return [a[0], a[1], a[2]]
-  },
+  }
 }
 
 export {
@@ -211,6 +196,5 @@ export {
   /* inverse, transpose, */
   pow2, dot2, /* diag, outer, outer2, */
   clone,
-  subeq,
-  v3,
+  v3
 }

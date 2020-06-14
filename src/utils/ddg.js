@@ -2,7 +2,7 @@
 
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
-import { MatrixCOO } from './array.js'
+import { Matrix, MatrixCOO } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -137,7 +137,7 @@ const computeMore = (verts, f2v, topology) => {
 
     // area which contributes to dual face
     //   = (1 / 2) * (1 / 2) * |prim-e| * |dual-e|
-    //   = (1 / 4) * |prim-e| * |prim-3| * hodge1(prim-e)
+    //   = (1 / 4) * |prim-e| * |prim-e| * hodge1(prim-e)
     const h = hodge1[i]
     const l = length(edges[i])
     const area = 0.25 * l * l * h
@@ -197,7 +197,7 @@ const computeLaplacianV2 = (verts, f2v) => {
       const v2 = vs[j2]
       const q0 = qs[j]
       const q2 = qs[j2]
-      const hodge = - 0.5 * dot(q0, q2) / length(cross(q0, q2))
+      const hodge = -0.5 * dot(q0, q2) / length(cross(q0, q2))
       L.set(v1, v1, -hodge)
       L.set(v2, v2, -hodge)
       L.set(v1, v2, hodge)
@@ -205,6 +205,64 @@ const computeLaplacianV2 = (verts, f2v) => {
     }
   }
   return L
+}
+
+// Almost same as `computeLaplacianV2` but compute `hodge0` and `kg` within same loop
+const computeMoreV2 = (verts, f2v) => {
+  const nV = verts.shape[0]
+  const nF = f2v.shape[0]
+  const nnzReserve = 3 * 4 * nF
+  const laplacian = MatrixCOO.empty([nV, nV], nnzReserve)
+  const hodge0 = Matrix.empty([nV, 1])
+  const kg = Matrix.empty([nV, 1])
+  kg.data.fill(2 * PI)
+
+  const { cross } = glm
+  const { subeq, dot, dot2, length, clone } = glm.v3
+  const { acos, sqrt, abs } = Math
+
+  for (let i = 0; i < nF; i++) {
+    // Make edge vector
+    const vs = f2v.row(i)
+    const ps = [verts.row(vs[0]), verts.row(vs[1]), verts.row(vs[2])]
+    const qs = [
+      subeq(clone(ps[1]), ps[0]),
+      subeq(clone(ps[2]), ps[1]),
+      subeq(clone(ps[0]), ps[2])
+    ]
+    const ls = [length(qs[0]), length(qs[1]), length(qs[2])]
+
+    // Compute each angle
+    for (let j = 0; j < 3; j++) {
+      const j1 = (j + 1) % 3
+      const j2 = (j + 2) % 3
+      const v1 = vs[j1]
+      const v2 = vs[j2]
+      const q0 = qs[j]
+      const q2 = qs[j2]
+
+      // Cotan laplacian
+      const cosx = -dot(q0, q2)
+      const cotan = 0.5 * cosx / length(cross(q0, q2))
+      laplacian.set(v1, v1, -cotan)
+      laplacian.set(v2, v2, -cotan)
+      laplacian.set(v1, v2, cotan)
+      laplacian.set(v2, v1, cotan)
+
+      // Angle defect
+      const x = acos(cosx / (ls[j] * ls[j2]))
+      kg.incr(vs[j], 0, -abs(x))
+
+      // Dual face area
+      // (1/2) * (1/2) * |prim-e| * |dual-e|
+      // = 1/4 * |prim-e| * (|prim-e| * this-cotan + |prim-e| * other-cotan)
+      const area = 0.25 * ls[j1] * ls[j1] * cotan
+      hodge0.incr(v1, 0, area)
+      hodge0.incr(v2, 0, area)
+    }
+  }
+
+  return { laplacian, hodge0, kg }
 }
 
 const computeMeanCurvature = (verts, L) => {
@@ -369,6 +427,7 @@ const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
 // TODO:
 // - Check convergence
 // - Implement Cholesky decomposition for real positive definite
+// - Adopt MatrixCSC.stepGaussSeidel
 const solveGaussSeidel = (A, x0, b, h, N) => {
   const nV = x0.length
   const x = _.cloneDeep(x0)
@@ -427,5 +486,5 @@ export {
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
   solvePoisson, solveGaussSeidel,
   matmul, transposeVerts, computeMeanCurvatureV2,
-  computeLaplacianV2
+  computeLaplacianV2, computeMoreV2
 }
