@@ -6,6 +6,7 @@ import { Matrix, MatrixCSC, NdArray } from './array.js'
 import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { timeit } from './timeit.js'
+import { hash11 } from './hash.js'
 
 describe('array', () => {
   describe('Matrix', () => {
@@ -94,37 +95,56 @@ describe('array', () => {
     it('works', () => {
       const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
       let { verts, f2v } = readOFF(data, true)
-      let L
-
+      let Lcoo, Lcsc, A, AL
       verts = new Matrix(verts, [verts.length / 3, 3])
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
-      const hn2 = Matrix.empty(verts.shape)
 
       {
-        const run = () => { L = ddg.computeLaplacianV2(verts, f2v) }
+        const run = () => { Lcoo = ddg.computeLaplacianV2(verts, f2v) }
         const { resultString } = timeit('args.run()', '', '', { run })
         console.log('computeLaplacianV2')
         console.log(resultString)
       }
 
       {
-        const run = () => { L = MatrixCSC.fromCOO(L) }
+        const run = () => { Lcsc = MatrixCSC.fromCOO(Lcoo) }
         const { resultString } = timeit('args.run()', '', '', { run })
         console.log('MatrixCSC.fromCOO')
         console.log(resultString)
       }
 
       {
-        const run = () => { L.sumDuplicates() }
+        const run = () => { Lcsc.sumDuplicates() }
         const { resultString } = timeit('args.run()', '', '', { run })
         console.log('MatrixCSC.sumDuplicates')
         console.log(resultString)
       }
 
       {
-        const run = () => { L.matmul(hn2, verts) }
+        const hn2 = Matrix.emptyLike(verts)
+        const run = () => { Lcsc.matmul(hn2, verts) }
         const { resultString } = timeit('args.run()', '', '', { run })
         console.log('MatrixCSC.matmul')
+        console.log(resultString)
+      }
+
+      {
+        A = Lcsc.clone()
+        A.negadddiags(1e-3) // -A + h I (make it positive definite)
+        const run = () => { AL = A.choleskyCompute() }
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
+        console.log('MatrixCSC.choleskyCompute')
+        console.log(resultString)
+      }
+
+      {
+        const nV = verts.shape[0]
+        const b = Matrix.empty([nV, 1])
+        const x = Matrix.empty([nV, 1])
+        b.data.set(_.range(nV).map(hash11))
+        const run = () => { AL.choleskySolve(x, b) }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('MatrixCSC.choleskySolve')
         console.log(resultString)
       }
     })

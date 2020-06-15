@@ -1,8 +1,12 @@
 /* global describe, it */
 
+import fs from 'fs'
 import assert from 'assert'
 import _ from '../../web_modules/lodash.js'
 import { Matrix, MatrixCOO, MatrixCSC } from './array.js'
+import * as ddg from './ddg.js'
+import { readOFF } from './reader.js'
+import { hash11 } from './hash.js'
 
 const closeTo = (actual, expected, epsilon = 1e-6) => {
   if (epsilon < Math.abs(actual - expected)) {
@@ -236,6 +240,91 @@ describe('array', () => {
       deepCloseTo(b.toDense().data, [
         5, -6, 0, 0,
         2, 11, 0, -8
+      ])
+    })
+
+    it('works 5 (choleskyCompute)', () => {
+      const a = Matrix.empty([3, 3])
+      a.data.set([
+        4, -1, 0,
+        -1, 4, -1,
+        0, -1, 4
+      ])
+
+      const A = MatrixCSC.fromDense(a)
+      A.sumDuplicates()
+
+      const L = A.choleskyCompute()
+
+      const LD = L.toDense()
+      const LLT = LD.matmul(LD.transpose())
+      deepCloseTo(a.data, LLT.data)
+    })
+
+    it('works 5 1 (choleskyCompute) (bunny laplacian)', function () {
+      this.timeout(10000)
+
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+      let A = ddg.computeLaplacianV2(verts, f2v)
+      A = MatrixCSC.fromCOO(A)
+      A.sumDuplicates()
+      A.negadddiags(1e-3) // -A + h I (make it positive definite)
+
+      const L = A.choleskyCompute()
+      const nV = verts.shape[0]
+      const b = Matrix.empty([nV, 1])
+      const x = Matrix.empty([nV, 1])
+      b.data.set(_.range(nV).map(hash11))
+
+      L.choleskySolve(x, b)
+      const Ax = A.matmul(Matrix.emptyLike(x), x)
+      deepCloseTo(Ax.data, b.data, 1e-2)
+    })
+
+    it('works 5 (choleskySolve)', () => {
+      const a = Matrix.empty([3, 3])
+      a.data.set([
+        4, -1, 0,
+        -1, 4, -1,
+        0, -1, 4
+      ])
+
+      const A = MatrixCSC.fromDense(a)
+      A.sumDuplicates()
+
+      const L = A.choleskyCompute()
+      const b = Matrix.empty([3, 1])
+      const x = Matrix.emptyLike(b)
+      b.data.set([2, 3, 5])
+
+      L.choleskySolve(x, b)
+
+      const Ax = A.matmul(Matrix.emptyLike(x), x)
+
+      deepCloseTo(Ax.data, b.data)
+    })
+
+    it('works 6 (matmulT)', () => {
+      const a = Matrix.empty([3, 3])
+      a.data.set([
+        1, 0, 0,
+        2, 3, 0,
+        4, 5, 6
+      ])
+
+      const A = MatrixCSC.fromDense(a)
+      const x = Matrix.empty([3, 1])
+      x.data.set([2, 3, 5])
+
+      const Ax = A.matmulT(Matrix.emptyLike(x), x)
+      deepCloseTo(Ax.data, [
+        1 * 2 + 2 * 3 + 4 * 5,
+        3 * 3 + 5 * 5,
+        6 * 5
       ])
     })
   })

@@ -9,6 +9,11 @@ const makeRawMajorStride = (a) => {
   return _.range(l).map(i => a.slice(1, l - i).reduce(_.multiply, 1))
 }
 
+const assertf = (f) => {
+  if (!f()) { throw new Error(f.toString().slice(6)) }
+}
+
+// Not used
 class NdArray {
   constructor (data, shape, offset) {
     this.data = data
@@ -61,6 +66,10 @@ class Matrix {
     return new Matrix(data, shape)
   }
 
+  static emptyLike (other) {
+    return Matrix.empty(other.shape, other.data.constructor)
+  }
+
   clone () {
     const other = Matrix.empty(this.shape, this.data.constructor)
     other.data.set(this.data)
@@ -110,6 +119,14 @@ class Matrix {
     return result
   }
 
+  sum () {
+    let x = 0
+    for (let i = 0; i < this.data.length; i++) {
+      x += this.data[i]
+    }
+    return x
+  }
+
   // TODO: generate more basic operations (cf. glm.generateOperators)
   muleqs (h) {
     for (let i = 0; i < this.data.length; i++) {
@@ -121,6 +138,31 @@ class Matrix {
   subeq (other) {
     other.forEach((v, i, j) => { this.incr(i, j, -v) })
     return this
+  }
+
+  subeqs (h) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] -= h
+    }
+    return this
+  }
+
+  // C = A B (Mostly for testing/debugging sparse matrix)
+  matmul (b) {
+    const a = this
+    const c = Matrix.empty([a.shape[0], b.shape[1]], a.data.constructor)
+    // assert a.shape[1] === b.shape[0]
+    // assert a.data.constructor === b.data.constructor
+    for (let i = 0; i < a.shape[0]; i++) {
+      for (let j = 0; j < b.shape[1]; j++) {
+        let x = 0
+        for (let k = 0; k < a.shape[1]; k++) {
+          x += a.get(i, k) * b.get(k, j)
+        }
+        c.set(i, j, x)
+      }
+    }
+    return c
   }
 
   // Hilbert-Schmidt inner product Tr[AT A]
@@ -289,7 +331,7 @@ class MatrixCSC {
 
   sumDuplicates () {
     const numDups = this.sortIndices()
-    const newNnz = this.indices.length - numDups
+    const newNnz = this.indptr[this.shape[0]] - numDups
 
     const n = this.shape[0]
     const newIndptr = new Uint32Array(n + 1)
@@ -492,11 +534,225 @@ class MatrixCSC {
 
       // Throw if A doesn't have diagonal entry
       if (!diag) {
-        throw new Error('[MatrixCSC.idsubmuls]')
+        throw new Error('[MatrixCSC.negadddiags]')
       }
       p0 = p1
     }
     return this
+  }
+
+  // L L^T = A
+  // Assume sumDuplicates is done
+  // TODO: Study Eigen's implementation https://gitlab.com/libeigen/eigen/-/blob/master/Eigen/src/SparseCholesky/SimplicialCholesky_impl.h
+  choleskyCompute () {
+    const { sqrt } = Math
+
+    const A = this
+    const L = new MatrixCSC()
+
+    // TODO: can we derive nice bound? or maybe experimentally?
+    //       64 is just from bunny laplacian example
+    let nnzReserve = 64 * A.data.length
+
+    L.shape = this.shape
+    L.indptr = new Uint32Array(L.shape[0] + 1)
+    L.indices = new Uint32Array(nnzReserve)
+    L.data = new Float32Array(nnzReserve)
+    let Lp = 0 // = nnz
+
+    const Lset = (i, j, v) => { // eslint-disable-line
+      L.indices[Lp] = j
+      L.data[Lp] = v
+      Lp++
+      if (nnzReserve <= Lp) {
+        nnzReserve *= 2
+        console.log(`[choleskyCompute] Reallocation ${nnzReserve}`)
+        {
+          const tmp = new Uint32Array(nnzReserve)
+          tmp.set(L.indices)
+          L.indices = tmp
+        }
+        {
+          const tmp = new Float32Array(nnzReserve)
+          tmp.set(L.data)
+          L.data = tmp
+        }
+      }
+    }
+
+    const LfinishRow = (i) => {
+      L.indptr[i + 1] = Lp
+    }
+
+    // L[0, 0] = sqrt(A[0, 0])
+    const L00 = sqrt(A.data[0])
+    Lset(0, 0, L00)
+    LfinishRow(0)
+
+    for (let n = 1; n < A.shape[0]; n++) { // Loop A row
+      let Lacc = 0 // = |L[<n, n]|^2
+      let Ap = A.indptr[n]
+
+      // Solve L[<n, <n] L[<n, n] = A[<n, n]
+      // TODO: any trick to know if L[n, j] = 0 ??
+      for (let j = 0; j < n; j++) {
+        let rhs = 0
+
+        // Check if there is A[j, n]
+        if (A.indices[Ap] === j) {
+          rhs += A.data[Ap]
+          Ap++
+        }
+
+        // Loop L col to get \sum_i L[j, i] L[n, i]
+        // by traversing two sorted list L[j, <j] and L[n, <j] simultaneously
+        let pj = L.indptr[j]
+        let pn = L.indptr[n]
+        while (pj < L.indptr[j + 1] && pn < Lp) {
+          if (L.indices[pj] === L.indices[pn]) {
+            rhs -= L.data[pj] * L.data[pn]
+            pj++
+            pn++
+          }
+          if (L.indices[pj] < L.indices[pn]) {
+            pj++
+          }
+          if (L.indices[pj] > L.indices[pn]) {
+            pn++
+          }
+        }
+
+        // Get L[j, j]
+        // assertf(() => L.indices[L.indptr[j + 1] - 1] === j)
+        const Ljj = L.data[L.indptr[j + 1] - 1]
+
+        // [ Debug ]
+        // console.log(`L[${n}, ${j}] rhs: ${rhs}, Ljj: ${Ljj}`)
+
+        if (rhs === 0) { continue }
+
+        const Lnj = rhs / Ljj
+        Lacc += Lnj ** 2
+        Lset(n, j, Lnj)
+      }
+
+      // Get Ann
+      // assertf(() => Ap < A.indptr[n + 1])
+      // assertf(() => A.indices[Ap] === n)
+      const Ann = A.data[Ap]
+
+      // [ Debug ]
+      // console.log(`L[${n}, ${n}] Ann: ${Ann}, Lacc: ${Lacc}`)
+
+      // L[n, n] = sqrt(A[n, n] - |L[<n, n]|^2)
+      const Lnn = sqrt(Ann - Lacc)
+      Lset(n, n, Lnn)
+      LfinishRow(n)
+    }
+
+    return L
+  }
+
+  // Assume choleskyCompute is done
+  choleskySolve (x, b) {
+    const L = this
+    const N = L.shape[0]
+    const K = x.shape[1]
+    const y = Matrix.emptyLike(x) // workspace
+
+    // Solve L y = b
+    {
+      let p0 = 0
+      for (let i = 0; i < N; i++) { // Loop L row
+        const p1 = this.indptr[i + 1]
+
+        // assert L.indices[p1 - 1] === i
+        const Lii = L.data[p1 - 1]
+
+        for (let k = 0; k < K; k++) { // Loop Y col
+          let rhs = b.get(i, k)
+
+          // Loop L col to get \sum_{j < i} L[i, j] Y[j, k]
+          for (let p = p0; p < p1 - 1; p++) {
+            const j = this.indices[p]
+            const v = this.data[p]
+            rhs -= v * y.get(j, k)
+          }
+
+          y.set(i, k, rhs / Lii)
+        }
+
+        p0 = p1
+      }
+    }
+
+    // [ Debug ]
+    // |L y - b| = 0
+    // assertf(() => Math.abs(L.matmul(Matrix.emptyLike(y), y).subeq(b).dotHS2()) < 1e-6)
+
+    // Solve LT x = y
+    {
+      const rhs = y.clone() // Update as X[i, k] is found
+      let p = L.indptr[N] - 1
+      for (let i = N - 1; i >= 0; i--) { // Loop LT row
+        assertf(() => L.indices[p] === i)
+        const LTii = L.data[p]
+        p--
+
+        for (let k = 0; k < K; k++) { // Loop X col
+          const Xik = rhs.get(i, k) / LTii
+          x.set(i, k, Xik)
+
+          // [ Debug ]
+          // console.log(`X[${i}, ${k}]: ${Xik}, LT[${i}, ${i}]: ${LTii}, rhs: ${rhs.get(i, k)}`)
+
+          const p0 = L.indptr[i]
+          for (; p >= p0; p--) { // Loop LT row
+            const j = L.indices[p]
+            const LTji = L.data[p]
+
+            rhs.incr(j, k, -LTji * Xik)
+
+            // [ Debug ]
+            // console.log(`LT[${j}, ${i}]: ${LTji}, rhs: ${rhs.get(j, k)}`)
+          }
+        }
+
+        // [ Debug ]
+        // if (i === N - 2) { break }
+      }
+    }
+
+    // [ Debug ]
+    // |LT x - y| = 0
+    // const LTx = L.matmulT(Matrix.emptyLike(x), x)
+    // console.log(LTx.clone().subeq(y).dotHS2())
+    // console.log(_.zip(LTx.data, y.data).reverse())
+    // assertf(() => LTx.clone().subeq(y).dotHS2() < 1e-6)
+
+    return x
+  }
+
+  // Y = A^T X (i.e. CSR-matrix vector multiplication)
+  // Used for debugging `choleskySolve`
+  matmulT (y, x) {
+    const A = this
+    const N = A.shape[0]
+    const K = x.shape[1]
+    y.data.fill(0)
+
+    let p = 0
+    for (let i = 0; i < N; i++) { // Loop AT col (i.e. A row)
+      const p1 = A.indptr[i + 1]
+      for (; p < p1; p++) { // Loop AT row (i.e. A col)
+        const j = A.indices[p]
+        const Aij = A.data[p]
+        for (let k = 0; k < K; k++) { // Loop X col
+          y.incr(j, k, Aij * x.get(i, k))
+        }
+      }
+    }
+    return y
   }
 }
 
