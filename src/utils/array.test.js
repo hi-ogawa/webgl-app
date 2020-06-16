@@ -320,6 +320,38 @@ describe('array', () => {
       // console.log(L.shape[0], A.indptr[A.shape[0]], L.indptr[L.shape[0]])
     })
 
+    it('works 5 1 (choleskyComputeV3) (bunny laplacian pos.def.)', function () {
+      this.timeout(10000)
+
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      const N = verts.length / 3
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+      let A = ddg.computeLaplacianV2(verts, f2v)
+      A = MatrixCSC.fromCOO(A)
+      A.sumDuplicates()
+      A.negadddiags(1e-3) // -A + h I (make it positive definite)
+
+      // Crash null space of Laplacian (ImB = KerL^{orth})
+      // TODO: I thought this is gonna work ...
+      let B = MatrixCOO.empty([N, N - 1], 2 * (N - 1))
+      let BT = MatrixCOO.empty([N - 1, N], 2 * (N - 1))
+      for (let i of _.range(N - 1)) {
+        B.set(i, i, -1)
+        B.set(i + 1, i, 1)
+        BT.set(i, i, -1)
+        BT.set(i, i + 1, 1)
+      }
+      B = MatrixCSC.fromCOO(B)
+      BT = MatrixCSC.fromCOO(BT)
+      A = BT.matmulCsr(A).matmulCsr(B)
+
+      // Somehow this is not pos dev any more
+      // const L = A.choleskyComputeV3()
+    })
+
     it('works 5 1 (choleskyCompute) (bunny laplacian)', function () {
       this.timeout(10000)
 
@@ -384,6 +416,32 @@ describe('array', () => {
         1 * 2 + 2 * 3 + 4 * 5,
         3 * 3 + 5 * 5,
         6 * 5
+      ])
+    })
+
+    it('works 6 (matmulCsr)', () => {
+      let A = Matrix.empty([3, 3])
+      A.data.set([
+        1, 0, 2,
+        0, 3, 4,
+        5, 6, 0
+      ])
+
+      let B = Matrix.empty([3, 3])
+      B.data.set([
+        1, 0, 5,
+        0, 3, 6,
+        2, 4, 0
+      ])
+
+      A = MatrixCSC.fromDense(A)
+      B = MatrixCSC.fromDense(B)
+      const C = A.matmulCsr(B)
+
+      deepCloseTo(C.toDense().data, [
+        [5, 8, 5],
+        [8, 25, 18],
+        [5, 18, 61]
       ])
     })
   })

@@ -1,3 +1,5 @@
+/* eslint no-lone-blocks: 0 */
+
 // Cf.
 // - https://github.com/scijs/ndarray/blob/master/test/test.js
 // - https://github.com/scijs/ndarray-ops/blob/master/ndarray-ops.js
@@ -665,6 +667,10 @@ class MatrixCSC {
         }
 
         // Set L[k, k]
+        const Lkk2 = Akk - Lacc
+        if (Lkk2 < 0) {
+          throw new Error('[choleskyComputeV3] Not positive definite')
+        }
         const Lkk = Math.sqrt(Akk - Lacc)
         cscData[cscIndptr[k]] = Lkk
       }
@@ -687,7 +693,7 @@ class MatrixCSC {
   }
 
   // L X = B
-  solveCscL(x, b) {
+  solveCscL (x, b) {
     const L = this
     const N = L.shape[0]
     const K = x.shape[1]
@@ -713,7 +719,7 @@ class MatrixCSC {
   }
 
   // L^T X = B
-  solveCscLT(x, b) {
+  solveCscLT (x, b) {
     const L = this
     const N = L.shape[0]
     const K = x.shape[1]
@@ -734,6 +740,43 @@ class MatrixCSC {
       }
     }
     return x
+  }
+
+  // C = A B
+  matmulCsr (B) {
+    const A = this
+    const C = new MatrixCSC()
+    C.shape = [A.shape[0], B.shape[1]]
+    assertf(() => A.shape[1] === B.shape[0])
+
+    // TODO: Can we estimate "nnz"?
+    C.indptr = new Uint32Array(C.shape[0] + 1)
+    C.indices = []
+    C.data = []
+
+    for (let i = 0; i < A.shape[0]; i++) { // Loop A row
+      C.indptr[i + 1] = C.indptr[i]
+
+      for (let Ap = A.indptr[i]; Ap < A.indptr[i + 1]; Ap++) { // Loop A[i, *]
+        const k = A.indices[Ap]
+        const Aik = A.data[Ap]
+
+        for (let Bp = B.indptr[k]; Bp < B.indptr[k + 1]; Bp++) { // Loop B[k, *]
+          const j = B.indices[Bp]
+          const Bkj = B.data[Bp]
+
+          // Set C[i, j]
+          C.indices.push(j)
+          C.data.push(Aik * Bkj)
+          C.indptr[i + 1]++
+        }
+      }
+    }
+
+    C.indices = new Uint32Array(C.indices)
+    C.data = new Float32Array(C.data)
+    C.sumDuplicates()
+    return C
   }
 
   // NOTE: Thought it's possible to make CSR version of it but I found the algorithm doesn't work.
@@ -991,6 +1034,10 @@ class MatrixCSC {
       // console.log(`L[${n}, ${n}] Ann: ${Ann}, Lacc: ${Lacc}`)
 
       // L[n, n] = sqrt(A[n, n] - |L[<n, n]|^2)
+      const Lnn2 = Ann - Lacc
+      if (Lnn2 < 0) {
+        throw new Error('choleskyCompute')
+      }
       const Lnn = sqrt(Ann - Lacc)
       Lset(n, n, Lnn)
       LfinishRow(n)
