@@ -233,7 +233,8 @@ class MatrixCOO {
   }
 }
 
-// Compressed Sparse Column format (cf. https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csc_matrix.html)
+// NOTE: It turns out this is what people call "compressed sparse row format"
+// TODO: Rename to MatrixCSR
 class MatrixCSC {
   constructor (data, indices, indptr, shape) {
     this.data = data
@@ -541,9 +542,324 @@ class MatrixCSC {
     return this
   }
 
+  // Cf. Timothy A. Davis's LDL paper https://dl.acm.org/doi/10.1145/1114268.1114277
+  // Key Lemma
+  // - Reverse elimination tree represents L's directed graph reachability
+  // - Reverse elimination tree topological sorting gives L's directed graph topological sorting
+  // Proof
+  // - feels obvious by construction
+  choleskyComputeV3 () {
+    const A = this
+    const N = A.shape[0]
+
+    // 1.
+    // - Elimination tree
+    // - CSC counts
+    const elimTree = new Int32Array(N)
+    const visited = new Uint32Array(N)
+    const cscCounts = new Uint32Array(N)
+    {
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        elimTree[k] = -1
+        visited[k] = k
+        cscCounts[k] = 1
+
+        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          if (i0 === k) { break }
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            if (elimTree[i] === -1) { elimTree[i] = k }
+            visited[i] = k
+            cscCounts[i]++
+          }
+        }
+      }
+    }
+
+    // 2.
+    // - CSC indptr from CSC count
+    const cscIndptr = new Uint32Array(N + 1)
+    for (let i = 0; i < N; i++) {
+      cscIndptr[i + 1] = cscIndptr[i] + cscCounts[i]
+    }
+
+    // 3. (Can we merge this step into 4th step?)
+    // - CSC indices
+    const cscIndices = new Uint32Array(cscIndptr[N])
+    {
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        visited[k] = k
+        cscIndices[cscIndptr[k]] = k
+        cscCounts[k] = 1
+
+        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          if (i0 === k) { break }
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            visited[i] = k
+            cscIndices[cscIndptr[i] + cscCounts[i]] = k
+            cscCounts[i]++
+          }
+        }
+      }
+    }
+
+    // 4.
+    // - Lower triangle solve x N
+    const cscData = new Float32Array(cscIndptr[N])
+    {
+      const rhs = new Float32Array(N)
+      const topsort = new Uint32Array(N)
+      let topsortLength = 0
+
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        visited[k] = k
+        cscCounts[k] = 0
+        let Lacc = 0
+        let Akk = 0
+        topsortLength = 0
+
+        // Loop A row (fill rhs and obtain topsort)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          const Aki = A.data[p]
+          if (i0 === k) {
+            Akk = Aki
+            break
+          }
+
+          let depth = 0
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            visited[i] = k
+
+            // Wrong order which we correct below
+            topsort[topsortLength + depth] = i
+            depth++
+
+            // Refresh rhs
+            rhs[i] = 0
+          }
+
+          // Reverse between [topsortLength - depth, topsortLength)
+          for (let i = 0; 2 * i + 1 < depth; i++) {
+            const tmp = topsort[topsortLength + i]
+            topsort[topsortLength + i] = topsort[topsortLength + depth - i - 1]
+            topsort[topsortLength + depth - i - 1] = tmp
+          }
+
+          topsortLength += depth
+
+          // Fill rhs
+          rhs[i0] = Aki
+        }
+
+        for (let ti = topsortLength - 1; ti >= 0; ti--) {
+          const i = topsort[ti]
+          const Lii = cscData[cscIndptr[i]]
+
+          // Set L[k, i]
+          const Lki = rhs[i] / Lii
+          cscData[cscIndptr[i] + cscCounts[i]] = Lki
+          cscCounts[i]++
+          Lacc += Lki ** 2
+
+          // Subtract LT[i, k] facter (i.e. Lki) from rhs
+          for (let p = cscIndptr[i]; p < cscIndptr[i + 1]; p++) {
+            const j = cscIndices[p]
+            if (j >= k) { break }
+
+            const Lji = cscData[p]
+            rhs[j] -= Lji * Lki
+          }
+        }
+
+        // Set L[k, k]
+        const Lkk = Math.sqrt(Akk - Lacc)
+        cscData[cscIndptr[k] + cscCounts[k]] = Lkk
+        cscCounts[k]++
+      }
+    }
+
+    const L = new MatrixCSC()
+    L.shape = A.shape
+    L.indptr = cscIndptr
+    L.indices = cscIndices
+    L.data = cscData
+    return L
+  }
+
+  // TODO
+  cscSolveL(x, b) {
+  }
+
+  cscSolveLT(x, b) {
+  }
+
+  // NOTE: Thought it's possible to make CSR version of it but I found the algorithm doesn't work.
+  //       But some interesting enough construction is here, so I'll leave it.
+  choleskyComputeV2 () {
+    const A = this
+    const N = A.shape[0]
+
+    // 1.
+    // - elimination tree
+    // - CSR indptr
+    const elimTree = new Int32Array(N)
+    const visited = new Uint32Array(N)
+    const csrIndptr = new Uint32Array(N + 1)
+    {
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        visited[k] = k
+        elimTree[k] = -1
+        csrIndptr[k + 1] = csrIndptr[k] + 1
+
+        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          if (i0 === k) { break }
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            visited[i] = k
+            if (elimTree[i] === -1) {
+              elimTree[i] = k
+            }
+            csrIndptr[k + 1]++
+          }
+        }
+      }
+    }
+
+    // 2.
+    // - CSR indices by "reverse" elimTree topological order
+    const csrIndices = new Uint32Array(csrIndptr[N])
+    {
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        visited[k] = k
+
+        // We construct csrIndices from back
+        let Lp = csrIndptr[k + 1] - 1
+        csrIndices[Lp] = k
+        Lp--
+
+        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          if (i0 === k) { break }
+
+          let depth = 0
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            visited[i] = k
+
+            // Wrong order which we correct below
+            csrIndices[Lp] = i
+            Lp--
+            depth++
+          }
+
+          // Reverse between (Lp, Lp + depth]
+          for (let i = 0; 2 * i + 1 < depth; i++) {
+            const tmp = csrIndices[Lp + i + 1]
+            csrIndices[Lp + i + 1] = csrIndices[Lp + depth - i]
+            csrIndices[Lp + depth - i] = tmp
+          }
+        }
+
+        // [ Debug ] total order trivially satisfies the order we want
+        // csrIndices.subarray(csrIndptr[k], csrIndptr[k + 1]).sort()
+      }
+    }
+
+    // 3.
+    // - Lower triangle solve x N
+    const csrData = new Float32Array(csrIndptr[N])
+    {
+      const rhs = new Float32Array(N)
+
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        let Lacc = 0 // = |L[<k, k]|^2
+        let Akk = 0
+        rhs.fill(0)
+
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i = A.indices[p]
+          const Aki = A.data[p]
+          if (i === k) {
+            Akk = Aki
+            break
+          }
+
+          rhs[i] = Aki
+        }
+
+        // Solve L[<k, <k] LT[<k, k] = A[<k, k]
+        // where LT[i0, k] is the only non-zero entry
+        for (let Lp = csrIndptr[k]; Lp < csrIndptr[k + 1]; Lp++) {
+          const i = csrIndices[Lp]
+          if (i === k) { break }
+
+          // Loop L col to get \sum_{j < i} L[i, j] L[k, j]
+          // by traversing two list L[i, <i] and L[k, <i] simultaneously
+          // TODO: this is incorrect for non-sorted indices
+          let pi = csrIndptr[i]
+          let pk = csrIndptr[k]
+          while (pi < csrIndptr[i + 1] && pk < Lp) {
+            if (csrIndices[pi] === csrIndices[pk]) {
+              rhs[i] -= csrData[pi] * csrData[pk]
+              pi++
+              pk++
+            }
+            if (csrIndices[pi] < csrIndices[pk]) {
+              pi++
+            }
+            if (csrIndices[pi] > csrIndices[pk]) {
+              pk++
+            }
+          }
+
+          // Get L[i, i]
+          const Lii = csrData[csrIndptr[i + 1] - 1]
+
+          // Set L[k, i]
+          const Lki = rhs[i] / Lii
+          csrData[Lp] = Lki
+
+          // Update Lacc
+          Lacc += Lki ** 2
+        }
+
+        // Set L[k, k]
+        const p = csrIndptr[k + 1] - 1
+        csrData[p] = Math.sqrt(Akk - Lacc)
+      }
+    }
+
+    const L = new MatrixCSC()
+    L.shape = A.shape
+    L.indptr = csrIndptr
+    L.indices = csrIndices
+    L.data = csrData
+    return L
+  }
+
   // L L^T = A
   // Assume sumDuplicates is done
-  // TODO: Study Eigen's implementation https://gitlab.com/libeigen/eigen/-/blob/master/Eigen/src/SparseCholesky/SimplicialCholesky_impl.h
   choleskyCompute () {
     const { sqrt } = Math
 
@@ -594,8 +910,8 @@ class MatrixCSC {
       let Ap = A.indptr[n]
 
       // Solve L[<n, <n] L[<n, n] = A[<n, n]
-      // TODO: any trick to know if L[n, j] = 0 ??
-      for (let j = 0; j < n; j++) {
+      let j = A.indices[Ap] // Skip to first A[j, n] != 0
+      for (; j < n; j++) {
         let rhs = 0
 
         // Check if there is A[j, n]
@@ -695,7 +1011,7 @@ class MatrixCSC {
       const rhs = y.clone() // Update as X[i, k] is found
       let p = L.indptr[N] - 1
       for (let i = N - 1; i >= 0; i--) { // Loop LT row
-        assertf(() => L.indices[p] === i)
+        // assertf(() => L.indices[p] === i)
         const LTii = L.data[p]
         p--
 

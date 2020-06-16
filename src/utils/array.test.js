@@ -7,11 +7,11 @@ import { Matrix, MatrixCOO, MatrixCSC } from './array.js'
 import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { hash11 } from './hash.js'
+import * as UtilsMisc from './misc.js'
 
 const closeTo = (actual, expected, epsilon = 1e-6) => {
-  if (epsilon < Math.abs(actual - expected)) {
-    assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-  }
+  if (Math.abs(actual - expected) < epsilon) { return }
+  assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
 }
 const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
   actual = _.flattenDeep(actual)
@@ -243,7 +243,7 @@ describe('array', () => {
       ])
     })
 
-    it('works 5 (choleskyCompute)', () => {
+    it('works 5 (choleskyCompute) (small)', () => {
       const a = Matrix.empty([3, 3])
       a.data.set([
         4, -1, 0,
@@ -259,6 +259,108 @@ describe('array', () => {
       const LD = L.toDense()
       const LLT = LD.matmul(LD.transpose())
       deepCloseTo(a.data, LLT.data)
+
+      const L2 = A.choleskyComputeV2()
+      deepCloseTo(L2.toDense().data, L.toDense().data)
+    })
+
+    it('works 5 1 (choleskyCompute) (icosphere)', function () {
+      this.timeout(10000)
+      const { position, index } = UtilsMisc.makeIcosphere(3)
+      const verts = Matrix.empty([position.length, 3])
+      const f2v = Matrix.empty([index.length, 3], Uint32Array)
+      verts.data.set(position.flat())
+      f2v.data.set(index.flat())
+
+      let A = ddg.computeLaplacianV2(verts, f2v)
+      A = MatrixCSC.fromCOO(A)
+      A.sumDuplicates()
+      A.negadddiags(1e-3) // -A + h I (make it positive definite)
+
+      const L = A.choleskyCompute()
+      L.indices = L.indices.slice(0, L.indptr[verts.shape[0]])
+
+      // const AD = A.toDense()
+      // const LD = L.toDense()
+      // const LLT = LD.matmul(LD.transpose())
+      // deepCloseTo(AD.data, LLT.data)
+
+      // const L2 = A.choleskyComputeV2()
+
+      // console.log(_.chunk(L.toDense().data, L2.shape[0]).slice(0, 3))
+      // console.log(_.chunk(L2.toDense().data, L2.shape[0]).slice(0, 3))
+      // console.log(
+      //   _.zip(
+      //     _.chunk(L.toDense().data, L2.shape[0]),
+      //     _.chunk(L2.toDense().data, L2.shape[0])))
+
+      // console.log(_.chunk(L.toDense().data, L2.shape[0]))
+      // console.log(_.chunk(L2.toDense().data, L2.shape[0]))
+
+      // deepCloseTo(L.indices, L2.indices)
+      // deepCloseTo(L.toDense().data, L2.toDense().data)
+
+      // const L2D = L2.toDense()
+
+      const splitByIndptr = (indptr, indices) => {
+        return _.range(indptr.length - 1).map(i =>
+          Array.from(indices.slice(indptr[i], indptr[i + 1])))
+      }
+
+      const L3 = A.choleskyComputeV3()
+      const L3D = L3.toDense().transpose()
+      deepCloseTo(L3D.matmul(L3D.transpose()).data, A.toDense().data)
+
+      // console.log(_.chunk(L3D.data, L3.shape[0]))
+      // deepCloseTo(L3D.data, LD.data)
+      // console.log(L3)
+
+
+      // const cscToDense = (indptr, indices, data) => {
+      // }
+      // console.log(L3.cscIndptr)
+      // console.log(L3.cscIndices)
+      // console.log(splitByIndptr(L3.cscIndptr, L3.cscIndices))
+
+
+      // [ Debug ]
+      // console.log(L.indptr)
+      // console.log(splitByIndptr(L.indptr, L.indices))
+      // console.log(csrIndptr)
+      // console.log(splitByIndptr(csrIndptr, csrIndices))
+      // console.log(splitByIndptr(csrIndptr, csrData))
+
+      // [ Debug ]
+      // console.log(_.chunk(AD.data, verts.shape[0]))
+      // console.log(_.chunk(LD.data, verts.shape[0]))
+    })
+
+    it('works 5 1 (choleskyComputeV3) (bunny laplacian)', function () {
+      this.timeout(10000)
+
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+      let A = ddg.computeLaplacianV2(verts, f2v)
+      A = MatrixCSC.fromCOO(A)
+      A.sumDuplicates()
+      A.negadddiags(1e-3) // -A + h I (make it positive definite)
+
+      // const L = A.choleskyCompute()
+      // L.indices = L.indices.slice(0, L.indptr[verts.shape[0]])
+
+      // const L2 = A.choleskyComputeV2()
+
+      const L3 = A.choleskyComputeV3()
+
+      // assert.deepStrictEqual(L.indptr, csrIndptr)
+      // deepCloseTo(L.indices, csrIndices)
+      // assert.deepStrictEqual(L.indices, csrIndices)
+
+      // console.log(L.indices)
+      // console.log(csrIndices)
     })
 
     it('works 5 1 (choleskyCompute) (bunny laplacian)', function () {
