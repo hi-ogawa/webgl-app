@@ -3,7 +3,7 @@
 import fs from 'fs'
 import assert from 'assert'
 import _ from '../../web_modules/lodash.js'
-import { Matrix, MatrixCOO, MatrixCSC } from './array.js'
+import { Matrix, MatrixCOO, MatrixCSR } from './array.js'
 import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { hash11 } from './hash.js'
@@ -70,7 +70,7 @@ describe('array', () => {
     })
   })
 
-  describe('MatrixCSC', () => {
+  describe('MatrixCSR', () => {
     it('works 0', () => {
       const a = MatrixCOO.empty([2, 3], 5)
       a.set(1, 2, 7)
@@ -78,7 +78,7 @@ describe('array', () => {
       a.set(1, 2, 13)
       a.set(1, 0, 15)
 
-      const b = MatrixCSC.fromCOO(a)
+      const b = MatrixCSR.fromCOO(a)
       assert.deepStrictEqual(b.indptr, new Uint32Array([
         0, 1, 4
       ]))
@@ -105,7 +105,7 @@ describe('array', () => {
       a.set(1, 0, 17)
       a.set(1, 2, 23)
 
-      const b = MatrixCSC.fromCOO(a)
+      const b = MatrixCSR.fromCOO(a)
 
       assert.deepStrictEqual(b.indptr, new Uint32Array([
         0, 2, 5
@@ -148,7 +148,7 @@ describe('array', () => {
       a.set(1, 0, 17)
       a.set(1, 2, 23)
 
-      const b = MatrixCSC.fromCOO(a)
+      const b = MatrixCSR.fromCOO(a)
       b.sumDuplicates()
       assert.deepStrictEqual(b.indptr, new Uint32Array([
         0, 2, 4
@@ -171,7 +171,7 @@ describe('array', () => {
       a.set(0, 1, 11)
       a.set(1, 2, 13)
 
-      const b = MatrixCSC.fromCOO(a)
+      const b = MatrixCSR.fromCOO(a)
 
       const x = Matrix.empty([3, 1])
       x.data.set([2, 3, 5])
@@ -191,7 +191,7 @@ describe('array', () => {
         -1, 2, 0, 4
       ])
 
-      const b = MatrixCSC.fromDense(a)
+      const b = MatrixCSR.fromDense(a)
       assert.deepStrictEqual(b.indptr, new Uint32Array([
         0, 2, 5
       ]))
@@ -213,7 +213,7 @@ describe('array', () => {
         0, 0, -1, 2
       ])
 
-      const A = MatrixCSC.fromDense(a)
+      const A = MatrixCSR.fromDense(a)
       const x = Matrix.empty([4, 1])
       const b = x.clone()
       b.data.set([1, 2, 3, 4])
@@ -235,7 +235,7 @@ describe('array', () => {
         -1, -5, 0, 4
       ])
 
-      const b = MatrixCSC.fromDense(a)
+      const b = MatrixCSR.fromDense(a)
       b.idsubmuls(2)
       deepCloseTo(b.toDense().data, [
         5, -6, 0, 0,
@@ -251,7 +251,7 @@ describe('array', () => {
         0, -1, 4
       ])
 
-      const A = MatrixCSC.fromDense(a)
+      const A = MatrixCSR.fromDense(a)
       A.sumDuplicates()
 
       const L = A.choleskyCompute()
@@ -277,7 +277,7 @@ describe('array', () => {
       f2v.data.set(index.flat())
 
       let A = ddg.computeLaplacianV2(verts, f2v)
-      A = MatrixCSC.fromCOO(A)
+      A = MatrixCSR.fromCOO(A)
       A.sumDuplicates()
       A.negadddiags(1e-3) // -A + h I (make it positive definite)
 
@@ -301,7 +301,7 @@ describe('array', () => {
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
       let A = ddg.computeLaplacianV2(verts, f2v)
-      A = MatrixCSC.fromCOO(A)
+      A = MatrixCSR.fromCOO(A)
       A.sumDuplicates()
       A.negadddiags(1e-3) // -A + h I (make it positive definite)
 
@@ -330,7 +330,7 @@ describe('array', () => {
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
       let A = ddg.computeLaplacianV2(verts, f2v)
-      A = MatrixCSC.fromCOO(A)
+      A = MatrixCSR.fromCOO(A)
       A.sumDuplicates()
       A.negadddiags(1e-3) // -A + h I (make it positive definite)
 
@@ -338,14 +338,14 @@ describe('array', () => {
       // TODO: I thought this is gonna work ...
       let B = MatrixCOO.empty([N, N - 1], 2 * (N - 1))
       let BT = MatrixCOO.empty([N - 1, N], 2 * (N - 1))
-      for (let i of _.range(N - 1)) {
+      for (const i of _.range(N - 1)) {
         B.set(i, i, -1)
         B.set(i + 1, i, 1)
         BT.set(i, i, -1)
         BT.set(i, i + 1, 1)
       }
-      B = MatrixCSC.fromCOO(B)
-      BT = MatrixCSC.fromCOO(BT)
+      B = MatrixCSR.fromCOO(B)
+      BT = MatrixCSR.fromCOO(BT)
       A = BT.matmulCsr(A).matmulCsr(B)
 
       // Somehow this is not pos dev any more
@@ -361,7 +361,7 @@ describe('array', () => {
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
       let A = ddg.computeLaplacianV2(verts, f2v)
-      A = MatrixCSC.fromCOO(A)
+      A = MatrixCSR.fromCOO(A)
       A.sumDuplicates()
       A.negadddiags(1e-3) // -A + h I (make it positive definite)
 
@@ -384,7 +384,7 @@ describe('array', () => {
         0, -1, 4
       ])
 
-      const A = MatrixCSC.fromDense(a)
+      const A = MatrixCSR.fromDense(a)
       A.sumDuplicates()
 
       const L = A.choleskyCompute()
@@ -407,7 +407,7 @@ describe('array', () => {
         4, 5, 6
       ])
 
-      const A = MatrixCSC.fromDense(a)
+      const A = MatrixCSR.fromDense(a)
       const x = Matrix.empty([3, 1])
       x.data.set([2, 3, 5])
 
@@ -434,8 +434,8 @@ describe('array', () => {
         2, 4, 0
       ])
 
-      A = MatrixCSC.fromDense(A)
-      B = MatrixCSC.fromDense(B)
+      A = MatrixCSR.fromDense(A)
+      B = MatrixCSR.fromDense(B)
       const C = A.matmulCsr(B)
 
       deepCloseTo(C.toDense().data, [

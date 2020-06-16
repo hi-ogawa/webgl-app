@@ -2,7 +2,7 @@
 
 import fs from 'fs'
 import _ from '../../web_modules/lodash.js' // eslint-disable-line
-import { Matrix, MatrixCSC, NdArray } from './array.js'
+import { Matrix, MatrixCSR, NdArray } from './array.js'
 import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { timeit } from './timeit.js'
@@ -91,11 +91,11 @@ describe('array', () => {
     })
   })
 
-  describe('MatrixCSC', () => {
+  describe('MatrixCSR', () => {
     it('works', () => {
       const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
       let { verts, f2v } = readOFF(data, true)
-      let Lcoo, Lcsc, A, AL
+      let Lcoo, Lcsr, A, AL
       verts = new Matrix(verts, [verts.length / 3, 3])
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
@@ -107,34 +107,34 @@ describe('array', () => {
       }
 
       {
-        const run = () => { Lcsc = MatrixCSC.fromCOO(Lcoo) }
+        const run = () => { Lcsr = MatrixCSR.fromCOO(Lcoo) }
         const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSC.fromCOO')
+        console.log('MatrixCSR.fromCOO')
         console.log(resultString)
       }
 
       {
-        const run = () => { Lcsc.sumDuplicates() }
+        const run = () => { Lcsr.sumDuplicates() }
         const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSC.sumDuplicates')
+        console.log('MatrixCSR.sumDuplicates')
         console.log(resultString)
       }
 
       {
         const hn2 = Matrix.emptyLike(verts)
-        const run = () => { Lcsc.matmul(hn2, verts) }
+        const run = () => { Lcsr.matmul(hn2, verts) }
         const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSC.matmul')
+        console.log('MatrixCSR.matmul')
         console.log(resultString)
       }
 
       {
-        A = Lcsc.clone()
+        A = Lcsr.clone()
         A.negadddiags(1e-3) // -A + h I (make it positive definite)
         // A.idsubmuls(1) // I - h A (make it positive definite)
         const run = () => { AL = A.choleskyComputeV3() }
         const { resultString } = timeit('args.run()', '', '', { run }, 1, 4)
-        console.log('MatrixCSC.choleskyCompute')
+        console.log('MatrixCSR.choleskyCompute')
         console.log(resultString)
       }
 
@@ -145,7 +145,7 @@ describe('array', () => {
         b.data.set(_.range(nV).map(hash11))
         const run = () => { AL.choleskySolveV3(x, b) }
         const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSC.choleskySolve')
+        console.log('MatrixCSR.choleskySolve')
         console.log(resultString)
       }
     })

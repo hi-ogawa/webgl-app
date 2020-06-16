@@ -18,7 +18,7 @@ import '../utils/aframe/url-geometry.js'
 import '../utils/aframe/geometry.js'
 import * as ddg from '../utils/ddg.js'
 import { hash11 } from '../utils/hash.js'
-import { Matrix, MatrixCSC } from '../utils/array.js'
+import { Matrix, MatrixCSR } from '../utils/array.js'
 
 const THREE = AFRAME.THREE
 const { $, stringToElement } = UtilsMisc
@@ -73,7 +73,7 @@ AFRAME.registerComponent('poisson', {
 
     // Laplacian
     const { laplacian } = ddg.computeMoreV2(verts, f2v)
-    const L = MatrixCSC.fromCOO(laplacian)
+    const L = MatrixCSR.fromCOO(laplacian)
     L.sumDuplicates()
 
     // Solve (-L + h I) x = b

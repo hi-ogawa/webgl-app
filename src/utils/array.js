@@ -237,7 +237,7 @@ class MatrixCOO {
 
 // NOTE: It turns out this is what people call "compressed sparse row format"
 // TODO: Rename to MatrixCSR
-class MatrixCSC {
+class MatrixCSR {
   constructor (data, indices, indptr, shape) {
     this.data = data
     this.indices = indices
@@ -246,7 +246,7 @@ class MatrixCSC {
   }
 
   static fromCOO (a) {
-    const b = new MatrixCSC()
+    const b = new MatrixCSR()
     b.shape = a.shape
 
     const n = b.shape[0]
@@ -372,7 +372,7 @@ class MatrixCSC {
   }
 
   static fromDense (a) {
-    const b = new MatrixCSC()
+    const b = new MatrixCSR()
     b.shape = a.shape
 
     const n = b.shape[0]
@@ -399,7 +399,7 @@ class MatrixCSC {
   }
 
   clone () {
-    const other = new MatrixCSC()
+    const other = new MatrixCSR()
     other.shape = this.shape
     other.indptr = this.indptr.slice()
     other.indices = this.indices.slice()
@@ -503,7 +503,7 @@ class MatrixCSC {
 
       // Throw if A doesn't have diagonal entry
       if (!diag) {
-        throw new Error('[MatrixCSC.idsubmuls]')
+        throw new Error('[MatrixCSR.idsubmuls]')
       }
       p0 = p1
     }
@@ -537,7 +537,7 @@ class MatrixCSC {
 
       // Throw if A doesn't have diagonal entry
       if (!diag) {
-        throw new Error('[MatrixCSC.negadddiags]')
+        throw new Error('[MatrixCSR.negadddiags]')
       }
       p0 = p1
     }
@@ -676,7 +676,7 @@ class MatrixCSC {
       }
     }
 
-    const L = new MatrixCSC()
+    const L = new MatrixCSR()
     L.shape = A.shape
     L.indptr = cscIndptr
     L.indices = cscIndices
@@ -745,7 +745,7 @@ class MatrixCSC {
   // C = A B
   matmulCsr (B) {
     const A = this
-    const C = new MatrixCSC()
+    const C = new MatrixCSR()
     C.shape = [A.shape[0], B.shape[1]]
     assertf(() => A.shape[1] === B.shape[0])
 
@@ -923,7 +923,7 @@ class MatrixCSC {
       }
     }
 
-    const L = new MatrixCSC()
+    const L = new MatrixCSR()
     L.shape = A.shape
     L.indptr = csrIndptr
     L.indices = csrIndices
@@ -937,7 +937,7 @@ class MatrixCSC {
     const { sqrt } = Math
 
     const A = this
-    const L = new MatrixCSC()
+    const L = new MatrixCSR()
 
     // TODO: can we derive nice bound? or maybe experimentally?
     //       64 is just from bunny laplacian example
@@ -1149,4 +1149,4 @@ class MatrixCSC {
   }
 }
 
-export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSC }
+export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR }

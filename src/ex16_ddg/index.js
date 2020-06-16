@@ -19,7 +19,7 @@ import '../utils/aframe/init-inspector.js'
 import * as Reader from '../utils/reader.js'
 import * as glm from '../utils/glm.js'
 import * as ddg from '../utils/ddg.js'
-import { Matrix, MatrixCSC } from '../utils/array.js'
+import { Matrix, MatrixCSR } from '../utils/array.js'
 
 const THREE = AFRAME.THREE
 const { $ } = UtilsMisc
@@ -88,7 +88,7 @@ AFRAME.registerComponent('mean-curvature-flow', {
 
     // Recompute
     let { laplacian, hodge0, kg } = ddg.computeMoreV2(verts, f2v)
-    laplacian = MatrixCSC.fromCOO(laplacian)
+    laplacian = MatrixCSR.fromCOO(laplacian)
     laplacian.sumDuplicates()
     _.assign(viewer.precomputed, { laplacian, hodge0, kg })
 
@@ -143,7 +143,7 @@ AFRAME.registerComponent('viewer', {
     this.mesh.geometry = this.geometry
 
     let { laplacian, hodge0, kg } = ddg.computeMoreV2(verts, f2v)
-    laplacian = MatrixCSC.fromCOO(laplacian)
+    laplacian = MatrixCSR.fromCOO(laplacian)
     laplacian.sumDuplicates()
 
     const hn2 = Matrix.empty(verts.shape) // here only allocation. compute in `_update`

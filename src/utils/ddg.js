@@ -428,7 +428,7 @@ const computeTreeCotree = (rootV, rootF, v2ve, f2fe, e2f) => {
 // TODO:
 // - Check convergence
 // - Implement Cholesky decomposition for real positive definite
-// - Adopt MatrixCSC.stepGaussSeidel
+// - Adopt MatrixCSR.stepGaussSeidel
 const solveGaussSeidel = (A, x0, b, h, N) => {
   const nV = x0.length
   const x = _.cloneDeep(x0)
