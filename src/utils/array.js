@@ -612,7 +612,7 @@ class MatrixCSR {
         let tail = N // Push topsort elements from tail
 
         // Loop A row (fill rhs and obtain topsort)
-        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+        for (let p = A.indptr[k]; ; p++) {
           const i0 = A.indices[p]
           const Aki = A.data[p]
           if (i0 === k) {
@@ -656,8 +656,8 @@ class MatrixCSR {
           cscData[cscIndptr[i] + cscCounts[i]++] = Lki
           Lacc += Lki ** 2
 
-          // Subtract LT[i, k] facter (i.e. Lki) from rhs
-          for (let p = cscIndptr[i]; p < cscIndptr[i + 1]; p++) {
+          // Subtract LT[i, k] factor (i.e. Lki) from rhs
+          for (let p = cscIndptr[i]; ; p++) { // We don't check p < cscIndptr[i + 1] since "j >= k" always breaks
             const j = cscIndices[p]
             if (j >= k) { break }
 
