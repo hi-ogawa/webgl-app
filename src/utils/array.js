@@ -548,6 +548,9 @@ class MatrixCSC {
   // - Reverse elimination tree topological sorting gives L's directed graph topological sorting
   // Proof
   // - feels obvious by construction
+  // TODO:
+  // - LDLT (i.e. L with unit diagonal)
+  // - Approximate minimum degree ordering (AMD)
   choleskyComputeV3 () {
     const A = this
     const N = A.shape[0]
@@ -587,46 +590,24 @@ class MatrixCSC {
       cscIndptr[i + 1] = cscIndptr[i] + cscCounts[i]
     }
 
-    // 3. (Can we merge this step into 4th step?)
-    // - CSC indices
+    // 3.
+    // - CSC indices (previously separate pass, which seemed fine in terms of performance and code readability...)
+    // - Lower triangle solve x N
     const cscIndices = new Uint32Array(cscIndptr[N])
+    const cscData = new Float32Array(cscIndptr[N])
     {
+      const rhs = new Float32Array(N)
+      const topsort = new Uint32Array(N)
+
       // Loop L row
       for (let k = 0; k < N; k++) {
         visited[k] = k
         cscIndices[cscIndptr[k]] = k
         cscCounts[k] = 1
 
-        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
-        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
-          const i0 = A.indices[p]
-          if (i0 === k) { break }
-
-          // Follow elimination tree
-          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
-            visited[i] = k
-            cscIndices[cscIndptr[i] + cscCounts[i]] = k
-            cscCounts[i]++
-          }
-        }
-      }
-    }
-
-    // 4.
-    // - Lower triangle solve x N
-    const cscData = new Float32Array(cscIndptr[N])
-    {
-      const rhs = new Float32Array(N)
-      const topsort = new Uint32Array(N)
-      let topsortLength = 0
-
-      // Loop L row
-      for (let k = 0; k < N; k++) {
-        visited[k] = k
-        cscCounts[k] = 0
         let Lacc = 0
         let Akk = 0
-        topsortLength = 0
+        let tail = N // Push topsort elements from tail
 
         // Loop A row (fill rhs and obtain topsort)
         for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
@@ -643,35 +624,34 @@ class MatrixCSC {
           for (let i = i0; visited[i] !== k; i = elimTree[i]) {
             visited[i] = k
 
-            // Wrong order which we correct below
-            topsort[topsortLength + depth] = i
-            depth++
+            // Save temporary order into head
+            topsort[depth++] = i
 
             // Refresh rhs
             rhs[i] = 0
+
+            // Set CSC index
+            cscIndices[cscIndptr[i] + cscCounts[i]] = k
           }
 
-          // Reverse between [topsortLength - depth, topsortLength)
-          for (let i = 0; 2 * i + 1 < depth; i++) {
-            const tmp = topsort[topsortLength + i]
-            topsort[topsortLength + i] = topsort[topsortLength + depth - i - 1]
-            topsort[topsortLength + depth - i - 1] = tmp
+          // Push to tail
+          while (depth > 0) {
+            topsort[--tail] = topsort[--depth]
           }
-
-          topsortLength += depth
 
           // Fill rhs
           rhs[i0] = Aki
         }
 
-        for (let ti = topsortLength - 1; ti >= 0; ti--) {
-          const i = topsort[ti]
+        // Rest is similar to usual `solveCscL`
+
+        for (; tail < N; tail++) {
+          const i = topsort[tail]
           const Lii = cscData[cscIndptr[i]]
 
           // Set L[k, i]
           const Lki = rhs[i] / Lii
-          cscData[cscIndptr[i] + cscCounts[i]] = Lki
-          cscCounts[i]++
+          cscData[cscIndptr[i] + cscCounts[i]++] = Lki
           Lacc += Lki ** 2
 
           // Subtract LT[i, k] facter (i.e. Lki) from rhs
@@ -686,8 +666,7 @@ class MatrixCSC {
 
         // Set L[k, k]
         const Lkk = Math.sqrt(Akk - Lacc)
-        cscData[cscIndptr[k] + cscCounts[k]] = Lkk
-        cscCounts[k]++
+        cscData[cscIndptr[k]] = Lkk
       }
     }
 
@@ -699,11 +678,62 @@ class MatrixCSC {
     return L
   }
 
-  // TODO
-  cscSolveL(x, b) {
+  // L L^T X = B
+  choleskySolveV3 (x, b) {
+    const y = Matrix.emptyLike(x)
+    this.solveCscL(y, b) // L y = b
+    this.solveCscLT(x, y) // L^T x = y
+    return x
   }
 
-  cscSolveLT(x, b) {
+  // L X = B
+  solveCscL(x, b) {
+    const L = this
+    const N = L.shape[0]
+    const K = x.shape[1]
+
+    const rhs = b.clone() // Update as X[i, k] is computed
+    let p = 0
+    for (let i = 0; i < N; i++) { // Loop L col
+      const Lii = L.data[p]
+
+      for (let k = 0; k < K; k++) { // Loop X col
+        const Xik = rhs.get(i, k) / Lii
+        x.set(i, k, Xik)
+
+        // Subtract Xik factor from rhs
+        for (; p < L.indptr[i + 1]; p++) { // Loop L row
+          const j = L.indices[p]
+          const Lji = L.data[p]
+          rhs.incr(j, k, -Lji * Xik)
+        }
+      }
+    }
+    return x
+  }
+
+  // L^T X = B
+  solveCscLT(x, b) {
+    const L = this
+    const N = L.shape[0]
+    const K = x.shape[1]
+
+    for (let i = N - 1; i >= 0; i--) { // Loop L^T row from bottom
+      const p0 = L.indptr[i]
+      const LTii = L.data[p0]
+
+      for (let k = 0; k < K; k++) { // Loop X col
+        let rhs = b.get(i, k)
+
+        for (let p = p0; p < L.indptr[i + 1]; p++) { // Loop L^T col
+          const j = L.indices[p]
+          const LTij = L.data[p]
+          rhs -= LTij * x.get(j, k)
+        }
+        x.set(i, k, rhs / LTii)
+      }
+    }
+    return x
   }
 
   // NOTE: Thought it's possible to make CSR version of it but I found the algorithm doesn't work.

@@ -35,7 +35,7 @@ class Timer {
     const stddev = Math.sqrt(stddev2)
     const max = Math.max(...timings)
     const min = Math.min(...timings)
-    return { mean, stddev, max, min, timings, n }
+    return { mean, stddev, max, min, timings, n, r }
   }
 
   autoRange (s = 0.1) {
@@ -80,12 +80,12 @@ const formatTime = (s, unit = null, showUnit = true, precision = 5) => {
 }
 
 const formatRepeatResult = (result) => {
-  const { mean, stddev, max, min, n } = result
+  const { mean, stddev, max, min, n, r } = result
   const unit = autoTimeUnit(mean)
   const sMean = formatTime(mean, unit)
   const [sStddev, sMax, sMin] =
     [stddev, max, min].map(t => formatTime(t, unit, false, 4))
-  return `${sMean} (stddev: ${sStddev}, min: ${sMin}, max: ${sMax}, n: ${n})`
+  return `${sMean} (stddev: ${sStddev}, min: ${sMin}, max: ${sMax}, n: ${n}, r: ${r})`
 }
 
 const timeit = (stmt, setup = '', teardown = '', args = {}, n = null, r = 5) => {

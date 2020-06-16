@@ -131,8 +131,9 @@ describe('array', () => {
       {
         A = Lcsc.clone()
         A.negadddiags(1e-3) // -A + h I (make it positive definite)
-        const run = () => { AL = A.choleskyCompute() }
-        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
+        // A.idsubmuls(1) // I - h A (make it positive definite)
+        const run = () => { AL = A.choleskyComputeV3() }
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 4)
         console.log('MatrixCSC.choleskyCompute')
         console.log(resultString)
       }
@@ -142,7 +143,7 @@ describe('array', () => {
         const b = Matrix.empty([nV, 1])
         const x = Matrix.empty([nV, 1])
         b.data.set(_.range(nV).map(hash11))
-        const run = () => { AL.choleskySolve(x, b) }
+        const run = () => { AL.choleskySolveV3(x, b) }
         const { resultString } = timeit('args.run()', '', '', { run })
         console.log('MatrixCSC.choleskySolve')
         console.log(resultString)
