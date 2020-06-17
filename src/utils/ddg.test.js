@@ -9,7 +9,7 @@ import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
 import { readOFF } from './reader.js'
-import { Matrix } from './array.js'
+import { Matrix, MatrixCOO, MatrixCSR, splitByIndptr } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -30,6 +30,9 @@ const closeTo = (actual, expected, epsilon = 1e-6) => {
   }
 }
 const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
+  if (actual.length !== expected.length) {
+    assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
+  }
   actual = _.flattenDeep(actual)
   expected = _.flattenDeep(expected)
   _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
@@ -429,6 +432,217 @@ describe('ddg', () => {
 
       // TODO: test some analytically extected property
       const u = ddg.solvePoisson(verts, f2v, rho_dual)
+    })
+  })
+
+  describe('computeTopologyV2', () => {
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeHedron8()
+      const nV = position.length
+      const nF = index.length
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
+
+      const { d0, d1, foundBoundary } = ddg.computeTopologyV2(f2v, nV)
+      equal(foundBoundary, false)
+      deepEqual(d0.shape, [12, 6]) // nE x nV
+      deepEqual(d1.shape, [8, 12]) // nF x nE
+      deepEqual(splitByIndptr(d0.indptr, d0.indices), [
+        [0, 1], // 0
+        [0, 2], // 1
+        [0, 3], // 2
+        [0, 4], // 3
+        [1, 2], // 4
+        [1, 4], // 5
+        [1, 5], // 6
+        [2, 3], // 7
+        [2, 5], // 8
+        [3, 4], // 9
+        [3, 5], // 10
+        [4, 5] // 11
+      ])
+      deepEqual(splitByIndptr(d1.indptr, d1.indices), [
+        [0, 1, 4],
+        [1, 2, 7],
+        [2, 3, 9],
+        [0, 3, 5],
+        [4, 6, 8],
+        [7, 8, 10],
+        [9, 10, 11],
+        [5, 6, 11]
+      ])
+      deepEqual(splitByIndptr(d1.indptr, d1.data), [
+        [1, -1, 1],
+        [1, -1, 1],
+        [1, -1, 1],
+        [-1, 1, -1],
+        [-1, 1, -1],
+        [-1, 1, -1],
+        [-1, 1, -1],
+        [1, -1, 1]
+      ])
+
+      // d . d = 0
+      const dd = d1.clone().matmulCsr(d0)
+      deepCloseTo(dd.data, _.range(dd.data.length).fill(0))
+
+      // edge vectors = d0 . p
+      const edges = Matrix.empty([d0.shape[0], 3])
+      d0.matmul(edges, verts)
+      deepCloseTo(_.chunk(edges.data, 3), [
+        [-1, 1, 0], [-1, 0, 1],
+        [-1, -1, 0], [-1, 0, -1],
+        [0, -1, 1], [0, -1, -1],
+        [-1, -1, 0], [0, -1, -1],
+        [-1, 0, -1], [0, 1, -1],
+        [-1, 1, 0], [-1, 0, 1]
+      ])
+    })
+  })
+
+  describe('computeHodge1', () => {
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeHedron8()
+      const nV = position.length
+      const nF = index.length
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
+
+      const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
+
+      // Laplacian = dual(d1) hodge1 d0 = - d0^T hodge1 d0
+      const hodge1 = ddg.computeHodge1(verts, f2v, d0, d1)
+      const _d0 = d0.toDense()
+      const _d1 = _d0.transpose().muleqs(-1)
+      const _h1 = MatrixCSR.fromDiagonal(hodge1.data).toDense()
+      const d1h1d0 = _d1.matmul(_h1).matmul(_d0)
+
+      const laplacian = ddg.computeLaplacianV2(verts, f2v)
+      deepCloseTo(laplacian.toDense().data, d1h1d0.data)
+    })
+
+    it('works 1', () => {
+      const { position, index } = UtilsMisc.makeIcosphere(0)
+      const nV = position.length
+      const nF = index.length
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
+
+      const { d0, d1, foundBoundary } = ddg.computeTopologyV2(f2v, nV)
+      equal(foundBoundary, false)
+
+      const dd = d1.clone().matmulCsr(d0)
+      deepCloseTo(dd.data, _.range(dd.data.length).fill(0))
+
+      const hodge1 = ddg.computeHodge1(verts, f2v, d0, d1)
+      const _d0 = d0.toDense()
+      const _d1 = _d0.transpose().muleqs(-1)
+      const _h1 = MatrixCSR.fromDiagonal(hodge1.data).toDense()
+      const d1h1d0 = _d1.matmul(_h1).matmul(_d0)
+
+      const laplacian = ddg.computeLaplacianV2(verts, f2v)
+      deepCloseTo(laplacian.toDense().data, d1h1d0.data)
+    })
+  })
+
+  describe('solveConnection', () => {
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeIcosphere(0)
+      const nV = position.length
+      const nF = index.length
+
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
+
+      //
+      // [ Prop: Discrete trivial connection probelm is Poisson problem ]
+      //
+      // Given
+      //   - phi \in dual(\Omega_1)
+      //   - ||phi|| = < phi, hodge1^{-1} phi >  (cf. inner product on 1 form)
+      //   - dual(d1) = d0^T
+      // Then
+      //   min ||phi|| s.t. dual(d1) = b
+      //   implies, by Lagrange multiplier, for some u,
+      //   phi = hodge1 d0 u
+      //   i.e. dual(d1) hodge1 d0 u = laplacian u = b
+      //
+      //
+      // [ Overview ]
+      //
+      // - 0. Convention
+      //   - CCW dual edge (thus dual(d1) = - d0^T, dual(d2) = d1^T)
+      //
+      // - 1. Construct
+      //   - laplacian (laplacian = - d0^T hodge1 d0)
+      //   - kg
+      //
+      // - 2. Define
+      //   - (s_i)_i:  singularity index on dual face s.t. \sum_i s_i = \Kai = 2 - 2g)
+      //
+      // - 3. Solve u s.t.
+      //   - L u = b = - kg + 2pi s
+      //
+      // - 4. Construct
+      //   - hodge1, d0
+      //   - phi = hodge1 d0 u
+      //   - cotree F_T \subset F
+      //
+      // - 5. Define
+      //   - v \in S^2: initial unit vector
+      //   - f0 \in F: initial face to start vector field propagation
+      //
+      // - 6. Propagate
+      //   - v from f0 along \phi and F_T
+      //
+
+      // 1.
+      let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
+      laplacian = MatrixCSR.fromCOO(laplacian)
+      laplacian.sumDuplicates()
+
+      // 2.
+      const sindex = Matrix.empty([nV, 1])
+      sindex.data[0] = 1 // north pole
+      sindex.data[11] = 1 // south pole
+
+      // 3.
+      const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+      const u = Matrix.emptyLike(sindex)
+      const b = sindex.clone().muleqs(2 * PI).subeq(kg)
+      const bneg = b.clone().muleqs(-1)
+      closeTo(b.sum(), 0, 1e-3)
+
+      for (let i = 0; i < 64; i++) {
+        Lneg.stepGaussSeidel(u, bneg)
+        const residue = Lneg.matmul(u.clone(), u).subeq(bneg).dotHS2()
+        if (residue < 1e-3) {
+          console.log(`residue (${i}): ${residue}`)
+          break
+        }
+        if (i % 8 === 0) {
+          console.log(`residue (${i}): ${residue}`)
+        }
+      }
+
+      // 4. phi = hodge1 d0 u
+      const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
+      const hodge1 = ddg.computeHodge1(verts, f2v, d0, d1) // float[nE, 1]
+      const phi = Matrix.emptyLike(hodge1)
+      d0.matmul(phi, u).muleq(hodge1)
+
+      // b = - d0^T hodge1 d0 u
+      deepCloseTo(b.data, d0.matmulT(Matrix.emptyLike(b), phi).muleqs(-1).data, 1e-2)
+
+      // TODO: more
     })
   })
 })

@@ -203,6 +203,7 @@ const generateOperators = (name, op, n) => {
         `a[${i}] = ${op(`a[${i}]`, 'b')}`
       ).join('\n')
     }
+    return a
   }`
 
   return {
@@ -213,6 +214,7 @@ const generateOperators = (name, op, n) => {
   }
 }
 
+// TODO: Check if Float32Array is faster (probably so)
 const v3 = {
   ...generateOperators('add', (lhs, rhs) => `${lhs} + ${rhs}`, 3),
   ...generateOperators('sub', (lhs, rhs) => `${lhs} - ${rhs}`, 3),

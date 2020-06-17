@@ -2,7 +2,7 @@
 
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
-import { Matrix, MatrixCOO } from './array.js'
+import { Matrix, MatrixCOO, MatrixCSR } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -180,8 +180,7 @@ const computeLaplacianV2 = (verts, f2v) => {
   const nnzReserve = 3 * 4 * nF
   const L = MatrixCOO.empty([nV, nV], nnzReserve)
 
-  const { cross } = glm
-  const { subeq, dot, length, clone } = glm.v3
+  const { subeq, dot, length, cross, clone } = glm.v3
 
   for (let i = 0; i < nF; i++) {
     // Make edge vector
@@ -483,10 +482,137 @@ const solvePoisson = (verts, f2v, rho_dual) => {
   return u
 }
 
+// Compute d0 and d1 as sparse matrix
+// Sparsity is same as laplacian so the performance should be same order as `computeLaplacianV2`
+const computeTopologyV2 = (f2v, nV) => {
+  // Make sparse v2v with the entry is "signed" face for edge (vi, vj)
+  // TODO: maybe it's interesting to embed "opposite vertex" data as well,
+  //       which can be useful when constructing laplacian.
+  const nF = f2v.shape[0]
+  const nnzReserve = 3 * nF
+  const v2vCoo = MatrixCOO.empty([nV, nV], nnzReserve, Uint32Array)
+
+  const { min, max, abs, sign } = Math
+
+  // Enumerate edge (v0, v1) where orientation is given by v0 < v1
+  for (let i = 0; i < nF; i++) {
+    const vs = f2v.row(i)
+    const v0 = vs[0]
+    const v1 = vs[1]
+    const v2 = vs[2]
+    // Use top bit "0x80000000" to represent orientation
+    v2vCoo.set(min(v0, v1), max(v0, v1), i | (v0 < v1 ? 0x80000000 : 0))
+    v2vCoo.set(min(v1, v2), max(v1, v2), i | (v1 < v2 ? 0x80000000 : 0))
+    v2vCoo.set(min(v2, v0), max(v2, v0), i | (v2 < v0 ? 0x80000000 : 0))
+  }
+
+  // Convert to MatrixCSR and sort indices so that duplicated edges are easy to spot
+  const v2v = MatrixCSR.fromCOO(v2vCoo)
+  const numDups = v2v.sortIndices()
+  const nE = v2v.indptr[nV] - numDups
+
+  // Make d0 and d1 (aka e2v and f2e)
+  // (By construction, their indices are already sorted)
+  const d0 = MatrixCSR.empty([nE, nV], 2 * nE)
+  const d1 = MatrixCSR.empty([nF, nE], 3 * nF)
+
+  // Indptr is trivial
+  for (let i = 1; i <= nE; i++) {
+    d0.indptr[i] = 2 * i
+  }
+
+  for (let i = 1; i <= nF; i++) {
+    d1.indptr[i] = 3 * i
+  }
+
+  // Indices and data (cf. MatrixCSR.sumDuplicates for this type of loop)
+  let foundBoundary = false
+  {
+    const d1Counts = new Uint32Array(nF)
+    let eCount = -1
+    let p = 0
+    for (let v0 = 0; v0 < nV; v0++) { // Loop v2v row
+      let dup = -1
+      let vdup = -1
+      const edup = -1
+
+      for (; p < v2v.indptr[v0 + 1]; p++) { // Loop v2v col
+        const v1 = v2v.indices[p]
+        const fo = v2v.data[p]
+        const f = fo & 0x7fffffff
+        const o = (fo & 0x80000000) ? 1 : -1
+
+        // Register "edge to vertex (d0)"
+        if (v1 !== vdup) {
+          eCount++
+          d0.indices[2 * eCount] = v0
+          d0.indices[2 * eCount + 1] = v1
+          d0.data[2 * eCount] = -1
+          d0.data[2 * eCount + 1] = 1
+
+          // TODO: we know boundary pair (v0, vdup), but need more tracking to give edge/face information
+          if (dup === 0) {
+            foundBoundary = true
+          }
+          dup = 0
+        } else {
+          dup++
+          if (dup > 2) {
+            throw new Error('[computeTopologyV3] More than 2 faces share single edge')
+          }
+        }
+
+        // Register "face to edge (d1)"
+        d1.indices[d1.indptr[f] + d1Counts[f]] = eCount
+        d1.data[d1.indptr[f] + d1Counts[f]] = o
+        d1Counts[f]++
+
+        vdup = v1
+      }
+    }
+  }
+
+  return { d0, d1, foundBoundary }
+}
+
+const computeHodge1 = (verts, f2v, d0, d1) => {
+  const nF = f2v.shape[0]
+  const nE = d1.shape[1]
+  const hodge1 = Matrix.empty([nE, 1])
+
+  const { length, cross, dot } = glm.v3
+
+  // Make edge vectors = d0 . p
+  const edges = Matrix.empty([nE, 3])
+  d0.matmul(edges, verts)
+
+  // Compute cotan
+  for (let i = 0; i < nF; i++) {
+    const e0 = d1.indices[3 * i]
+    const e1 = d1.indices[3 * i + 1]
+    const e2 = d1.indices[3 * i + 2]
+    const o0 = d1.data[3 * i]
+    const o1 = d1.data[3 * i + 1]
+    const o2 = d1.data[3 * i + 2]
+    const v0 = edges.row(e0)
+    const v1 = edges.row(e1)
+    const v2 = edges.row(e2)
+
+    // NOTE:
+    // We don't know the order of (e0, e1, e2) making face,
+    // but, we can get the sign correctly by always applying "-1".
+    hodge1.data[e0] -= o1 * o2 * 0.5 * dot(v1, v2) / length(cross(v1, v2))
+    hodge1.data[e1] -= o2 * o0 * 0.5 * dot(v2, v0) / length(cross(v2, v0))
+    hodge1.data[e2] -= o0 * o1 * 0.5 * dot(v0, v1) / length(cross(v0, v1))
+  }
+
+  return hodge1
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
   solvePoisson, solveGaussSeidel,
   matmul, transposeVerts, computeMeanCurvatureV2,
-  computeLaplacianV2, computeMoreV2
+  computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1
 }

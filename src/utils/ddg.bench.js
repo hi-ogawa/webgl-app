@@ -34,6 +34,56 @@ describe('ddg', () => {
     })
   })
 
+  describe('computeTopologyV2', () => {
+    it('bunny', async () => {
+      // 3485 6966
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const run = () => ddg.computeTopologyV2(f2v, verts.shape[0])
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('camelhead', async () => {
+      // 11381 22704
+      const data = await readFile('thirdparty/libigl-tutorial-data/camelhead.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const run = () => ddg.computeTopologyV2(f2v, verts.shape[0])
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+  })
+
+  describe('computeHodge1', () => {
+    it('bunny', async () => {
+      // 3485 6966
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const { d0, d1, foundBoundary } = ddg.computeTopologyV2(f2v, verts.shape[0])
+      const run = () => ddg.computeHodge1(verts, f2v, d0, d1)
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+
+    it('camelhead', async () => {
+      // 11381 22704
+      const data = await readFile('thirdparty/libigl-tutorial-data/camelhead.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const { d0, d1, foundBoundary } = ddg.computeTopologyV2(f2v, verts.shape[0])
+      const run = () => ddg.computeHodge1(verts, f2v, d0, d1)
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
+    })
+  })
+
   describe('computeMore', () => {
     it('bunny', async () => {
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')

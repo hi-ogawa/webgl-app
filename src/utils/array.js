@@ -130,6 +130,13 @@ class Matrix {
   }
 
   // TODO: generate more basic operations (cf. glm.generateOperators)
+  muleq (other) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] *= other.data[i]
+    }
+    return this
+  }
+
   muleqs (h) {
     for (let i = 0; i < this.data.length; i++) {
       this.data[i] *= h
@@ -235,14 +242,27 @@ class MatrixCOO {
   }
 }
 
-// NOTE: It turns out this is what people call "compressed sparse row format"
-// TODO: Rename to MatrixCSR
+const splitByIndptr = (indptr, sth, subarray = false) => {
+  const convert = subarray ? () => {} : Array.from
+  return _.range(indptr.length - 1).map(i =>
+    convert(sth.subarray(indptr[i], indptr[i + 1])))
+}
+
 class MatrixCSR {
   constructor (data, indices, indptr, shape) {
     this.data = data
     this.indices = indices
     this.indptr = indptr
     this.shape = shape
+  }
+
+  static empty (shape, nnzMax, Klass = Float32Array) {
+    const a = new MatrixCSR()
+    a.shape = shape
+    a.indptr = new Uint32Array(shape[0] + 1)
+    a.indices = new Uint32Array(nnzMax)
+    a.data = new Klass(nnzMax)
+    return a
   }
 
   static fromCOO (a) {
@@ -396,6 +416,20 @@ class MatrixCSR {
     b.indices = new Uint32Array(indices)
     b.data = new a.data.constructor(data)
     return b
+  }
+
+  static fromDiagonal (data) {
+    const A = new MatrixCSR()
+    const N = data.length
+    A.shape = [N, N]
+    A.indptr = new Uint32Array(N + 1)
+    A.indices = new Uint32Array(N)
+    A.data = data
+    for (let i = 0; i < N; i++) {
+      A.indptr[i + 1] = i + 1
+      A.indices[i] = i
+    }
+    return A
   }
 
   clone () {
@@ -671,7 +705,7 @@ class MatrixCSR {
         if (Lkk2 < 0) {
           throw new Error('[choleskyComputeV3] Not positive definite')
         }
-        const Lkk = Math.sqrt(Akk - Lacc)
+        const Lkk = Math.sqrt(Lkk2)
         cscData[cscIndptr[k]] = Lkk
       }
     }
@@ -749,7 +783,7 @@ class MatrixCSR {
     C.shape = [A.shape[0], B.shape[1]]
     assertf(() => A.shape[1] === B.shape[0])
 
-    // TODO: Can we estimate "nnz"?
+    // TODO: Can we estimate "nnz"? (Found that Eigen uses "nnz(lhs*rhs) ~= nnz(lhs) + nnz(rhs)")
     C.indptr = new Uint32Array(C.shape[0] + 1)
     C.indices = []
     C.data = []
@@ -1126,7 +1160,7 @@ class MatrixCSR {
     return x
   }
 
-  // Y = A^T X (i.e. CSR-matrix vector multiplication)
+  // Y = A^T X (i.e. CSC-matrix vector multiplication)
   // Used for debugging `choleskySolve`
   matmulT (y, x) {
     const A = this
@@ -1149,4 +1183,4 @@ class MatrixCSR {
   }
 }
 
-export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR }
+export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR, splitByIndptr }
