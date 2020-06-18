@@ -206,6 +206,20 @@ class MatrixCOO {
     return result
   }
 
+  static fromCSC (A) {
+    const nnz = A.indptr[A.shape[1]]
+    const B = MatrixCOO.empty(A.shape, nnz, A.data.constructor)
+    let p = 0
+    for (let j = 0; j < A.shape[1]; j++) { // Loop A col
+      for (; p < A.indptr[j + 1]; p++) {
+        const i = A.indices[p]
+        const Aij = A.data[p]
+        B.set(i, j, Aij)
+      }
+    }
+    return B
+  }
+
   toDense () {
     const result = Matrix.empty(this.shape, this.data.constructor)
     for (let i = 0; i < this.nnz; i++) {
@@ -434,7 +448,7 @@ class MatrixCSR {
 
   clone () {
     const other = new MatrixCSR()
-    other.shape = this.shape
+    other.shape = this.shape.slice()
     other.indptr = this.indptr.slice()
     other.indices = this.indices.slice()
     other.data = this.data.slice()
@@ -777,6 +791,7 @@ class MatrixCSR {
   }
 
   // C = A B
+  // Time = \sum_i nnz(A[*, i]) . nnz(B[i, *])
   matmulCsr (B) {
     const A = this
     const C = new MatrixCSR()

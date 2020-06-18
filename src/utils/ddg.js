@@ -527,14 +527,17 @@ const computeTopologyV2 = (f2v, nV) => {
 
   // Indices and data (cf. MatrixCSR.sumDuplicates for this type of loop)
   let foundBoundary = false
+  const boundaryEdge = new Uint8Array(nE)
+  const numBoundaryEdgesPerFace = new Uint32Array(nF)
   {
     const d1Counts = new Uint32Array(nF)
     let eCount = -1
     let p = 0
     for (let v0 = 0; v0 < nV; v0++) { // Loop v2v row
       let dup = -1
-      let vdup = -1
-      const edup = -1
+      let vPrev = -1
+      let ePrev = -1
+      let fPrev = -1
 
       for (; p < v2v.indptr[v0 + 1]; p++) { // Loop v2v col
         const v1 = v2v.indices[p]
@@ -543,16 +546,17 @@ const computeTopologyV2 = (f2v, nV) => {
         const o = (fo & 0x80000000) ? 1 : -1
 
         // Register "edge to vertex (d0)"
-        if (v1 !== vdup) {
+        if (v1 !== vPrev) {
           eCount++
           d0.indices[2 * eCount] = v0
           d0.indices[2 * eCount + 1] = v1
           d0.data[2 * eCount] = -1
           d0.data[2 * eCount + 1] = 1
 
-          // TODO: we know boundary pair (v0, vdup), but need more tracking to give edge/face information
           if (dup === 0) {
             foundBoundary = true
+            boundaryEdge[ePrev] = true
+            numBoundaryEdgesPerFace[fPrev]++
           }
           dup = 0
         } else {
@@ -567,12 +571,14 @@ const computeTopologyV2 = (f2v, nV) => {
         d1.data[d1.indptr[f] + d1Counts[f]] = o
         d1Counts[f]++
 
-        vdup = v1
+        vPrev = v1
+        ePrev = eCount
+        fPrev = f
       }
     }
   }
 
-  return { d0, d1, foundBoundary }
+  return { d0, d1, foundBoundary, boundaryEdge, numBoundaryEdgesPerFace }
 }
 
 const computeHodge1 = (verts, f2v, d0, d1) => {
@@ -606,7 +612,69 @@ const computeHodge1 = (verts, f2v, d0, d1) => {
     hodge1.data[e2] -= o0 * o1 * 0.5 * dot(v0, v1) / length(cross(v0, v1))
   }
 
-  return hodge1
+  return { edges, hodge1 }
+}
+
+const computeF2f = (d1) => {
+  // Transpose
+  let d1T = d1.clone()
+  d1T.shape.reverse()
+  d1T = MatrixCSR.fromCOO(MatrixCOO.fromCSC(d1T))
+
+  // Make sparse f2f with "signed" edge as the data (in order to handle "0", we offset all by "1")
+  const nF = d1.shape[0]
+  const nnzReserve = 3 * nF
+  const f2fCoo = MatrixCOO.empty([nF, nF], nnzReserve, Int32Array)
+
+  // Loop dual edges
+  const nE = d1T.shape[0]
+  for (let i = 0; i < nE; i++) {
+    const p0 = d1T.indptr[i]
+    const p1 = d1T.indptr[i + 1]
+
+    // Skip boundary
+    if (p1 !== p0 + 2) { continue }
+
+    const f0 = d1T.indices[p0]
+    const f1 = d1T.indices[p0 + 1]
+    const o = d1T.data[p0]
+    f2fCoo.set(f0, f1, o * (i + 1)) // offset by 1 so that 0-th edge can be "signed"
+    f2fCoo.set(f1, f0, - o * (i + 1))
+  }
+
+  // Return CSR
+  return MatrixCSR.fromCOO(f2fCoo)
+}
+
+// v2v: Undirected graph as square MatrixCSR (only v2v.indices is used for traversal)
+const computeSpanningTreeV3 = (root, v2v) => {
+  const nV = v2v.shape[0]
+  if (!(0 <= root && root < nV)) { throw new Error('[computeSpanningTreeV3]') }
+
+  // Subset of v2v
+  const nnzReserve = nV - 1
+  const tree = MatrixCOO.empty([nV, nV], nnzReserve, v2v.data.constructor)
+
+  // DFS (traverse only the connected component with root)
+  const stacked = new Uint8Array(nV)
+  const stack = new Uint32Array(nV)
+  let stackp = 0
+  stack[stackp++] = root
+  stacked[root] = true
+  while (stackp > 0) {
+    const v0 = stack[--stackp]
+    for (let p = v2v.indptr[v0]; p < v2v.indptr[v0 + 1]; p++) {
+      const v1 = v2v.indices[p]
+      if (stacked[v1]) { continue }
+
+      stack[stackp++] = v1
+      stacked[v1] = true
+      tree.set(v0, v1, v2v.data[p]) // Copy data
+    }
+  }
+
+  // Return CSR
+  return MatrixCSR.fromCOO(tree)
 }
 
 export {
@@ -614,5 +682,6 @@ export {
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
   solvePoisson, solveGaussSeidel,
   matmul, transposeVerts, computeMeanCurvatureV2,
-  computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1
+  computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
+  computeF2f, computeSpanningTreeV3
 }
