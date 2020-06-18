@@ -9,6 +9,7 @@ import { readOFF } from './reader.js'
 import { hash11 } from './hash.js'
 import * as UtilsMisc from './misc.js'
 
+// TODO: make separate utility file
 const closeTo = (actual, expected, epsilon = 1e-6) => {
   if (Math.abs(actual - expected) < epsilon) { return }
   assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)

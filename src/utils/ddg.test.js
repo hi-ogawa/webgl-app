@@ -25,9 +25,8 @@ const {
 const equal = assert.strictEqual
 const deepEqual = assert.deepStrictEqual
 const closeTo = (actual, expected, epsilon = 1e-6) => {
-  if (epsilon < abs(actual - expected)) {
-    assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-  }
+  if (Math.abs(actual - expected) < epsilon) { return }
+  assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
 }
 const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
   if (actual.length !== expected.length) {
@@ -603,9 +602,34 @@ describe('ddg', () => {
     })
   })
 
+  describe('computeFaceNormals', () => {
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeHedron8()
+      const nV = position.length
+      const nF = index.length
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
+
+      const normals = ddg.computeFaceNormals(verts, f2v)
+      normals.muleqs(Math.sqrt(3))
+      deepCloseTo(normals.data, [
+        1, 1, 1,
+        1, -1, 1,
+        1, -1, -1,
+        1, 1, -1,
+        -1, 1, 1,
+        -1, -1, 1,
+        -1, -1, -1,
+        -1, 1, -1
+      ])
+    })
+  })
+
   describe('solveConnection', () => {
     it('works 0', () => {
-      const { position, index } = UtilsMisc.makeIcosphere(1)
+      const { position, index } = UtilsMisc.makeIcosphere(2)
       const nV = position.length
       const nF = index.length
 
@@ -646,16 +670,16 @@ describe('ddg', () => {
       // - 4. Construct
       //   - hodge1, d0
       //   - phi = hodge1 d0 u
-      //   - cotree F_T \subset F
       //   - edge vector
       //   - face normal
       //
       // - 5. Define
-      //   - v \in S^2: initial unit vector
+      //   - v0 \in S^2: initial unit vector on face
       //   - f0 \in F: initial face to start vector field propagation
       //
-      // - 6. Propagate
-      //   - v from f0 along \phi and F_T
+      // - 6.
+      //   - Construct tree F_T \subset F with root f0
+      //   - Extend vector field v0 by connection phi along F_T from f0
       //
 
       // 1.
@@ -678,7 +702,7 @@ describe('ddg', () => {
       for (let i = 0; i < 64; i++) {
         Lneg.stepGaussSeidel(u, bneg)
         const residue = Lneg.matmul(u.clone(), u).subeq(bneg).dotHS2()
-        if (residue < 1e-3) {
+        if (residue < 1e-4) {
           console.log(`residue (${i}): ${residue}`)
           break
         }
@@ -690,16 +714,62 @@ describe('ddg', () => {
       // 4. phi = hodge1 d0 u
       const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
       const { hodge1, edges } = ddg.computeHodge1(verts, f2v, d0, d1) // float[nE, 1]
+      const normals = ddg.computeFaceNormals(verts, f2v)
       const phi = Matrix.emptyLike(hodge1)
       d0.matmul(phi, u).muleq(hodge1)
 
-      // b = L u = - d0^T hodge1 d0 u
-      deepCloseTo(b.data, d0.matmulT(Matrix.emptyLike(b), phi).muleqs(-1).data, 0.1)
+      // assert b = L u = - d0^T hodge1 d0 u
+      deepCloseTo(b.data, d0.matmulT(Matrix.emptyLike(b), phi).muleqs(-1).data, 1e-2)
 
-      // Face normal (from d1 and edges)
-      // const normal =
+      // 5. Initial face/vector
+      const initAngle = 0
+      const initF = 0
+      const initVector = [0, 0, 0]
+      {
+        const { cos, sin } = Math
+        const { add, muls, sub, normalize, clone, copy } = glm.v3
+        const p0 = verts.row(f2v.row(initF)[0])
+        const p1 = verts.row(f2v.row(initF)[1])
+        const x = normalize(sub(p1, p0))
+        const z = normals.row(initF)
+        const y = cross(z, x)
+        copy(initVector, add(muls(x, cos(initAngle)), muls(y, sin(initAngle))))
+      }
 
-      // Cotree
+      // 6. Extend vector field
+      const f2f = ddg.computeF2f(d1)
+      const tree = ddg.computeSpanningTreeV3(initF, f2f) // MatrixCOO with topological sorted entries
+      const vectorField = Matrix.empty([nF, 3])
+      vectorField.row(initF).set(initVector)
+
+      const { abs, sign, acos } = Math
+      const { clone, matmuleq, muls, normalizeeq } = glm.v3
+      const { axisAngle } = glm.mat3
+
+      for (let i = 0; i < tree.nnz; i++) {
+        const f0 = tree.row[i]
+        const f1 = tree.col[i]
+        const eo = tree.data[i] // signed edge
+        const e = Math.abs(eo - 1)
+        const o = Math.sign(eo)
+
+        // [ Parallel transport ]
+        const n0 = normals.row(f0)
+        const n1 = normals.row(f1)
+        const u = muls(edges.row(e), o)
+        const vector0 = vectorField.row(f0)
+        let vector1 = clone(vector0)
+
+        // Levi-Civita connection
+        matmuleq(axisAngle(u, acos(dot(n0, n1))), vector1)
+
+        // Our connection phi
+        const angle = phi.data[e] * 0
+        matmuleq(axisAngle(n1, angle), vector1)
+
+        normalizeeq(vector1) // suppress numerical error
+        vectorField.row(f1).set(vector1)
+      }
     })
   })
 })

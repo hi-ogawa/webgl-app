@@ -586,7 +586,7 @@ const computeHodge1 = (verts, f2v, d0, d1) => {
   const nE = d1.shape[1]
   const hodge1 = Matrix.empty([nE, 1])
 
-  const { length, cross, dot } = glm.v3
+  const { length, cross, crosseq, dot } = glm.v3
 
   // Make edge vectors = d0 . p
   const edges = Matrix.empty([nE, 3])
@@ -603,13 +603,23 @@ const computeHodge1 = (verts, f2v, d0, d1) => {
     const v0 = edges.row(e0)
     const v1 = edges.row(e1)
     const v2 = edges.row(e2)
+    // Unfortunately, inlining is huge win...
+    // const d01 = dot(v0, v1)
+    // const d12 = dot(v1, v2)
+    // const d20 = dot(v2, v0)
+    const d01 = v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2]
+    const d12 = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+    const d20 = v2[0] * v0[0] + v2[1] * v0[1] + v2[2] * v0[2]
+    const lc01 = length(cross(v0, v1))
+    const lc12 = length(cross(v1, v2))
+    const lc20 = length(cross(v2, v0))
 
     // NOTE:
     // We don't know the order of (e0, e1, e2) making face,
     // but, we can get the sign correctly by always applying "-1".
-    hodge1.data[e0] -= o1 * o2 * 0.5 * dot(v1, v2) / length(cross(v1, v2))
-    hodge1.data[e1] -= o2 * o0 * 0.5 * dot(v2, v0) / length(cross(v2, v0))
-    hodge1.data[e2] -= o0 * o1 * 0.5 * dot(v0, v1) / length(cross(v0, v1))
+    hodge1.data[e0] -= o1 * o2 * 0.5 * d12 / lc12
+    hodge1.data[e1] -= o2 * o0 * 0.5 * d20 / lc20
+    hodge1.data[e2] -= o0 * o1 * 0.5 * d01 / lc01
   }
 
   return { edges, hodge1 }
@@ -647,6 +657,8 @@ const computeF2f = (d1) => {
 }
 
 // v2v: Undirected graph as square MatrixCSR (only v2v.indices is used for traversal)
+// NOTE: this returns MatrixCOO and conviniently
+//       its row/col/data is ordered as topological sorting of the tree
 const computeSpanningTreeV3 = (root, v2v) => {
   const nV = v2v.shape[0]
   if (!(0 <= root && root < nV)) { throw new Error('[computeSpanningTreeV3]') }
@@ -673,8 +685,25 @@ const computeSpanningTreeV3 = (root, v2v) => {
     }
   }
 
-  // Return CSR
-  return MatrixCSR.fromCOO(tree)
+  return tree
+}
+
+const computeFaceNormals = (verts, f2v) => {
+  const nF = f2v.shape[0]
+  const normals = Matrix.empty([nF, 3])
+
+  const { subeq, clone, cross, normalizeeq } = glm.v3
+
+  for (let i = 0; i < nF; i++) {
+    const vs = f2v.row(i)
+    const p0 = verts.row(vs[0])
+    const p1 = verts.row(vs[1])
+    const p2 = verts.row(vs[2])
+    const u1 = subeq(clone(p1), p0)
+    const u2 = subeq(clone(p2), p0)
+    normals.row(i).set(normalizeeq(cross(u1, u2)))
+  }
+  return normals
 }
 
 export {
@@ -683,5 +712,5 @@ export {
   solvePoisson, solveGaussSeidel,
   matmul, transposeVerts, computeMeanCurvatureV2,
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
-  computeF2f, computeSpanningTreeV3
+  computeF2f, computeSpanningTreeV3, computeFaceNormals
 }
