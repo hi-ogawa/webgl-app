@@ -1,4 +1,4 @@
-/* eslint camelcase: 0, no-unused-vars: 0 */
+/* eslint camelcase: 0 */
 
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
@@ -65,7 +65,7 @@ const computeTopology = (f2v, nV) => {
         e2v.push([v0, v1])
         e2f[e] = []
       }
-      const [_v, e, o] = veo
+      const [_v, e, o] = veo // eslint-disable-line no-unused-vars
       f2e[i][j] = [e, o]
       e2f[e].push([i, o])
     }
@@ -74,7 +74,7 @@ const computeTopology = (f2v, nV) => {
   // 2nd loop to get f2fe
   for (const i of _.range(nF)) {
     for (const [e, o] of f2e[i]) {
-      for (const [j, _o] of e2f[e]) {
+      for (const [j, _o] of e2f[e]) { // eslint-disable-line no-unused-vars
         if (i !== j) {
           f2fe[i].push([j, e, o])
         }
@@ -116,7 +116,7 @@ const computeMore = (verts, f2v, topology) => {
   for (const i of _.range(nF)) {
     for (const j of _.range(3)) {
       const [e0, o0] = f2e[i][(j + 0) % 3]
-      const [e1, o1] = f2e[i][(j + 1) % 3]
+      const [e1, o1] = f2e[i][(j + 1) % 3] // eslint-disable-line no-unused-vars
       const [e2, o2] = f2e[i][(j + 2) % 3]
 
       const u0 = mul(o0, edges[e0])
@@ -217,8 +217,8 @@ const computeMoreV2 = (verts, f2v) => {
   kg.data.fill(2 * PI)
 
   const { cross } = glm
-  const { subeq, dot, dot2, length, clone } = glm.v3
-  const { acos, sqrt, abs } = Math
+  const { subeq, dot, length, clone } = glm.v3
+  const { acos, abs } = Math
 
   for (let i = 0; i < nF; i++) {
     // Make edge vector
@@ -382,7 +382,7 @@ const computePathToRoot = (v0, tree) => {
 }
 
 const computeLoop = (e, treeF, e2f) => {
-  const [[f1, o1], [f2, o2]] = e2f[e]
+  const [[f1, o1], [f2, o2]] = e2f[e] // eslint-disable-line no-unused-vars
   const path1 = computePathToRoot(f1, treeF)
   const path2 = computePathToRoot(f2, treeF)
   const loop = [...path1.reverse(), e, ...path2]
@@ -492,7 +492,7 @@ const computeTopologyV2 = (f2v, nV) => {
   const nnzReserve = 3 * nF
   const v2vCoo = MatrixCOO.empty([nV, nV], nnzReserve, Uint32Array)
 
-  const { min, max, abs, sign } = Math
+  const { min, max } = Math
 
   // Enumerate edge (v0, v1) where orientation is given by v0 < v1
   for (let i = 0; i < nF; i++) {
@@ -586,7 +586,7 @@ const computeHodge1 = (verts, f2v, d0, d1) => {
   const nE = d1.shape[1]
   const hodge1 = Matrix.empty([nE, 1])
 
-  const { length, cross, crosseq, dot } = glm.v3
+  const { length, cross, dot } = glm.v3 // eslint-disable-line no-unused-vars
 
   // Make edge vectors = d0 . p
   const edges = Matrix.empty([nE, 3])
@@ -649,7 +649,7 @@ const computeF2f = (d1) => {
     const f1 = d1T.indices[p0 + 1]
     const o = d1T.data[p0]
     f2fCoo.set(f0, f1, o * (i + 1)) // offset by 1 so that 0-th edge can be "signed"
-    f2fCoo.set(f1, f0, - o * (i + 1))
+    f2fCoo.set(f1, f0, -o * (i + 1))
   }
 
   // Return CSR
@@ -661,7 +661,7 @@ const computeF2f = (d1) => {
 //       its row/col/data is ordered as topological sorting of the tree
 const computeSpanningTreeV3 = (root, v2v) => {
   const nV = v2v.shape[0]
-  if (!(0 <= root && root < nV)) { throw new Error('[computeSpanningTreeV3]') }
+  if (!(root >= 0 && root < nV)) { throw new Error('[computeSpanningTreeV3]') }
 
   // Subset of v2v
   const nnzReserve = nV - 1

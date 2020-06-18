@@ -1,4 +1,4 @@
-/* eslint camelcase: 0, no-unused-vars: 0 */
+/* eslint camelcase: 0 */
 /* global describe, it */
 
 import assert from 'assert'
@@ -9,7 +9,7 @@ import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
 import { readOFF } from './reader.js'
-import { Matrix, MatrixCOO, MatrixCSR, splitByIndptr } from './array.js'
+import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
 
 /* eslint-disable no-unused-vars */
 const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
@@ -80,7 +80,7 @@ describe('ddg', () => {
     it('works 1', () => {
       const { position, index } = UtilsMisc.makeHedron8()
       const nV = position.length
-      const { e2v, v2ve, f2e, e2f, f2fe } = ddg.computeTopology(index, nV)
+      const { e2v, f2e } = ddg.computeTopology(index, nV)
       assert.deepStrictEqual(e2v, [
         [0, 1],
         [1, 2], [2, 0],
@@ -127,7 +127,7 @@ describe('ddg', () => {
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
       const { verts, f2v } = readOFF(data)
       const nV = verts.length
-      const { e2v, f2e } = ddg.computeTopology(f2v, nV)
+      const { e2v } = ddg.computeTopology(f2v, nV)
       const nE = e2v.length
       const nF = f2v.length
       equal(nV - nE + nF, 2)
@@ -182,7 +182,6 @@ describe('ddg', () => {
       let result2
       {
         const nV = verts.length
-        const nF = f2v.length
         const topology = ddg.computeTopology(f2v, nV)
         result1 = ddg.computeMore(verts, f2v, topology)
       }
@@ -206,7 +205,6 @@ describe('ddg', () => {
       let result2
       {
         const nV = verts.length
-        const nF = f2v.length
         const topology = ddg.computeTopology(f2v, nV)
         result1 = ddg.computeMore(verts, f2v, topology)
       }
@@ -231,7 +229,6 @@ describe('ddg', () => {
       let result2
       {
         const nV = verts.length
-        const nF = f2v.length
         const topology = ddg.computeTopology(f2v, nV)
         result1 = ddg.computeMore(verts, f2v, topology)
       }
@@ -276,7 +273,7 @@ describe('ddg', () => {
         const f2vM = Matrix.empty([nF, 3], Uint32Array)
         f2vM.data.set(f2v.flat())
         const L = ddg.computeLaplacianV2(vertsM, f2vM)
-        const result = L.matmul(Matrix.empty(vertsM.shape), vertsM)
+        const result = L.matmul(Matrix.empty(vertsM.shape), vertsM) // eslint-disable-line no-unused-vars
         // TODO: fix
         // deepCloseTo(Array.from(result.data), h2)
       }
@@ -286,7 +283,7 @@ describe('ddg', () => {
       const { position: verts, index: f2v } = UtilsMisc.makeIcosphere(1)
       const nV = verts.length
       const topology = ddg.computeTopology(f2v, nV)
-      const { hodge0, hodge1, angleSum } = ddg.computeMore(verts, f2v, topology)
+      const { hodge0, hodge1 } = ddg.computeMore(verts, f2v, topology)
       const { e2v } = topology
       const L = ddg.computeLaplacian(nV, e2v, hodge1)
       const HN2 = ddg.computeMeanCurvature(verts, L)
@@ -306,7 +303,6 @@ describe('ddg', () => {
       let result2
       {
         const nV = verts.length
-        const nF = f2v.length
         const topology = ddg.computeTopology(f2v, nV)
         const { hodge1 } = ddg.computeMore(verts, f2v, topology)
         const { e2v } = topology
@@ -431,11 +427,24 @@ describe('ddg', () => {
       rho_dual[11] = -1
 
       // TODO: test some analytically extected property
-      const u = ddg.solvePoisson(verts, f2v, rho_dual)
+      const u = ddg.solvePoisson(verts, f2v, rho_dual) // eslint-disable-line no-unused-vars
     })
   })
 
   describe('computeTopologyV2', () => {
+    it('camelhead', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/camelhead.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const { foundBoundary, boundaryEdge, numBoundaryEdgesPerFace } =
+        ddg.computeTopologyV2(f2v, verts.shape[0])
+      equal(foundBoundary, true)
+      equal(boundaryEdge.reduce(_.add), 27)
+      equal(numBoundaryEdgesPerFace.filter(n => n > 0).length, 27)
+      equal(numBoundaryEdgesPerFace.every(n => n === 0 || n === 1), true)
+    })
+
     it('works 0', () => {
       const { position, index } = UtilsMisc.makeHedron8()
       const nV = position.length
@@ -561,7 +570,7 @@ describe('ddg', () => {
       const f2v = Matrix.empty([nF, 3], Uint32Array)
       f2v.data.set(index.flat())
 
-      const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
+      const { d1 } = ddg.computeTopologyV2(f2v, nV)
       const f2f = ddg.computeF2f(d1)
       deepCloseTo(f2f.toDense().data, [
         0, -2, 0, 1, 5, 0, 0, 0,
@@ -586,7 +595,7 @@ describe('ddg', () => {
       const f2v = Matrix.empty([nF, 3], Uint32Array)
       f2v.data.set(index.flat())
 
-      const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
+      const { d1 } = ddg.computeTopologyV2(f2v, nV)
       const f2f = ddg.computeF2f(d1)
       const tree = ddg.computeSpanningTreeV3(0, f2f)
       deepCloseTo(tree.toDense().data, [
@@ -727,7 +736,7 @@ describe('ddg', () => {
       const initVector = [0, 0, 0]
       {
         const { cos, sin } = Math
-        const { add, muls, sub, normalize, clone, copy } = glm.v3
+        const { add, muls, sub, normalize, copy } = glm.v3
         const p0 = verts.row(f2v.row(initF)[0])
         const p1 = verts.row(f2v.row(initF)[1])
         const x = normalize(sub(p1, p0))
@@ -742,7 +751,7 @@ describe('ddg', () => {
       const vectorField = Matrix.empty([nF, 3])
       vectorField.row(initF).set(initVector)
 
-      const { abs, sign, acos } = Math
+      const { acos } = Math
       const { clone, matmuleq, muls, normalizeeq } = glm.v3
       const { axisAngle } = glm.mat3
 
@@ -758,7 +767,7 @@ describe('ddg', () => {
         const n1 = normals.row(f1)
         const u = muls(edges.row(e), o)
         const vector0 = vectorField.row(f0)
-        let vector1 = clone(vector0)
+        const vector1 = clone(vector0)
 
         // Levi-Civita connection
         matmuleq(axisAngle(u, acos(dot(n0, n1))), vector1)

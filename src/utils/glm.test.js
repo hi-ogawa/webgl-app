@@ -48,7 +48,7 @@ describe('glm', () => {
       const m = [
         1, 2, 3,
         10, 20, 30,
-        100, 200, 300,
+        100, 200, 300
       ]
       deepEqual(matmuleq(m, v), [532, 1064, 1596])
       deepEqual(v, [532, 1064, 1596])

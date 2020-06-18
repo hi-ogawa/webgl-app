@@ -360,7 +360,7 @@ const quat = {
     const m1 = muleqs(cross(v), 2 * s)
     const m2 = muleqs(eye(), s * s - dot2(v))
     return addeq(m0, addeq(m1, m2))
-  },
+  }
 }
 
 export {
