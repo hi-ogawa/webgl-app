@@ -18,20 +18,8 @@ import * as glm from '../utils/glm.js'
 import * as ddg from '../utils/ddg.js'
 import { hash11 } from '../utils/hash.js'
 
-/* eslint-disable no-unused-vars */
 const THREE = AFRAME.THREE
-const { PI, cos, sin, pow, sqrt, cosh, sinh, acos, atan2 } = Math
-const {
-  vec2, vec3, vec4, mat2, mat3, mat4,
-  M_add, M_sub, M_mul, M_div, M_get,
-  T_translate, T_axisAngle, T_sphericalToCartesian, T_frameXZ,
-  dot, inverse, cross, normalize, transpose, mix, smoothstep,
-  diag, pow2, smoothstep01, dot2, outer, outer2,
-  eigen_mat2, sqrt_mat2, hue,
-  toColor, toColorHex
-} = Utils
-const { $, $$, stringToElement } = UtilsMisc
-/* eslint-enable no-unused-vars */
+const { $ } = UtilsMisc
 
 AFRAME.registerComponent('tree-cotree', {
   dependencies: ['geometry'],
@@ -77,12 +65,12 @@ AFRAME.registerComponent('tree-cotree', {
     //   because "circum center" is not in interior of right/obtuse triangle
     // - Push a little bit to the normal
     const makeDualVerts = (verts, f2v) => {
-      const { add, sub, mul, div, cross, normalize } = glm
+      const { add, sub, muls, divs, cross, normalize } = glm.vec3
       return f2v.map(([v0, v1, v2]) => {
         const [p0, p1, p2] = [verts[v0], verts[v1], verts[v2]]
-        const c = div(add(p0, add(p1, p2)), 3)
+        const c = divs(add(p0, add(p1, p2)), 3)
         const n = normalize(cross(sub(p1, p0), sub(p2, p0)))
-        return add(c, mul(0.01, n))
+        return add(c, muls(n, 0.01))
       })
     }
     const vertsDual = makeDualVerts(verts, f2v)
@@ -151,7 +139,7 @@ AFRAME.registerComponent('tree-cotree', {
         const loopIndex = loop.map(e => e2fSlim[e])
         const geometry = Utils.makeBufferGeometry({
           // Jitter position so that loops won't exactly overlap each other
-          position: vertsDual.map((p, j) => glm.add(p, (hash11(i * j) - 0.5) * 0.02)),
+          position: vertsDual.map((p, j) => glm.vec3.adds(p, (hash11(i * j) - 0.5) * 0.02)),
           index: loopIndex
         })
         const color = Utils.toColorHex(Utils.hue(i / n))

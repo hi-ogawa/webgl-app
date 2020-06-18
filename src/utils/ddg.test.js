@@ -11,16 +11,7 @@ import util from 'util'
 import { readOFF } from './reader.js'
 import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
 
-/* eslint-disable no-unused-vars */
-const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
-const {
-  vec2, vec3, vec4, /* mat2, mat3, mat4, */
-  add, sub, mul, div, /* mmul */
-  dot, cross, length, normalize,
-  /* inverse, transpose, */
-  pow2, dot2 /* diag, outer, outer2, */
-} = glm
-/* eslint-enable no-unused-vars */
+const { PI } = Math
 
 const equal = assert.strictEqual
 const deepEqual = assert.deepStrictEqual
@@ -289,10 +280,10 @@ describe('ddg', () => {
       const HN2 = ddg.computeMeanCurvature(verts, L)
 
       // Discrete mean curvature as primal 0-form
-      const HN2_primal = _.zip(HN2, hodge0).map(([hn2, h0]) => div(hn2, h0))
+      const HN2_primal = _.zip(HN2, hodge0).map(([hn2, h0]) => glm.vec3.divs(hn2, h0))
 
       // Mean curvature of unit sphere = (1 + 1) / 2 = 1
-      const expected = verts.map(p => mul(-2, p))
+      const expected = verts.map(p => glm.vec3.muls(p, -2))
       deepCloseTo(HN2_primal, expected)
     })
 
@@ -411,7 +402,7 @@ describe('ddg', () => {
       const x0 = [0, 0, 0, 0]
       const b = [-1, 2, 0, -1]
       const x = ddg.solveGaussSeidel(A_sparse, x0, b, 1e-6, 8)
-      const Ax = A.map(row => glm.dot(row, x))
+      const Ax = A.map(row => _.sum(_.zip(row, x).map(([a, b]) => a * b)))
       deepCloseTo(Ax, b, 1e-4)
     })
   })
@@ -736,7 +727,7 @@ describe('ddg', () => {
       const initVector = [0, 0, 0]
       {
         const { cos, sin } = Math
-        const { add, muls, sub, normalize, copy } = glm.v3
+        const { add, muls, sub, normalize, copy, cross } = glm.vec3
         const p0 = verts.row(f2v.row(initF)[0])
         const p1 = verts.row(f2v.row(initF)[1])
         const x = normalize(sub(p1, p0))
@@ -752,7 +743,7 @@ describe('ddg', () => {
       vectorField.row(initF).set(initVector)
 
       const { acos } = Math
-      const { clone, matmuleq, muls, normalizeeq } = glm.v3
+      const { clone, matmuleq, muls, normalizeeq, dot } = glm.vec3
       const { axisAngle } = glm.mat3
 
       for (let i = 0; i < tree.nnz; i++) {

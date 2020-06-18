@@ -9,23 +9,16 @@ describe('glm', () => {
       const v0 = [2, 3, 5]
       const v1 = [7, 11, 13]
 
-      const run = () => glm.cross(v0, v1)
+      const run = () => glm.vec3.cross(v0, v1)
       const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
     })
   })
 
   describe('clone', () => {
-    it('works 0 (glm.clone)', () => {
-      const v0 = [2, 3, 5]
-      const run = () => glm.clone(v0)
-      const { resultString } = timeit('args.run()', '', '', { run })
-      console.log(resultString)
-    })
-
     it('works 1', () => {
       const v0 = [2, 3, 5]
-      const run = () => glm.v3.clone(v0)
+      const run = () => glm.vec3.clone(v0)
       const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
     })

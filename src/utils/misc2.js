@@ -5,8 +5,8 @@ import * as glm from './glm.js'
 
 // Scale a set of positions to [-1, 1]^3
 const normalizePositions = (verts) => {
-  const { sub, mul, min, max } = glm
-  const center = glm.div(verts.reduce(glm.add), verts.length)
+  const { add, sub, mul, divs, min, max } = glm.vec3
+  const center = divs(verts.reduce(add), verts.length)
   const bboxMin = verts.reduce(min)
   const bboxMax = verts.reduce(max)
   const size = Math.max(...sub(bboxMax, bboxMin))
@@ -16,7 +16,7 @@ const normalizePositions = (verts) => {
 
 // verts: float[nV, 3]
 const normalizePositionsV2 = (verts) => {
-  const { addeq, subeq, muleqs, diveqs, mineq, maxeq, clone } = glm.v3
+  const { addeq, subeq, muleqs, diveqs, mineq, maxeq, clone } = glm.vec3
 
   const center = [0, 0, 0]
   const bboxMin = clone(verts.row(0))
@@ -38,8 +38,8 @@ const normalizePositionsV2 = (verts) => {
 // (piecewise linear with knot at value = 0)
 const getSignedColor = (value, color0, colorP, colorN) => {
   return value > 0
-    ? glm.mix(color0, colorP, value)
-    : glm.mix(color0, colorN, -value)
+    ? glm.vec3.mix(color0, colorP, value)
+    : glm.vec3.mix(color0, colorN, -value)
 }
 
 export {

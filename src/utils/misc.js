@@ -563,7 +563,7 @@ const makeIcosphere = (n) => {
   // Convert back to array
   const { index, attributes: { position } } = geometry
   return {
-    position: _.chunk(position.array, 3).map(p => glm.normalize(p)),
+    position: _.chunk(position.array, 3).map(p => glm.vec3.normalize(p)),
     index: _.chunk(index.array, 3)
   }
 }
@@ -659,9 +659,7 @@ const subdivCatmullClerk = (verts, f2v) => {
   const oE = nV
   const oF = nV + nE
 
-  const { add, mul, div } = glm
-  const assign = (a, b) => b.forEach((v, i) => { a[i] = v })
-  const addAssign = (a, b) => assign(a, add(a, b))
+  const { add, addeq, muls, divs } = glm.vec3
 
   //
   // Subdivision mask of 3-deg 2d B-spline
@@ -689,7 +687,7 @@ const subdivCatmullClerk = (verts, f2v) => {
   // Assuming surface without boundary, we can compute this by single loop
   for (const i of _.range(nF)) {
     // Make new face data
-    const faceValue = div(f2v[i].map(v => verts[v]).reduce(add), 4)
+    const faceValue = divs(f2v[i].map(v => verts[v]).reduce(add), 4)
     newVerts[oF + i] = faceValue
 
     for (const j of _.range(4)) {
@@ -703,19 +701,19 @@ const subdivCatmullClerk = (verts, f2v) => {
 
       // Accumulate data between face/edge/vert
       // - face => edge
-      addAssign(newVerts[oE + e0], div(faceValue, 4))
+      addeq(newVerts[oE + e0], divs(faceValue, 4))
 
       // - vert => edge
-      addAssign(newVerts[oE + e0], div(verts[v0], 4))
+      addeq(newVerts[oE + e0], divs(verts[v0], 4))
 
       // - ... => vert
       const n = v2ve[v0].length
       const acc = [
         faceValue, // face => vert
         verts[v1], // vert => vert
-        mul(n - 2, verts[v0]) // vert => vert (self)
+        muls(verts[v0], n - 2) // vert => vert (self)
       ]
-      addAssign(newVerts[v0], div(acc.reduce(add), n * n))
+      addeq(newVerts[v0], divs(acc.reduce(add), n * n))
     }
   }
 
@@ -736,11 +734,11 @@ const makeGTorusQuad = (g) => {
   index = extrudeFaces(nV, index)
 
   // Make extruded vertices
-  const { add, sub, mul } = glm
+  const { add, subs, mul } = glm.vec3
   position.push(..._.cloneDeep(position).map(p => add(p, [0, 0, 1])))
 
   // Normalize positions
-  position = position.map(p => mul(sub(p, 0.5), [1 + 2 * g, 3, 1]))
+  position = position.map(p => mul(subs(p, 0.5), [1 + 2 * g, 3, 1]))
   return { position, index }
 }
 

@@ -173,16 +173,19 @@ AFRAME.registerComponent('viewer', {
       const normal = new Matrix(normalAttr.array, [nV, 3])
       colorAttr.needsUpdate = true
 
+      const { sign } = Math
+      const { dot, length } = glm.vec3
+
       for (let i = 0; i < nV; i++) {
         const h = hn2.row(i)
         const n = normal.row(i)
-        const sign = Math.sign(glm.v3.dot(h, n))
-        let magnitude = glm.v3.length(h)
+        const s = sign(dot(h, n))
+        let magnitude = length(h)
         if (density) {
           magnitude /= hodge0.data[i] // as primal-0-form (i.e. density)
         }
         color.row(i).set(
-          UtilsMisc2.getSignedColor(sign * magnitude / scaleMean, kColor0, kColorP, kColorN))
+          UtilsMisc2.getSignedColor(s * magnitude / scaleMean, kColor0, kColorP, kColorN))
       }
     }
 

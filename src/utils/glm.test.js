@@ -20,21 +20,9 @@ const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
 }
 
 describe('glm', () => {
-  it('works 0', () => {
-    const { add, vec3 } = glm
-    const v0 = vec3(2, 3, 5)
-    const v1 = vec3(7, 11, 13)
-    const s0 = v0[0]
-    const s1 = v1[0]
-
-    deepEqual(add(v0, v1), [9, 14, 18])
-    deepEqual(add(v0, s1), [9, 10, 12])
-    deepEqual(add(s0, v1), [9, 13, 15])
-  })
-
-  describe('v3', () => {
+  describe('vec3', () => {
     it('works 0', () => {
-      const { subeq } = glm.v3
+      const { subeq } = glm.vec3
       const v0 = [7, 11, 13]
       const v1 = [2, 3, 5]
 
@@ -43,7 +31,7 @@ describe('glm', () => {
     })
 
     it('works 1', () => {
-      const { matmuleq } = glm.v3
+      const { matmuleq } = glm.vec3
       const v = [2, 3, 5]
       const m = [
         1, 2, 3,

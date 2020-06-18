@@ -4,16 +4,7 @@ import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
 import { Matrix, MatrixCOO, MatrixCSR } from './array.js'
 
-/* eslint-disable no-unused-vars */
-const { PI, cos, sin, pow, abs, sign, sqrt, cosh, sinh, acos, atan2 } = Math
-const {
-  vec2, vec3, vec4, /* mat2, mat3, mat4, */
-  add, sub, mul, div, /* mmul */
-  dot, cross, length, normalize,
-  /* inverse, transpose, */
-  pow2, dot2 /* diag, outer, outer2, */
-} = glm
-/* eslint-enable no-unused-vars */
+const { PI } = Math
 
 // Improved version of Utils.computeTopology
 // (this works for non-triangle mesh as well)
@@ -106,6 +97,9 @@ const computeMore = (verts, f2v, topology) => {
   // float[nV]
   const angleSum = _.range(nV).fill(0)
 
+  const { acos, sqrt, abs } = Math
+  const { sub, muls, dot, cross, length, dot2 } = glm.vec3
+
   // Loop edges
   for (const i of _.range(nE)) {
     const [v0, v1] = e2v[i]
@@ -119,8 +113,8 @@ const computeMore = (verts, f2v, topology) => {
       const [e1, o1] = f2e[i][(j + 1) % 3] // eslint-disable-line no-unused-vars
       const [e2, o2] = f2e[i][(j + 2) % 3]
 
-      const u0 = mul(o0, edges[e0])
-      const u2 = mul(o2, edges[e2])
+      const u0 = muls(edges[e0], o0)
+      const u2 = muls(edges[e2], o2)
       const u0u2_cosA = -dot(u0, u2)
       const u0u2_sinA = length(cross(u0, u2))
       hodge1[e1] += 0.5 * u0u2_cosA / u0u2_sinA // |u0| * |u2| cancels
@@ -180,7 +174,7 @@ const computeLaplacianV2 = (verts, f2v) => {
   const nnzReserve = 3 * 4 * nF
   const L = MatrixCOO.empty([nV, nV], nnzReserve)
 
-  const { subeq, dot, length, cross, clone } = glm.v3
+  const { subeq, dot, length, cross, clone } = glm.vec3
 
   for (let i = 0; i < nF; i++) {
     // Make edge vector
@@ -216,8 +210,7 @@ const computeMoreV2 = (verts, f2v) => {
   const kg = Matrix.empty([nV, 1])
   kg.data.fill(2 * PI)
 
-  const { cross } = glm
-  const { subeq, dot, length, clone } = glm.v3
+  const { subeq, dot, length, clone, cross } = glm.vec3
   const { acos, abs } = Math
 
   for (let i = 0; i < nF; i++) {
@@ -272,10 +265,12 @@ const computeMeanCurvature = (verts, L) => {
   // float[nV, 3]
   const HN2 = _.range(nV).map(() => [0, 0, 0])
 
+  const { addeq, muls } = glm.vec3
+
   // Sparse matrix multiplication
   for (const i of _.range(nV)) {
     for (const [j, u] of L[i]) {
-      HN2[i] = add(HN2[i], mul(u, verts[j]))
+      addeq(HN2[i], muls(verts[j], u))
     }
   }
 
@@ -586,7 +581,7 @@ const computeHodge1 = (verts, f2v, d0, d1) => {
   const nE = d1.shape[1]
   const hodge1 = Matrix.empty([nE, 1])
 
-  const { length, cross, dot } = glm.v3 // eslint-disable-line no-unused-vars
+  const { length, cross, dot } = glm.vec3 // eslint-disable-line no-unused-vars
 
   // Make edge vectors = d0 . p
   const edges = Matrix.empty([nE, 3])
@@ -692,7 +687,7 @@ const computeFaceNormals = (verts, f2v) => {
   const nF = f2v.shape[0]
   const normals = Matrix.empty([nF, 3])
 
-  const { subeq, clone, cross, normalizeeq } = glm.v3
+  const { subeq, clone, cross, normalizeeq } = glm.vec3
 
   for (let i = 0; i < nF; i++) {
     const vs = f2v.row(i)
