@@ -701,11 +701,166 @@ const computeFaceNormals = (verts, f2v) => {
   return normals
 }
 
+const computeFaceCentroids = (verts, f2v) => {
+  const nF = f2v.shape[0]
+  const centers = Matrix.empty([nF, 3])
+  const { add, addeq, diveqs } = glm.vec3
+  for (let i = 0; i < nF; i++) {
+    const vs = f2v.row(i)
+    const p0 = verts.row(vs[0])
+    const p1 = verts.row(vs[1])
+    const p2 = verts.row(vs[2])
+    centers.row(i).set(diveqs(addeq(add(p0, p1), p2), 3))
+  }
+  return centers
+}
+
+const solveVectorField = (verts, f2v, singularity, initFace, initAngle) => {
+  //
+  // TODO:
+  // - Separate connection solver from parallel transport code
+  // - Control quality of solver (iteration, residue, etc...)
+  // - Support genus != 0
+  //
+  // Cf. Crane's DDG course note 8.3 http://www.cs.cmu.edu/~kmcrane/Projects/DDG/paper.pdf
+  //
+  // [ Prop: Discrete trivial connection probelm is Poisson problem ]
+  //
+  // Given
+  //   - phi \in dual(\Omega_1)
+  //   - ||phi|| = < phi, hodge1^{-1} phi >  (cf. inner product on 1 form)
+  //   - dual(d1) = d0^T
+  // Then
+  //   min ||phi|| s.t. dual(d1) = b
+  //   implies, by Lagrange multiplier, for some u,
+  //   phi = hodge1 d0 u
+  //   i.e. dual(d1) hodge1 d0 u = laplacian u = b
+  //
+  //
+  // [ Overview ]
+  //
+  // - (Convention)
+  //   - CCW dual edge (thus dual(d1) = - d0^T, dual(d2) = d1^T)
+  //
+  // - Input
+  //   - verts: float[nV, 3]
+  //   - f2v: int[nF, 3]
+  //   - singularity: int[nV, 1] (Singularity index on dual face s.t. \sum_i s_i = \Kai = 2 - 2g))
+  //   - initFace: Root face from which we start parallel-transport initial vector
+  //   - initAngle: Initial vector direction on initFace (where frame with x = p1 - p0, z = n)
+  //
+  // - Output
+  //   - vectorField: float[nF, 3] (directional field on primal face)
+  //   - ... and other bunch constructed on the way
+  //
+  // - Algorithm
+  //   - 1. Construct
+  //     - laplacian   (for step 2)
+  //     - kg          (for step 2)
+  //     - hodge1      (for step 3)
+  //     - d0          (for step 3)
+  //     - edge vector (for step 4)
+  //     - face normal (for step 4)
+  //     - f2f         (for step 4)
+  //
+  //   - 2. Solve "u" s.t. L u = b = - kg + 2pi s
+  //
+  //   - 3. phi = hodge1 d0 u (connection angle)
+  //
+  //   - 4.
+  //     - Define v0 initial unit vector on initFace
+  //     - Construct spanning tree F_T with root initFace
+  //     - Extend vector field by parallel-transport based on phi along tree F_T
+  //
+
+  const nV = verts.shape[0]
+  const nF = f2v.shape[0]
+
+  // 1.
+  let { laplacian, kg } = computeMoreV2(verts, f2v)
+  laplacian = MatrixCSR.fromCOO(laplacian)
+  laplacian.sumDuplicates()
+  const { d0, d1 } = computeTopologyV2(f2v, nV)
+  const { hodge1, edges } = computeHodge1(verts, f2v, d0, d1)
+  const normals = computeFaceNormals(verts, f2v)
+
+  // 2. L u = - kg + 2pi s
+  const u = Matrix.emptyLike(singularity)
+  let residue = 0
+  {
+    const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+    const b = singularity.clone().muleqs(2 * PI).subeq(kg)
+    const bneg = b.clone().muleqs(-1)
+
+    for (let i = 0; i < 1024; i++) {
+      Lneg.stepGaussSeidel(u, bneg)
+      residue = Lneg.matmul(u.clone(), u).subeq(bneg).dotHS2()
+      if (residue < 1e-3) { break }
+    }
+  }
+
+  // 3. phi = hodge1 d0 u
+  const phi = Matrix.emptyLike(hodge1)
+  d0.matmul(phi, u).muleq(hodge1)
+
+  // 4.
+
+  // - Define initial vector
+  const initVector = [0, 0, 0]
+  {
+    const { cos, sin } = Math
+    const { sub, normalize, assign, matmul } = glm.vec3
+    const { frameXZ } = glm.mat3
+    const p0 = verts.row(f2v.row(initFace)[0])
+    const p1 = verts.row(f2v.row(initFace)[1])
+    const x = normalize(sub(p1, p0))
+    const z = normals.row(initFace)
+    assign(initVector, matmul(frameXZ(x, z), [cos(initAngle), sin(initAngle), 0]))
+  }
+
+  // - Spanning tree
+  const f2f = computeF2f(d1)
+  const tree = computeSpanningTreeV3(initFace, f2f) // MatrixCOO with topological sorted entries
+  const vectorField = Matrix.empty([nF, 3])
+  vectorField.row(initFace).set(initVector)
+
+  // - Parallel transport
+  const { acos } = Math
+  const { clone, matmuleq, muls, normalizeeq, dotClamp } = glm.vec3
+  const { axisAngle } = glm.mat3
+
+  for (let i = 0; i < tree.nnz; i++) {
+    const f0 = tree.row[i]
+    const f1 = tree.col[i]
+    const eo = tree.data[i] // signed edge
+    const e = Math.abs(eo) - 1
+    const o = Math.sign(eo)
+
+    const n0 = normals.row(f0)
+    const n1 = normals.row(f1)
+    const u = normalizeeq(muls(edges.row(e), o))
+    const vector0 = vectorField.row(f0)
+    const vector1 = clone(vector0)
+
+    // Levi-Civita connection
+    matmuleq(axisAngle(u, acos(dotClamp(n0, n1))), vector1)
+
+    // Our connection phi (negation "-" comes from our convention of ccw dual edge)
+    const angle = -o * phi.data[e]
+    matmuleq(axisAngle(n1, angle), vector1)
+
+    vectorField.row(f1).set(vector1)
+  }
+
+  return { vectorField, phi, tree, edges, normals, residue }
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
   solvePoisson, solveGaussSeidel,
   matmul, transposeVerts, computeMeanCurvatureV2,
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
-  computeF2f, computeSpanningTreeV3, computeFaceNormals
+  computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
+  solveVectorField
 }

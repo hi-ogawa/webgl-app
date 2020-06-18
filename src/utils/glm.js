@@ -101,6 +101,12 @@ const vec3 = {
   },
 
   cross: (a, b) => {
+    // Much slower
+    // return new Float32Array([
+    //   a[1] * b[2] - a[2] * b[1],
+    //   a[2] * b[0] - a[0] * b[2],
+    //   a[0] * b[1] - a[1] * b[0]
+    // ])
     return [
       a[1] * b[2] - a[2] * b[1],
       a[2] * b[0] - a[0] * b[2],
@@ -114,6 +120,11 @@ const vec3 = {
 
   dot2: (a) => {
     return vec3.dot(a, a)
+  },
+
+  // TODO: This helps since somehow it happens that "length(normalizeeq(v)) > 1"
+  dotClamp: (a, b) => {
+    return Math.max(-1, Math.min(1, vec3.dot(a, b)))
   },
 
   length: (a) => {
@@ -133,6 +144,13 @@ const vec3 = {
   },
 
   copy: (a, b) => {
+    a[0] = b[0]
+    a[1] = b[1]
+    a[2] = b[2]
+    return a
+  },
+
+  assign: (a, b) => {
     a[0] = b[0]
     a[1] = b[1]
     a[2] = b[2]
@@ -204,6 +222,15 @@ const mat3 = {
       1, 0, 0,
       0, 1, 0,
       0, 0, 1
+    ]
+  },
+
+  frameXZ: (x, z) => {
+    const y = vec3.cross(z, x)
+    return [
+      x[0], x[1], x[2],
+      y[0], y[1], y[2],
+      z[0], z[1], z[2]
     ]
   }
 }

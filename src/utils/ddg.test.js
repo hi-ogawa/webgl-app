@@ -9,6 +9,7 @@ import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
 import { readOFF } from './reader.js'
+import { hash11 } from './hash.js'
 import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
 
 const { PI } = Math
@@ -627,149 +628,62 @@ describe('ddg', () => {
     })
   })
 
-  describe('solveConnection', () => {
+  describe('computeFaceCentroids', () => {
     it('works 0', () => {
-      const { position, index } = UtilsMisc.makeIcosphere(2)
+      const { position, index } = UtilsMisc.makeIcosphere(0)
       const nV = position.length
       const nF = index.length
-
       const verts = Matrix.empty([nV, 3])
       verts.data.set(position.flat())
       const f2v = Matrix.empty([nF, 3], Uint32Array)
       f2v.data.set(index.flat())
 
-      //
-      // [ Prop: Discrete trivial connection probelm is Poisson problem ]
-      //
-      // Given
-      //   - phi \in dual(\Omega_1)
-      //   - ||phi|| = < phi, hodge1^{-1} phi >  (cf. inner product on 1 form)
-      //   - dual(d1) = d0^T
-      // Then
-      //   min ||phi|| s.t. dual(d1) = b
-      //   implies, by Lagrange multiplier, for some u,
-      //   phi = hodge1 d0 u
-      //   i.e. dual(d1) hodge1 d0 u = laplacian u = b
-      //
-      //
-      // [ Overview ]
-      //
-      // - 0. Convention
-      //   - CCW dual edge (thus dual(d1) = - d0^T, dual(d2) = d1^T)
-      //
-      // - 1. Construct
-      //   - laplacian (laplacian = - d0^T hodge1 d0)
-      //   - kg
-      //
-      // - 2. Define
-      //   - (s_i)_i:  singularity index on dual face s.t. \sum_i s_i = \Kai = 2 - 2g)
-      //
-      // - 3. Solve u s.t.
-      //   - L u = b = - kg + 2pi s
-      //
-      // - 4. Construct
-      //   - hodge1, d0
-      //   - phi = hodge1 d0 u
-      //   - edge vector
-      //   - face normal
-      //
-      // - 5. Define
-      //   - v0 \in S^2: initial unit vector on face
-      //   - f0 \in F: initial face to start vector field propagation
-      //
-      // - 6.
-      //   - Construct tree F_T \subset F with root f0
-      //   - Extend vector field v0 by connection phi along F_T from f0
-      //
+      const centers = ddg.computeFaceCentroids(verts, f2v)
+      deepEqual(centers.shape, [nF, 3])
+    })
+  })
 
-      // 1.
-      let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
-      laplacian = MatrixCSR.fromCOO(laplacian)
-      laplacian.sumDuplicates()
+  describe('solveVectorField', () => {
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeIcosphere(0)
+      const nV = position.length
+      const nF = index.length
+      const verts = Matrix.empty([nV, 3])
+      verts.data.set(position.flat())
+      const f2v = Matrix.empty([nF, 3], Uint32Array)
+      f2v.data.set(index.flat())
 
-      // 2.
-      const sindex = Matrix.empty([nV, 1])
-      sindex.data[0] = 1 // north pole
-      sindex.data[11] = 1 // south pole
+      const singularity = Matrix.empty([nV, 1])
+      singularity.data[0] = 1 // north pole
+      singularity.data[11] = 1 // south pole
 
-      // 3.
-      const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
-      const u = Matrix.emptyLike(sindex)
-      const b = sindex.clone().muleqs(2 * PI).subeq(kg)
-      const bneg = b.clone().muleqs(-1)
-      closeTo(b.sum(), 0, 1e-3)
-
-      for (let i = 0; i < 64; i++) {
-        Lneg.stepGaussSeidel(u, bneg)
-        const residue = Lneg.matmul(u.clone(), u).subeq(bneg).dotHS2()
-        if (residue < 1e-4) {
-          console.log(`residue (${i}): ${residue}`)
-          break
-        }
-        if (i % 8 === 0) {
-          console.log(`residue (${i}): ${residue}`)
-        }
-      }
-
-      // 4. phi = hodge1 d0 u
-      const { d0, d1 } = ddg.computeTopologyV2(f2v, nV)
-      const { hodge1, edges } = ddg.computeHodge1(verts, f2v, d0, d1) // float[nE, 1]
-      const normals = ddg.computeFaceNormals(verts, f2v)
-      const phi = Matrix.emptyLike(hodge1)
-      d0.matmul(phi, u).muleq(hodge1)
-
-      // assert b = L u = - d0^T hodge1 d0 u
-      deepCloseTo(b.data, d0.matmulT(Matrix.emptyLike(b), phi).muleqs(-1).data, 1e-2)
-
-      // 5. Initial face/vector
+      const initFace = 0
       const initAngle = 0
-      const initF = 0
-      const initVector = [0, 0, 0]
-      {
-        const { cos, sin } = Math
-        const { add, muls, sub, normalize, copy, cross } = glm.vec3
-        const p0 = verts.row(f2v.row(initF)[0])
-        const p1 = verts.row(f2v.row(initF)[1])
-        const x = normalize(sub(p1, p0))
-        const z = normals.row(initF)
-        const y = cross(z, x)
-        copy(initVector, add(muls(x, cos(initAngle)), muls(y, sin(initAngle))))
-      }
+      const { vectorField, residue } = ddg.solveVectorField(verts, f2v, singularity, initFace, initAngle)
+      deepCloseTo(vectorField.shape, [nF, 3])
+      equal(residue < 1e-3, true)
+    })
 
-      // 6. Extend vector field
-      const f2f = ddg.computeF2f(d1)
-      const tree = ddg.computeSpanningTreeV3(initF, f2f) // MatrixCOO with topological sorted entries
-      const vectorField = Matrix.empty([nF, 3])
-      vectorField.row(initF).set(initVector)
+    it('works 1', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
-      const { acos } = Math
-      const { clone, matmuleq, muls, normalizeeq, dot } = glm.vec3
-      const { axisAngle } = glm.mat3
+      const nV = verts.shape[0]
 
-      for (let i = 0; i < tree.nnz; i++) {
-        const f0 = tree.row[i]
-        const f1 = tree.col[i]
-        const eo = tree.data[i] // signed edge
-        const e = Math.abs(eo - 1)
-        const o = Math.sign(eo)
+      const singularity = Matrix.empty([nV, 1])
+      singularity.data[Math.floor(hash11(0x1357) * nV)] = 1
+      singularity.data[Math.floor(hash11(0x9bdf) * nV)] = 1
 
-        // [ Parallel transport ]
-        const n0 = normals.row(f0)
-        const n1 = normals.row(f1)
-        const u = muls(edges.row(e), o)
-        const vector0 = vectorField.row(f0)
-        const vector1 = clone(vector0)
-
-        // Levi-Civita connection
-        matmuleq(axisAngle(u, acos(dot(n0, n1))), vector1)
-
-        // Our connection phi
-        const angle = phi.data[e] * 0
-        matmuleq(axisAngle(n1, angle), vector1)
-
-        normalizeeq(vector1) // suppress numerical error
-        vectorField.row(f1).set(vector1)
-      }
+      const initFace = 0
+      const initAngle = 0
+      const { vectorField, phi, residue } = ddg.solveVectorField(verts, f2v, singularity, initFace, initAngle)
+      assert(vectorField.data.every(x => !Number.isNaN(x)))
+      assert(phi.data.every(x => !Number.isNaN(x)))
+      assert(residue < 0.01)
+      assert(_.max(phi.data) > 2) // looks too much rotation...
+      assert(_.min(phi.data) < -1)
     })
   })
 })
