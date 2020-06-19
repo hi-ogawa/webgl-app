@@ -32,10 +32,13 @@ AFRAME.registerComponent('connection', {
 
   init () {
     this.geometry = this._getGeometry()
+    if (this.geometry) (
+      this._init()
+    )
     this.el.addEventListener('componentchanged', (e) => {
       if (e.detail.name === 'geometry') {
         this.geometry = this._getGeometry()
-        this._update()
+        this._init()
       }
     })
   },
@@ -50,7 +53,7 @@ AFRAME.registerComponent('connection', {
     return geometry && geometry.geometry
   },
 
-  _update () {
+  _init () {
     if (!this.geometry.index) { return }
 
     const { index, attributes: { position } } = this.geometry
@@ -59,17 +62,30 @@ AFRAME.registerComponent('connection', {
     const nV = verts.shape[0]
     const nF = f2v.shape[0]
 
-    // Vector field solver input
-    const initFace = this.data.initFace
-    const initAngle = this.data.initAngle
+    // TODO: for now hard code singularity input
     const singularity = Matrix.empty([nV, 1])
     singularity.data[0] = 1 // north pole of icosphere
     singularity.data[11] = 1 // south pole
 
-    // Solve
-    const { vectorField, edges, normals } = ddg.solveVectorField(verts, f2v, singularity, initFace, initAngle)
+    // Run first 2 solver steps
+    this.solver = new ddg.VectorFieldSolver()
+    this.solver.compute1(verts, f2v)
+    this.solver.compute2(singularity)
+
+    this._update()
+  },
+
+  _update () {
+    if (!this.geometry.index) { return }
+
+    // Vector field solver input
+    const { initFace, initAngle } = this.data
+
+    // Run final solver step
+    this.solver.compute3(initFace, initAngle)
 
     // Visualization
+    const { verts, f2v, nV, nF, singularity, vectorField, edges, normals } = this.solver
     const { addeq, add, muls, length, clone } = glm.vec3
 
     const centroids = ddg.computeFaceCentroids(verts, f2v)

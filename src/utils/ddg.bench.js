@@ -239,4 +239,45 @@ describe('ddg', () => {
       console.log(resultString)
     })
   })
+
+  describe('VectorFieldSolver', () => {
+    it('works 0', () => {
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const nV = verts.shape[0]
+
+      // Instantiate solver
+      const solver = new ddg.VectorFieldSolver()
+
+      // Solver inputs
+      const initFace = 0
+      const initAngle = 0
+      const singularity = Matrix.empty([nV, 1])
+      singularity.data[0] = 1
+      singularity.data[11] = 1
+
+      {
+        const run = () => solver.compute1(verts, f2v)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('VectorFieldSolver.compute1')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.compute2(singularity)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('VectorFieldSolver.compute2')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.compute3(initFace, initAngle)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('VectorFieldSolver.compute3')
+        console.log(resultString)
+      }
+    })
+  })
 })

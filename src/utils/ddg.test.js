@@ -643,25 +643,31 @@ describe('ddg', () => {
     })
   })
 
-  describe('solveVectorField', () => {
-    it('works 0', () => {
-      const { position, index } = UtilsMisc.makeIcosphere(0)
-      const nV = position.length
-      const nF = index.length
-      const verts = Matrix.empty([nV, 3])
-      verts.data.set(position.flat())
-      const f2v = Matrix.empty([nF, 3], Uint32Array)
-      f2v.data.set(index.flat())
+  describe('VectorFieldSolver', () => {
+    it('works 0', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+      const nV = verts.shape[0]
 
-      const singularity = Matrix.empty([nV, 1])
-      singularity.data[0] = 1 // north pole
-      singularity.data[11] = 1 // south pole
+      // Instantiate solver
+      const solver = new ddg.VectorFieldSolver()
 
+      // Solver inputs
       const initFace = 0
       const initAngle = 0
-      const { vectorField, residue } = ddg.solveVectorField(verts, f2v, singularity, initFace, initAngle)
-      deepCloseTo(vectorField.shape, [nF, 3])
-      equal(residue < 1e-3, true)
+      const singularity = Matrix.empty([nV, 1])
+      singularity.data[0] = 1
+      singularity.data[11] = 1
+
+      // Run several compute steps
+      solver.compute1(verts, f2v)
+      solver.compute2(singularity)
+      solver.compute3(initFace, initAngle)
+
+      // Check residue (this residue is only about `solver.compute2`)
+      equal(solver.residue < 1e-3, true)
     })
 
     it('works 1', async () => {
@@ -669,16 +675,25 @@ describe('ddg', () => {
       let { verts, f2v } = readOFF(data, true)
       verts = new Matrix(verts, [verts.length / 3, 3])
       f2v = new Matrix(f2v, [f2v.length / 3, 3])
-
       const nV = verts.shape[0]
 
+      // Instantiate solver
+      const solver = new ddg.VectorFieldSolver()
+
+      // Solver inputs
+      const initFace = 0
+      const initAngle = 0
       const singularity = Matrix.empty([nV, 1])
       singularity.data[Math.floor(hash11(0x1357) * nV)] = 1
       singularity.data[Math.floor(hash11(0x9bdf) * nV)] = 1
 
-      const initFace = 0
-      const initAngle = 0
-      const { vectorField, phi, residue } = ddg.solveVectorField(verts, f2v, singularity, initFace, initAngle)
+      // Run several compute steps
+      solver.compute1(verts, f2v)
+      solver.compute2(singularity)
+      solver.compute3(initFace, initAngle)
+
+      const { vectorField, phi, residue } = solver
+
       assert(vectorField.data.every(x => !Number.isNaN(x)))
       assert(phi.data.every(x => !Number.isNaN(x)))
       assert(residue < 0.01)
