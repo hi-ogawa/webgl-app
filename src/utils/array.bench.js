@@ -7,6 +7,7 @@ import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { timeit } from './timeit.js'
 import { hash11 } from './hash.js'
+import wasmEx01 from '../../misc/wasm/ex01.js'
 
 describe('array', () => {
   describe('Matrix', () => {
@@ -92,87 +93,131 @@ describe('array', () => {
   })
 
   describe('MatrixCSR', () => {
-    it('works 0', () => {
-      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
-      let { verts, f2v } = readOFF(data, true)
-      verts = new Matrix(verts, [verts.length / 3, 3])
-      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+    describe('gaussSeidel', () => {
+      it('works 0', () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
-      let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
-      laplacian = MatrixCSR.fromCOO(laplacian)
-      laplacian.sumDuplicates()
+        let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
+        laplacian = MatrixCSR.fromCOO(laplacian)
+        laplacian.sumDuplicates()
 
-      // cf. Poisson probel from `VectorFieldSolver`
-      const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
-      const b = Matrix.emptyLike(kg)
-      b.data[0] = 1
-      b.data[11] = 1
-      b.muleqs(2 * Math.PI).subeq(kg)
-      const bneg = b.clone().muleqs(-1)
+        // cf. Poisson problem from `VectorFieldSolver`
+        const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+        const b = Matrix.emptyLike(kg)
+        b.data[0] = 1
+        b.data[11] = 1
+        b.muleqs(2 * Math.PI).subeq(kg)
+        const bneg = b.clone().muleqs(-1)
 
-      const u = Matrix.emptyLike(b)
-      const run = () => { Lneg.stepGaussSeidel(u, bneg) }
-      const { resultString } = timeit('args.run()', '', '', { run })
-      console.log('MatrixCSR.stepGaussSeidel')
-      console.log(resultString)
+        const u = Matrix.emptyLike(b)
+        const run = () => Lneg.gaussSeidel(u, bneg, 32)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('MatrixCSR.gaussSeidel')
+        console.log(resultString)
+      })
+
+      // Wasm is about twice faster when -O3
+      it('works 1', async () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+        let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
+        laplacian = MatrixCSR.fromCOO(laplacian)
+        laplacian.sumDuplicates()
+
+        // cf. Poisson problem from `VectorFieldSolver`
+        const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+        const b = Matrix.emptyLike(kg)
+        b.data[0] = 1
+        b.data[11] = 1
+        b.muleqs(2 * Math.PI).subeq(kg)
+        const bneg = b.clone().muleqs(-1)
+
+        // Copy to wasm
+        try {
+          const ww = await wasmEx01.instantiate()
+          const wwA = new ww.MatrixCSR(...Lneg.shape, Lneg.nnz())
+          wwA.indptr().set(Lneg.indptr)
+          wwA.indices().set(Lneg.indices)
+          wwA.data().set(Lneg.data)
+
+          const wwx = new ww.Matrix(...b.shape)
+          const wwb = new ww.Matrix(...b.shape)
+          wwb.data().set(bneg.data)
+
+          const run = () => ww.MatrixCSR.gaussSeidel(wwA, wwx, wwb, 32)
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.gaussSeidel (wasm)')
+          console.log(resultString)
+        } catch (e) {
+          console.log('MatrixCSR.gaussSeidel (wasm) -- wasm not found --')
+        }
+      })
     })
 
-    it('works 1', () => {
-      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
-      let { verts, f2v } = readOFF(data, true)
-      let Lcoo, Lcsr, A, AL
-      verts = new Matrix(verts, [verts.length / 3, 3])
-      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+    describe('misc', () => {
+      it('works 0', () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        let Lcoo, Lcsr, A, AL
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
-      {
-        const run = () => { Lcoo = ddg.computeLaplacianV2(verts, f2v) }
-        const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('computeLaplacianV2')
-        console.log(resultString)
-      }
+        {
+          const run = () => { Lcoo = ddg.computeLaplacianV2(verts, f2v) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('computeLaplacianV2')
+          console.log(resultString)
+        }
 
-      {
-        const run = () => { Lcsr = MatrixCSR.fromCOO(Lcoo) }
-        const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSR.fromCOO')
-        console.log(resultString)
-      }
+        {
+          const run = () => { Lcsr = MatrixCSR.fromCOO(Lcoo) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.fromCOO')
+          console.log(resultString)
+        }
 
-      {
-        const run = () => { Lcsr.sumDuplicates() }
-        const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSR.sumDuplicates')
-        console.log(resultString)
-      }
+        {
+          const run = () => { Lcsr.sumDuplicates() }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.sumDuplicates')
+          console.log(resultString)
+        }
 
-      {
-        const hn2 = Matrix.emptyLike(verts)
-        const run = () => { Lcsr.matmul(hn2, verts) }
-        const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSR.matmul')
-        console.log(resultString)
-      }
+        {
+          const hn2 = Matrix.emptyLike(verts)
+          const run = () => { Lcsr.matmul(hn2, verts) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.matmul')
+          console.log(resultString)
+        }
 
-      {
-        A = Lcsr.clone()
-        A.negadddiags(1e-3) // -A + h I (make it positive definite)
-        // A.idsubmuls(1) // I - h A (make it positive definite)
-        const run = () => { AL = A.choleskyComputeV3() }
-        const { resultString } = timeit('args.run()', '', '', { run }, 1, 4)
-        console.log('MatrixCSR.choleskyCompute')
-        console.log(resultString)
-      }
+        {
+          A = Lcsr.clone()
+          A.negadddiags(1e-3) // -A + h I (make it positive definite)
+          // A.idsubmuls(1) // I - h A (make it positive definite)
+          const run = () => { AL = A.choleskyComputeV3() }
+          const { resultString } = timeit('args.run()', '', '', { run }, 1, 4)
+          console.log('MatrixCSR.choleskyCompute')
+          console.log(resultString)
+        }
 
-      {
-        const nV = verts.shape[0]
-        const b = Matrix.empty([nV, 1])
-        const x = Matrix.empty([nV, 1])
-        b.data.set(_.range(nV).map(hash11))
-        const run = () => { AL.choleskySolveV3(x, b) }
-        const { resultString } = timeit('args.run()', '', '', { run })
-        console.log('MatrixCSR.choleskySolve')
-        console.log(resultString)
-      }
+        {
+          const nV = verts.shape[0]
+          const b = Matrix.empty([nV, 1])
+          const x = Matrix.empty([nV, 1])
+          b.data.set(_.range(nV).map(hash11))
+          const run = () => { AL.choleskySolveV3(x, b) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.choleskySolve')
+          console.log(resultString)
+        }
+      })
     })
   })
 })

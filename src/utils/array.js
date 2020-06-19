@@ -275,6 +275,8 @@ class MatrixCSR {
     this.shape = shape
   }
 
+  nnz () { return this.indptr[this.shape[0]] }
+
   static empty (shape, nnzMax, Klass = Float32Array) {
     const a = new MatrixCSR()
     a.shape = shape
@@ -526,6 +528,12 @@ class MatrixCSR {
       p0 = p1
     }
     return x
+  }
+
+  gaussSeidel (x, b, iteration) {
+    for (let i = 0; i < iteration; i++) {
+      this.stepGaussSeidel(x, b)
+    }
   }
 
   // I - h A (useful for implicit method for PDE)
