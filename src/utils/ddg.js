@@ -786,7 +786,7 @@ class VectorFieldSolver {
     const f2f = computeF2f(d1)
 
     _.assign(this, {
-      verts, f2v, nV, nF, laplacianNeg, kg, d0, d1, hodge1, edges, normals, f2f,
+      verts, f2v, nV, nF, laplacianNeg, kg, d0, d1, hodge1, edges, normals, f2f
     })
   }
 
@@ -818,7 +818,7 @@ class VectorFieldSolver {
   }
 
   compute3 (initFace, initAngle) {
-    const { verts, f2v, nV, nF, f2f, normals, edges, phi } = this
+    const { verts, f2v, nF, f2f, normals, edges, phi } = this
 
     // Define initial vector
     const initVector = [0, 0, 0]
@@ -839,11 +839,9 @@ class VectorFieldSolver {
     vectorField.row(initFace).set(initVector)
 
     // Parallel transport
-    const { acos } = Math
-    const { clone, matmuleq, muls, normalizeeq, dotClamp } = glm.vec3
-    const { axisAngle } = glm.mat3
+    const { clone, matmuleq, muls, normalizeeq } = glm.vec3
+    const { axisAngle, frameXZ, inverse } = glm.mat3
 
-    // TODO: For bunny example, the vector doesn't seem to orthogonal to face??
     for (let i = 0; i < tree.nnz; i++) {
       const f0 = tree.row[i]
       const f1 = tree.col[i]
@@ -858,7 +856,9 @@ class VectorFieldSolver {
       const vector1 = clone(vector0)
 
       // Levi-Civita connection
-      matmuleq(axisAngle(u, acos(dotClamp(n0, n1))), vector1)
+      const frame0 = frameXZ(u, n0)
+      const frame1 = frameXZ(u, n1)
+      matmuleq(frame1, matmuleq(inverse(frame0), vector1)) // TODO: find simpler formula
 
       // Our connection phi (negation "-" comes from our convention of ccw dual edge)
       const angle = -o * phi.data[e]

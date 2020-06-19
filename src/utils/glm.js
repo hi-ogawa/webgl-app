@@ -232,6 +232,82 @@ const mat3 = {
       y[0], y[1], y[2],
       z[0], z[1], z[2]
     ]
+  },
+
+  inverse: (a) => {
+    // Inverse via cofactor
+    const a00 = a[0]
+    const a10 = a[1]
+    const a20 = a[2]
+    const a01 = a[3]
+    const a11 = a[4]
+    const a21 = a[5]
+    const a02 = a[6]
+    const a12 = a[7]
+    const a22 = a[8]
+    const b00 = a11 * a22 - a21 * a12
+    const b10 = a21 * a02 - a01 * a22
+    const b20 = a01 * a12 - a11 * a02
+    const b01 = a12 * a20 - a22 * a10
+    const b11 = a22 * a00 - a02 * a20
+    const b21 = a02 * a10 - a12 * a00
+    const b02 = a10 * a21 - a20 * a11
+    const b12 = a20 * a01 - a00 * a21
+    const b22 = a00 * a11 - a10 * a01
+    const det = a00 * b00 + a10 * b10 + a20 * b20
+    return [
+      b00 / det, b01 / det, b02 / det,
+      b10 / det, b11 / det, b12 / det,
+      b20 / det, b21 / det, b22 / det
+    ]
+  },
+
+  transpose: (a) => {
+    const a00 = a[0]
+    const a10 = a[1]
+    const a20 = a[2]
+    const a01 = a[3]
+    const a11 = a[4]
+    const a21 = a[5]
+    const a02 = a[6]
+    const a12 = a[7]
+    const a22 = a[8]
+    return [
+      a00, a01, a02,
+      a10, a11, a12,
+      a20, a21, a22
+    ]
+  },
+
+  matmul: (a, b) => {
+    const a00 = a[0]
+    const a10 = a[1]
+    const a20 = a[2]
+    const a01 = a[3]
+    const a11 = a[4]
+    const a21 = a[5]
+    const a02 = a[6]
+    const a12 = a[7]
+    const a22 = a[8]
+    const b00 = b[0]
+    const b10 = b[1]
+    const b20 = b[2]
+    const b01 = b[3]
+    const b11 = b[4]
+    const b21 = b[5]
+    const b02 = b[6]
+    const b12 = b[7]
+    const b22 = b[8]
+    const c00 = a00 * b00 + a01 * b10 + a02 * b20
+    const c10 = a10 * b00 + a11 * b10 + a12 * b20
+    const c20 = a20 * b00 + a21 * b10 + a22 * b20
+    const c01 = a00 * b01 + a01 * b11 + a02 * b21
+    const c11 = a10 * b01 + a11 * b11 + a12 * b21
+    const c21 = a20 * b01 + a21 * b11 + a22 * b21
+    const c02 = a00 * b02 + a01 * b12 + a02 * b22
+    const c12 = a10 * b02 + a11 * b12 + a12 * b22
+    const c22 = a20 * b02 + a21 * b12 + a22 * b22
+    return [c00, c10, c20, c01, c11, c21, c02, c12, c22]
   }
 }
 

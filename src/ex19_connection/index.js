@@ -27,14 +27,15 @@ AFRAME.registerComponent('connection', {
   dependencies: ['geometry'],
   schema: {
     initFace: { default: 0, type: 'int' },
-    initAngle: { default: 0 }
+    initAngle: { default: 0 },
+    tree: { default: false }
   },
 
   init () {
     this.geometry = this._getGeometry()
-    if (this.geometry) (
+    if (this.geometry) {
       this._init()
-    )
+    }
     this.el.addEventListener('componentchanged', (e) => {
       if (e.detail.name === 'geometry') {
         this.geometry = this._getGeometry()
@@ -60,9 +61,8 @@ AFRAME.registerComponent('connection', {
     const verts = new Matrix(position.array, [position.count, 3])
     const f2v = new Matrix(index.array, [index.count / 3, 3])
     const nV = verts.shape[0]
-    const nF = f2v.shape[0]
 
-    // TODO: for now hard code singularity input
+    // TODO: for now, we hard code singularity input
     const singularity = Matrix.empty([nV, 1])
     singularity.data[0] = 1 // north pole of icosphere
     singularity.data[11] = 1 // south pole
@@ -85,13 +85,16 @@ AFRAME.registerComponent('connection', {
     this.solver.compute3(initFace, initAngle)
 
     // Visualization
-    const { verts, f2v, nV, nF, singularity, vectorField, edges, normals } = this.solver
-    const { addeq, add, muls, length, clone } = glm.vec3
+    const { verts, f2v, nV, nF, singularity, vectorField, edges, normals, tree } = this.solver
+    const { add, muls, length } = glm.vec3
 
     const centroids = ddg.computeFaceCentroids(verts, f2v)
     const nE = edges.shape[0]
     const edgeLengths = _.range(nE).map(i => length(edges.row(i)))
     const arrowLength = 0.35 * _.sum(edgeLengths) / nE
+
+    // Define dual vertices (push centroid to the normal a bit)
+    const dualVerts = centroids.clone().addeq(normals.clone().muleqs(0.5 * arrowLength))
 
     // Draw vectors
     {
@@ -100,9 +103,7 @@ AFRAME.registerComponent('connection', {
 
       for (let i = 0; i < nF; i++) {
         const v = vectorField.row(i)
-        const p = clone(centroids.row(i))
-        const n = normals.row(i)
-        addeq(p, muls(n, arrowLength * 0.5)) // Push to the normal a bit
+        const p = dualVerts.row(i)
 
         m1.row(2 * i).set(p)
         m1.row(2 * i + 1).set(add(p, muls(v, arrowLength)))
@@ -110,6 +111,7 @@ AFRAME.registerComponent('connection', {
         m2.row(2 * i + 1).set([0, 0.5, 1])
       }
 
+      // TODO: dispose old one on update
       const geometry = new THREE.BufferGeometry()
       geometry.attributes.position = new THREE.BufferAttribute(m1.data, 3)
       geometry.attributes.color = new THREE.BufferAttribute(m2.data, 3)
@@ -144,6 +146,26 @@ AFRAME.registerComponent('connection', {
           material="color: #fff"
         ></a-entity>
       `))
+    }
+
+    // Draw spanning tree
+    this.el.removeObject3D('tree')
+    if (this.data.tree) {
+      const index = Matrix.empty([nF, 2], Uint32Array)
+
+      for (let i = 0; i < tree.nnz; i++) {
+        index.set(i, 0, tree.row[i])
+        index.set(i, 1, tree.col[i])
+      }
+
+      // TODO: dispose old one on update
+      const geometry = new THREE.BufferGeometry()
+      geometry.attributes.position = new THREE.BufferAttribute(dualVerts.data, 3)
+      geometry.index = new THREE.BufferAttribute(index.data, 1)
+
+      const material = new THREE.LineBasicMaterial({ linewidth: 1, color: '#ff0' })
+      const object = new THREE.LineSegments(geometry, material)
+      this.el.setObject3D('tree', object)
     }
   }
 })

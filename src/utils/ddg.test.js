@@ -644,11 +644,12 @@ describe('ddg', () => {
   })
 
   describe('VectorFieldSolver', () => {
-    it('works 0', async () => {
-      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.off')
-      let { verts, f2v } = readOFF(data, true)
-      verts = new Matrix(verts, [verts.length / 3, 3])
-      f2v = new Matrix(f2v, [f2v.length / 3, 3])
+    it('works 0', () => {
+      const { position, index } = UtilsMisc.makeIcosphere(2)
+      const verts = Matrix.empty([position.length, 3])
+      const f2v = Matrix.empty([index.length, 3], Uint32Array)
+      verts.data.set(position.flat())
+      f2v.data.set(index.flat())
       const nV = verts.shape[0]
 
       // Instantiate solver

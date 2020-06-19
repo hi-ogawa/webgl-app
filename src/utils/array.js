@@ -144,6 +144,11 @@ class Matrix {
     return this
   }
 
+  addeq (other) {
+    other.forEach((v, i, j) => { this.incr(i, j, v) })
+    return this
+  }
+
   subeq (other) {
     other.forEach((v, i, j) => { this.incr(i, j, -v) })
     return this

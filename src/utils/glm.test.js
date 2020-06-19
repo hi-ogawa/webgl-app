@@ -2,8 +2,9 @@
 /* global describe, it */
 
 import assert from 'assert'
-import * as glm from './glm.js'
 import _ from '../../web_modules/lodash.js'
+import * as glm from './glm.js'
+import { hash11 } from './hash.js'
 
 const deepEqual = assert.deepStrictEqual
 const closeTo = (actual, expected, epsilon = 1e-6) => {
@@ -44,25 +45,58 @@ describe('glm', () => {
   })
 
   describe('mat3', () => {
-    it('works 0', () => {
-      const { PI } = Math
-      const { axisAngle } = glm.mat3
+    describe('axisAngle', () => {
+      it('works 0', () => {
+        const { PI } = Math
+        const { axisAngle } = glm.mat3
 
-      deepCloseTo(axisAngle([1, 0, 0], 0.5 * PI), [
-        1, 0, 0,
-        0, 0, 1,
-        0, -1, 0
-      ])
-      deepCloseTo(axisAngle([0, 1, 0], 0.5 * PI), [
-        0, 0, -1,
-        0, 1, 0,
-        1, 0, 0
-      ])
-      deepCloseTo(axisAngle([0, 0, 1], 0.5 * PI), [
-        0, 1, 0,
-        -1, 0, 0,
-        0, 0, 1
-      ])
+        deepCloseTo(axisAngle([1, 0, 0], 0.5 * PI), [
+          1, 0, 0,
+          0, 0, 1,
+          0, -1, 0
+        ])
+        deepCloseTo(axisAngle([0, 1, 0], 0.5 * PI), [
+          0, 0, -1,
+          0, 1, 0,
+          1, 0, 0
+        ])
+        deepCloseTo(axisAngle([0, 0, 1], 0.5 * PI), [
+          0, 1, 0,
+          -1, 0, 0,
+          0, 0, 1
+        ])
+      })
+    })
+
+    describe('inverse', () => {
+      it('works 0', () => {
+        const { inverse, matmul } = glm.mat3
+        const a = [
+          2, 0, 0,
+          0, 3, 0,
+          0, 0, 5
+        ]
+        deepCloseTo(inverse(a), [
+          1 / 2, 0, 0,
+          0, 1 / 3, 0,
+          0, 0, 1 / 5
+        ])
+        deepCloseTo(matmul(a, inverse(a)), [
+          1, 0, 0,
+          0, 1, 0,
+          0, 0, 1
+        ])
+      })
+
+      it('works 0', () => {
+        const { normalize, cross } = glm.vec3
+        const { inverse, transpose } = glm.mat3
+        const x = normalize([hash11(0x13), hash11(0x57), hash11(0x9b)])
+        const y = normalize(cross(x, [hash11(0x31), hash11(0x75), hash11(0xb9)]))
+        const z = cross(x, y)
+        const a = [...x, ...y, ...z] // Unitary
+        deepCloseTo(inverse(a), transpose(a))
+      })
     })
   })
 })
