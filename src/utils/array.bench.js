@@ -160,6 +160,32 @@ describe('array', () => {
       })
     })
 
+    describe('conjugateGradient', () => {
+      it('works', () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+        let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
+        laplacian = MatrixCSR.fromCOO(laplacian)
+        laplacian.sumDuplicates()
+
+        // cf. Poisson problem from `VectorFieldSolver`
+        const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+        const b = Matrix.emptyLike(kg)
+        b.data[0] = 1
+        b.data[11] = 1
+        b.muleqs(2 * Math.PI).subeq(kg)
+        const bneg = b.clone().muleqs(-1)
+
+        const u = Matrix.emptyLike(b)
+        const run = () => { u.data.fill(0); Lneg.conjugateGradient(u, bneg) }
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log(resultString)
+      })
+    })
+
     describe('misc', () => {
       it('works 0', () => {
         const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()

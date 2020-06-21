@@ -70,7 +70,7 @@ AFRAME.registerComponent('connection', {
     // Run first 2 solver steps
     this.solver = new ddg.VectorFieldSolver()
     this.solver.compute1(verts, f2v)
-    this.solver.compute2(singularity)
+    this.solver.compute2(singularity, 1024, 1e-3)
 
     this._update()
   },

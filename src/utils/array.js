@@ -1209,6 +1209,53 @@ class MatrixCSR {
     }
     return y
   }
+
+  // A x = b
+  // TODO: Write down proof of A-orthogonality
+  conjugateGradient (x, b, iterLim = 1024, residueLim = 1e-3) {
+    const A = this
+
+    // r = A x - b
+    const r = Matrix.emptyLike(x)
+    A.matmul(r, x).subeq(b)
+
+    let rDot = r.dotHS2()
+    if (rDot < residueLim) {
+      return { iteration: 0, residue: rDot }
+    }
+
+    const p = r.clone()
+    const Ap = Matrix.emptyLike(p)
+
+    for (let i = 0; i < iterLim; i++) {
+      A.matmul(Ap, p)
+      const pAp = p.dotHS(Ap)
+
+      // alpha = - <r, r> / <p, A p>
+      const alpha = -rDot / pAp
+
+      // x' = x + alpha p
+      x.forEach((v, i, j) => x.set(i, j, v + alpha * p.get(i, j)))
+
+      // r' = r + alpha A p
+      r.forEach((v, i, j) => r.set(i, j, v + alpha * Ap.get(i, j)))
+
+      const _rDot = r.dotHS2()
+      if (_rDot < residueLim) {
+        return { iteration: i, residue: _rDot }
+      }
+
+      // beta = <r', r'> / <r, r>
+      const beta = _rDot / rDot
+
+      // p' = r' + beta p
+      p.forEach((v, i, j) => p.set(i, j, r.get(i, j) + beta * v))
+
+      rDot = _rDot
+    }
+
+    return { iteration: iterLim, residue: rDot }
+  }
 }
 
 export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR, splitByIndptr }

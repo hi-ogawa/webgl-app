@@ -445,5 +445,54 @@ describe('array', () => {
         [5, 18, 61]
       ])
     })
+
+    describe('conjugateGradient', () => {
+      it('works 0', () => {
+        const a = Matrix.empty([4, 4])
+        a.data.set([
+          2, -1, 0, 0,
+          -1, 2, -1, 0,
+          0, -1, 2, -1,
+          0, 0, -1, 2
+        ])
+
+        const A = MatrixCSR.fromDense(a)
+        const x = Matrix.empty([4, 1])
+        const b = Matrix.emptyLike(x)
+        b.data.set([1, 2, 3, 4])
+
+        const { residue } = A.conjugateGradient(x, b)
+        closeTo(residue, 0)
+        deepCloseTo(x.data, [4, 7, 8, 6])
+      })
+
+      it('works 1', () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+        let { laplacian, kg } = ddg.computeMoreV2(verts, f2v)
+        laplacian = MatrixCSR.fromCOO(laplacian)
+        laplacian.sumDuplicates()
+
+        // cf. Poisson problem from `VectorFieldSolver`
+        const Lneg = laplacian.clone().negadddiags(1e-3) // = - L + h I (positive definite)
+        const b = Matrix.emptyLike(kg)
+        b.data[0] = 1
+        b.data[11] = 1
+        b.muleqs(2 * Math.PI).subeq(kg)
+        const bneg = b.clone().muleqs(-1)
+
+        const u = Matrix.emptyLike(b)
+        const { iteration, residue } = Lneg.conjugateGradient(u, bneg)
+        closeTo(iteration, 188)
+        assert(residue < 1e-3)
+
+        const Lnegu = Matrix.emptyLike(u)
+        Lneg.matmul(Lnegu, u)
+        deepCloseTo(Lnegu.data, bneg.data, 1e-2)
+      })
+    })
   })
 })
