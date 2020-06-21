@@ -353,6 +353,51 @@ describe('array', () => {
       // const L = A.choleskyComputeV3()
     })
 
+    describe('choleskyComputeV4', () => {
+      it('works 0', function () {
+        const a = Matrix.empty([4, 4])
+        a.data.set([
+          2, -1, 0, 0,
+          -1, 2, -1, 0,
+          0, -1, 2, -1,
+          0, 0, -1, 2
+        ])
+
+        const A = MatrixCSR.fromDense(a)
+        const { L, D } = A.choleskyComputeV4() // eslint-disable-line
+      })
+
+      it('works 1', function () {
+        this.timeout(10000)
+
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+        let A = ddg.computeLaplacianV2(verts, f2v)
+        A = MatrixCSR.fromCOO(A)
+        A.sumDuplicates()
+        A.negadddiags(1e-3) // -A + h I (make it positive definite)
+
+        // Compute: A = L D L^T
+        const { L, D } = A.choleskyComputeV4()
+
+        // RHS b
+        const b = Matrix.empty([verts.shape[0], 1])
+        b.data.set(_.range(b.data.length).map(hash11))
+
+        // Solve: L D L^T x = b
+        const x = Matrix.emptyLike(b)
+        L.choleskySolveV4(x, D, b)
+
+        // Verify A x = b
+        const Ax = Matrix.emptyLike(b)
+        A.matmul(Ax, x)
+        deepCloseTo(Ax.data, b.data, 1e-2)
+      })
+    })
+
     it('works 5 1 (choleskyCompute) (bunny laplacian)', function () {
       this.timeout(10000)
 

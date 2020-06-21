@@ -144,6 +144,13 @@ class Matrix {
     return this
   }
 
+  diveq (other) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] /= other.data[i]
+    }
+    return this
+  }
+
   addeq (other) {
     other.forEach((v, i, j) => { this.incr(i, j, v) })
     return this
@@ -737,7 +744,7 @@ class MatrixCSR {
       }
     }
 
-    const L = new MatrixCSR()
+    const L = new MatrixCSR() // NOTE: actually CSC
     L.shape = A.shape
     L.indptr = cscIndptr
     L.indices = cscIndices
@@ -745,11 +752,158 @@ class MatrixCSR {
     return L
   }
 
+  // Almost identical to choleskyComputeV3
+  // A = L D L^T where L's diagonals are all "1"
+  choleskyComputeV4 () {
+    const A = this
+    const N = A.shape[0]
+
+    // 1.
+    // - Elimination tree
+    // - CSC counts
+    const elimTree = new Int32Array(N)
+    const visited = new Uint32Array(N)
+    const cscCounts = new Uint32Array(N)
+    {
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        elimTree[k] = -1
+        visited[k] = k
+        cscCounts[k] = 1
+
+        // Loop A[k, <k] (equivalently A[<k, k] since symmetric)
+        for (let p = A.indptr[k]; p < A.indptr[k + 1]; p++) {
+          const i0 = A.indices[p]
+          if (i0 === k) { break }
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            if (elimTree[i] === -1) { elimTree[i] = k }
+            visited[i] = k
+            cscCounts[i]++
+          }
+        }
+      }
+    }
+
+    // 2.
+    // - CSC indptr from CSC count
+    const cscIndptr = new Uint32Array(N + 1)
+    for (let i = 0; i < N; i++) {
+      cscIndptr[i + 1] = cscIndptr[i] + cscCounts[i]
+    }
+
+    // 3.
+    // - CSC indices (previously separate pass, which seemed fine in terms of performance and code readability...)
+    // - Lower triangle solve x N
+    const cscIndices = new Uint32Array(cscIndptr[N])
+    const cscData = new Float32Array(cscIndptr[N])
+    const D = Matrix.empty([N, 1])
+    {
+      const rhs = new Float32Array(N)
+      const topsort = new Uint32Array(N)
+
+      // Loop L row
+      for (let k = 0; k < N; k++) {
+        visited[k] = k
+        cscIndices[cscIndptr[k]] = k
+        cscCounts[k] = 1
+
+        let Lacc = 0
+        let Akk = 0
+        let tail = N // Push topsort elements from tail
+
+        // Loop A row (fill rhs and obtain topsort)
+        for (let p = A.indptr[k]; ; p++) {
+          const i0 = A.indices[p]
+          const Aki = A.data[p]
+          if (i0 === k) {
+            Akk = Aki
+            break
+          }
+
+          let depth = 0
+
+          // Follow elimination tree
+          for (let i = i0; visited[i] !== k; i = elimTree[i]) {
+            visited[i] = k
+
+            // Save temporary order into head
+            topsort[depth++] = i
+
+            // Refresh rhs
+            rhs[i] = 0
+
+            // Set CSC index
+            cscIndices[cscIndptr[i] + cscCounts[i]] = k
+          }
+
+          // Push to tail
+          while (depth > 0) {
+            topsort[--tail] = topsort[--depth]
+          }
+
+          // Fill rhs
+          rhs[i0] = Aki
+        }
+
+        // Rest is similar to usual `solveCscL`
+
+        for (; tail < N; tail++) {
+          const i = topsort[tail]
+          const Dii = D.data[i]
+
+          // Set L[k, i]
+          const Lki = rhs[i] / Dii
+          cscData[cscIndptr[i] + cscCounts[i]++] = Lki
+          Lacc += Dii * Lki ** 2
+
+          // Subtract LT[i, k] factor from rhs
+          for (let p = cscIndptr[i]; ; p++) { // We don't check p < cscIndptr[i + 1] since "j >= k" always breaks
+            const j = cscIndices[p]
+            if (j >= k) { break }
+
+            const Lji = cscData[p]
+            rhs[j] -= Lji * Dii * Lki
+          }
+        }
+
+        // Set D[k, k]
+        const Dkk = Akk - Lacc
+        if (Dkk < 0) {
+          throw new Error('[choleskyComputeV4] Not positive definite')
+        }
+        D.data[k] = Dkk
+
+        // Set L[k, k]
+        const Lkk = 1
+        cscData[cscIndptr[k]] = Lkk
+      }
+    }
+
+    const L = new MatrixCSR() // NOTE: actually CSC
+    L.shape = A.shape
+    L.indptr = cscIndptr
+    L.indices = cscIndices
+    L.data = cscData
+    return { L, D }
+  }
+
   // L L^T X = B
   choleskySolveV3 (x, b) {
     const y = Matrix.emptyLike(x)
     this.solveCscL(y, b) // L y = b
     this.solveCscLT(x, y) // L^T x = y
+    return x
+  }
+
+  // L D L^T X = B
+  choleskySolveV4 (x, D, b) {
+    const L = this
+    const y = Matrix.emptyLike(x)
+    L.solveCscL(y, b) // L y = b
+    y.diveq(D) // D y' = y
+    L.solveCscLT(x, y) // L^T x = y'
     return x
   }
 
