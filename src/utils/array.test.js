@@ -8,17 +8,7 @@ import * as ddg from './ddg.js'
 import { readOFF } from './reader.js'
 import { hash11 } from './hash.js'
 import * as UtilsMisc from './misc.js'
-
-// TODO: make separate utility file
-const closeTo = (actual, expected, epsilon = 1e-6) => {
-  if (Math.abs(actual - expected) < epsilon) { return }
-  assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-}
-const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
-  actual = _.flattenDeep(actual)
-  expected = _.flattenDeep(expected)
-  _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
-}
+import { closeTo, deepCloseTo } from './test-misc.js'
 
 describe('array', () => {
   describe('Matrix', () => {
@@ -488,7 +478,7 @@ describe('array', () => {
         [5, 8, 5],
         [8, 25, 18],
         [5, 18, 61]
-      ])
+      ].flat())
     })
 
     describe('conjugateGradient', () => {

@@ -1,24 +1,8 @@
-/* eslint camelcase: 0 */
 /* global describe, it */
 
-import assert from 'assert'
-import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
 import { hash11 } from './hash.js'
-
-const deepEqual = assert.deepStrictEqual
-const closeTo = (actual, expected, epsilon = 1e-6) => {
-  if (Math.abs(actual - expected) < epsilon) { return }
-  assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-}
-const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
-  if (actual.length !== expected.length) {
-    assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-  }
-  actual = _.flattenDeep(actual)
-  expected = _.flattenDeep(expected)
-  _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
-}
+import { deepEqual, deepCloseTo } from './test-misc.js'
 
 describe('glm', () => {
   describe('vec3', () => {

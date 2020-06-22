@@ -11,23 +11,24 @@ import util from 'util'
 import { readOFF } from './reader.js'
 import { hash11 } from './hash.js'
 import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
+import { equal, deepEqual, closeTo, deepCloseTo } from './test-misc.js'
 
 const { PI } = Math
 
-const equal = assert.strictEqual
-const deepEqual = assert.deepStrictEqual
-const closeTo = (actual, expected, epsilon = 1e-6) => {
-  if (Math.abs(actual - expected) < epsilon) { return }
-  assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-}
-const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
-  if (actual.length !== expected.length) {
-    assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-  }
-  actual = _.flattenDeep(actual)
-  expected = _.flattenDeep(expected)
-  _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
-}
+// const equal = assert.strictEqual
+// const deepEqual = assert.deepStrictEqual
+// const closeTo = (actual, expected, epsilon = 1e-6) => {
+//   if (Math.abs(actual - expected) < epsilon) { return }
+//   assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
+// }
+// const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
+//   if (actual.length !== expected.length) {
+//     assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
+//   }
+//   actual = _.flattenDeep(actual)
+//   expected = _.flattenDeep(expected)
+//   _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
+// }
 const fsReadFile = util.promisify(fs.readFile)
 const readFile = (f) => fsReadFile(f).then(buffer => buffer.toString())
 
