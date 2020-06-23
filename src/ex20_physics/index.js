@@ -12,10 +12,8 @@ import { patchAframeThree } from '../utils/aframe/misc.js'
 import '../utils/aframe/input.js'
 import '../utils/aframe/orbit-controls.js'
 import '../utils/aframe/coordinate-grid.js'
-import '../utils/aframe/init-inspector.js'
-import '../utils/aframe/url-geometry.js'
 import '../utils/aframe/geometry.js'
-import '../utils/aframe/line-ext.js'
+import '../utils/aframe/simple-controls.js'
 import * as ddg from '../utils/ddg.js'
 import * as glm from '../utils/glm.js'
 import { Matrix } from '../utils/array.js'
@@ -50,6 +48,11 @@ AFRAME.registerComponent('physics', {
   },
 
   tick () {
+    // Interactive handle
+    glm.vec3.copy(
+      this.solver.pinPosition,
+      this.el.sceneEl.querySelector('#handle').object3D.position.toArray())
+
     this.solver.update()
     this.points.geometry.attributes.position.needsUpdate = true
     this.lines.geometry.attributes.position.needsUpdate = true

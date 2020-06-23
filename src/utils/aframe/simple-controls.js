@@ -78,6 +78,7 @@ AFRAME.registerComponent('simple-controls', {
 
       if (this.mode === kModeTranslate) {
         if (!(mouseDelta.x === 0 && mouseDelta.y === 0)) {
+          // TODO: Handle when object has scale != 1
           UtilsMisc.applyWindowDelta(mouseDelta, object3D, w, h, camera)
           this.el.emit('simple-controls-object-changed')
         }

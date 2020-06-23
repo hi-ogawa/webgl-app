@@ -24,6 +24,7 @@ class Example00 {
     const constraints = []
 
     // 2.1. Pin 1st vertex at 0
+    const pinPosition = [0, 0, 0]
     {
       const stiffness = 1024
 
@@ -38,9 +39,8 @@ class Example00 {
       constraints.push({
         variableWidth: 3,
         localStep: (x, p) => {
-          // p = [0, 0, 0]
           const offset = 0
-          p.data.set([0, 0, 0], offset)
+          p.data.set(pinPosition, offset)
         },
         globalStep: { A, B }
       })
@@ -105,14 +105,19 @@ class Example00 {
     // Velocity
     const v = Matrix.emptyLike(x)
 
+    const t = 0
     _.assign(this, {
-      x, v, dt, Md, ATB, Esparse, constraints, iterPD, B, nV, g
+      x, v, t, dt, Md, ATB, Esparse, constraints, iterPD, B, nV, g,
+      pinPosition,
     })
   }
 
   update () {
     const {
       x, v, dt, Md, ATB, Esparse, constraints, iterPD, B, nV, g
+    } = this
+    let {
+      t
     } = this
 
     const x0 = x.clone() // Save previous state for later use
@@ -123,6 +128,15 @@ class Example00 {
     for (let i = 0; i < nV; i++) {
       v.data[3 * i + 1] -= dt * g
     }
+    //   - Wind
+    // for (let i = 0; i < nV; i++) {
+    //   const mu = 1
+    //   let wind = 0.0
+    //   const { PI, cos } = Math
+    //   wind = wind * cos(2 * PI * t / 4)
+    //   v.data[3 * i + 2] += (- mu * (v.data[3 * i + 2] - wind))
+    // }
+
     // - Integrate position
     x.addeq(v.clone().muleqs(dt))
 
@@ -143,6 +157,11 @@ class Example00 {
     // Reset velocity (v = (x - x0) / dt)
     v.copy(x)
     v.subeq(x0).diveqs(dt)
+
+    t += dt
+    _.assign(this, {
+      t
+    })
   }
 }
 
