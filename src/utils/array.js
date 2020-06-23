@@ -234,7 +234,7 @@ class Matrix {
 
     const a = Matrix.empty([shape0, shape1], m0.data.constructor)
     let row = 0
-    for (let m of ms) {
+    for (const m of ms) {
       a.data.set(m.data, a.index(row, 0))
       row += m.shape[0]
     }
@@ -248,7 +248,7 @@ class Matrix {
     const a = Matrix.empty([shape0, shape1], ms[0].data.constructor)
     let row = 0
     let col = 0
-    for (let m of ms) {
+    for (const m of ms) {
       m.forEach((v, i, j) => a.set(row + i, col + j, v))
       row += m.shape[0]
       col += m.shape[1]

@@ -62,6 +62,12 @@ const generateOperators = (name, op, n) => {
   }
 }
 
+const scalar = {
+  mix: (a, b, t) => {
+    return a + t * (b - a)
+  }
+}
+
 // TODO: Check if Float32Array is faster (probably so)
 const vec3 = {
   vec3: (x, y, z) => {
@@ -329,4 +335,4 @@ const quat = {
   }
 }
 
-export { vec3, mat3, quat }
+export { scalar, vec3, mat3, quat }

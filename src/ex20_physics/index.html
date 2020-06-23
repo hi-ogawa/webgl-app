@@ -23,10 +23,11 @@
       </a-asset>
 
       <a-entity physics></a-entity>
-      <a-entity id="handle" simple-controls><a-entity mixin="point"></a-entity></a-entity>
+      <a-entity id="handle1" position="0 0 0" simple-controls><a-entity mixin="point"></a-entity></a-entity>
+      <a-entity id="handle2" position="0.1 0.1 0" simple-controls><a-entity mixin="point"></a-entity></a-entity>
 
       <!-- Camera and Sun light -->
-      <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 2 7" orbit-controls="drawLookat: false">
+      <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="0 0 4" orbit-controls="drawLookat: false">
         <a-entity light="type: directional; intensity: 0.35"></a-entity>
       </a-entity>
 

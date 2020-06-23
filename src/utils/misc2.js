@@ -42,7 +42,15 @@ const getSignedColor = (value, color0, colorP, colorN) => {
     : glm.vec3.mix(color0, colorN, -value)
 }
 
+const cumsum = (a) => {
+  const b = new Array(a.length + 1).fill(0)
+  for (let i = 0; i < a.length; i++) {
+    b[i + 1] = b[i] + a[i]
+  }
+  return b
+}
+
 export {
   normalizePositions, normalizePositionsV2,
-  getSignedColor
+  getSignedColor, cumsum
 }

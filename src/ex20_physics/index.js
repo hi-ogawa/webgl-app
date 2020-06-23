@@ -4,7 +4,6 @@
 // Discrete trivial connection with prescribed singularity
 //
 
-import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from '../utils/index.js'
 import * as UtilsMisc from '../utils/misc.js'
@@ -14,13 +13,11 @@ import '../utils/aframe/orbit-controls.js'
 import '../utils/aframe/coordinate-grid.js'
 import '../utils/aframe/geometry.js'
 import '../utils/aframe/simple-controls.js'
-import * as ddg from '../utils/ddg.js'
 import * as glm from '../utils/glm.js'
-import { Matrix } from '../utils/array.js'
 import { Example00 } from '../utils/physics.js'
 
 const THREE = AFRAME.THREE
-const { $, stringToElement } = UtilsMisc
+const { $ } = UtilsMisc
 
 AFRAME.registerComponent('physics', {
   init () {
@@ -31,9 +28,9 @@ AFRAME.registerComponent('physics', {
     this.points = new THREE.Points()
     this.points.material = new THREE.PointsMaterial({
       sizeAttenuation: false,
-      alphaMap: UtilsMisc.makeDiskAlphaMap(3, 1), // radius, aa
+      alphaMap: UtilsMisc.makeDiskAlphaMap(2, 1), // radius, aa
       transparent: true,
-      depthTest: false,
+      depthTest: false
     })
     this.points.material.size = this.points.material.alphaMap.image.width
     this.points.geometry = new THREE.BufferGeometry()
@@ -50,13 +47,17 @@ AFRAME.registerComponent('physics', {
   tick () {
     // Interactive handle
     glm.vec3.copy(
-      this.solver.pinPosition,
-      this.el.sceneEl.querySelector('#handle').object3D.position.toArray())
+      this.solver.pinPositions[0],
+      this.el.sceneEl.querySelector('#handle1').object3D.position.toArray())
+
+    glm.vec3.copy(
+      this.solver.pinPositions[1],
+      this.el.sceneEl.querySelector('#handle2').object3D.position.toArray())
 
     this.solver.update()
     this.points.geometry.attributes.position.needsUpdate = true
     this.lines.geometry.attributes.position.needsUpdate = true
-  },
+  }
 })
 
 const main = () => {
