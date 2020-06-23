@@ -72,6 +72,16 @@ class Matrix {
     return Matrix.empty(other.shape, other.data.constructor)
   }
 
+  reshape (shape) {
+    if (shape[0] === -1) {
+      shape[0] = this.size / shape[1]
+    }
+    if (shape[1] === -1) {
+      shape[1] = this.size / shape[0]
+    }
+    return new Matrix(this.data, shape)
+  }
+
   clone () {
     const other = Matrix.empty(this.shape, this.data.constructor)
     other.data.set(this.data)
@@ -151,8 +161,22 @@ class Matrix {
     return this
   }
 
+  diveqs (other) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] /= other
+    }
+    return this
+  }
+
   addeq (other) {
     other.forEach((v, i, j) => { this.incr(i, j, v) })
+    return this
+  }
+
+  addeqs (other) {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] += other
+    }
     return this
   }
 
@@ -194,6 +218,43 @@ class Matrix {
   }
 
   dotHS2 () { return this.dotHS(this) }
+
+  static print (a) {
+    return _.chunk(a.data, a.shape[1]).map(row => row.join(' ')).join('\n')
+  }
+
+  // V -> V1 x V2 (category theoretically)
+  static stack (ms) {
+    const m0 = ms[0]
+    const shape0 = _.sum(ms.map(m => m.shape[0]))
+    const shape1 = m0.shape[1]
+    if (!ms.every(m => m0.shape[1] === shape1)) {
+      throw new Error('[Matrix.stack]')
+    }
+
+    const a = Matrix.empty([shape0, shape1], m0.data.constructor)
+    let row = 0
+    for (let m of ms) {
+      a.data.set(m.data, a.index(row, 0))
+      row += m.shape[0]
+    }
+    return a
+  }
+
+  // V1 x V2 -> V3 x V4 (category theoretically)
+  static stackDiagonal (ms) {
+    const shape0 = _.sum(ms.map(m => m.shape[0]))
+    const shape1 = _.sum(ms.map(m => m.shape[1]))
+    const a = Matrix.empty([shape0, shape1], ms[0].data.constructor)
+    let row = 0
+    let col = 0
+    for (let m of ms) {
+      m.forEach((v, i, j) => a.set(row + i, col + j, v))
+      row += m.shape[0]
+      col += m.shape[1]
+    }
+    return a
+  }
 }
 
 // TODO: For now, we use Matrix with shape [n, 1]

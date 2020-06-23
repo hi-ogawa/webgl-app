@@ -9,7 +9,7 @@
     "lint": "standard -v",
     "lint_all": "standard -v 'src/**/*.js'",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",
-    "lint:watch": "nodemon --watch src --ext js --exec \"npm run lint_all\"",
+    "lint_all:watch": "nodemon --watch src --ext js --exec \"npm run lint_all\"",
     "screenshot": "node scripts/screenshot.js",
     "screenshot_all": "bash scripts/screenshot_all.sh",
     "screenshot_all_with_server": "bash scripts/screenshot_all_with_server.sh"

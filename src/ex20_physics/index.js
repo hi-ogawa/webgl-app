@@ -1,0 +1,66 @@
+/* eslint camelcase: 0 */
+
+//
+// Discrete trivial connection with prescribed singularity
+//
+
+import _ from '../../web_modules/lodash.js'
+import AFRAME from '../../web_modules/aframe.js'
+import * as Utils from '../utils/index.js'
+import * as UtilsMisc from '../utils/misc.js'
+import { patchAframeThree } from '../utils/aframe/misc.js'
+import '../utils/aframe/input.js'
+import '../utils/aframe/orbit-controls.js'
+import '../utils/aframe/coordinate-grid.js'
+import '../utils/aframe/init-inspector.js'
+import '../utils/aframe/url-geometry.js'
+import '../utils/aframe/geometry.js'
+import '../utils/aframe/line-ext.js'
+import * as ddg from '../utils/ddg.js'
+import * as glm from '../utils/glm.js'
+import { Matrix } from '../utils/array.js'
+import { Example00 } from '../utils/physics.js'
+
+const THREE = AFRAME.THREE
+const { $, stringToElement } = UtilsMisc
+
+AFRAME.registerComponent('physics', {
+  init () {
+    this.solver = new Example00()
+    this.solver.init()
+
+    const { x } = this.solver
+    this.points = new THREE.Points()
+    this.points.material = new THREE.PointsMaterial({
+      sizeAttenuation: false,
+      alphaMap: UtilsMisc.makeDiskAlphaMap(3, 1), // radius, aa
+      transparent: true,
+      depthTest: false,
+    })
+    this.points.material.size = this.points.material.alphaMap.image.width
+    this.points.geometry = new THREE.BufferGeometry()
+    this.points.geometry.attributes.position = new THREE.BufferAttribute(x.data, 3)
+    this.el.setObject3D('points', this.points)
+
+    this.lines = new THREE.Line()
+    this.lines.material = new THREE.LineBasicMaterial({ linewidth: 1.5 })
+    this.lines.geometry = new THREE.BufferGeometry()
+    this.lines.geometry.attributes.position = new THREE.BufferAttribute(x.data, 3)
+    this.el.setObject3D('lines', this.lines)
+  },
+
+  tick () {
+    this.solver.update()
+    this.points.geometry.attributes.position.needsUpdate = true
+    this.lines.geometry.attributes.position.needsUpdate = true
+  },
+})
+
+const main = () => {
+  Utils.patchThreeMath()
+  patchAframeThree()
+  const scene = $('#scene').content.cloneNode(true)
+  $('#root').appendChild(scene)
+}
+
+export { main }

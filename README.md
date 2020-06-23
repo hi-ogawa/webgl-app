@@ -12,7 +12,7 @@ npm test
 # Linting
 npm run lint -- src/utils/*.js # choose files
 npm run lint_diff # files from `git diff --staged`
-npm run lint:watch
+npm run lint_all:watch
 
 # Screenshot
 npm install --prefix scripts

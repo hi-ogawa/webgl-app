@@ -23,6 +23,40 @@ describe('array', () => {
       a.data.set(_.range(3 * 4))
       assert.strictEqual(a.dotHS2(), _.sum(_.range(3 * 4).map(x => x ** 2)))
     })
+
+    describe('stack', () => {
+      const a = Matrix.empty([2, 3])
+      const b = Matrix.empty([4, 3])
+      a.data.set(_.range(3 * 2))
+      b.data.set(_.range(3 * 4))
+
+      const c = Matrix.stack([a, b])
+      deepCloseTo(c.data, [
+        0, 1, 2,
+        3, 4, 5,
+        0, 1, 2,
+        3, 4, 5,
+        6, 7, 8,
+        9, 10, 11,
+      ])
+    })
+
+    describe('stackDiagonal', () => {
+      const a = Matrix.empty([2, 3])
+      const b = Matrix.empty([4, 3])
+      a.data.set(_.range(3 * 2))
+      b.data.set(_.range(3 * 4))
+
+      const c = Matrix.stackDiagonal([a, b])
+      deepCloseTo(c.data, [
+        0, 1, 2, 0, 0, 0,
+        3, 4, 5, 0, 0, 0,
+        0, 0, 0, 0, 1, 2,
+        0, 0, 0, 3, 4, 5,
+        0, 0, 0, 6, 7, 8,
+        0, 0, 0, 9, 10, 11
+      ])
+    })
   })
 
   describe('MatrixCOO', () => {
