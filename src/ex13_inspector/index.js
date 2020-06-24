@@ -6,6 +6,7 @@
 
 import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
+import '../utils/aframe/geometry.js'
 
 const stringToElement = (s) => {
   const template = document.createElement('template')

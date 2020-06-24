@@ -2,6 +2,7 @@
 // Miscellaneous but (hopefully) without external dependencies
 //
 import * as glm from './glm.js'
+import { Matrix } from './array.js'
 
 // Scale a set of positions to [-1, 1]^3
 const normalizePositions = (verts) => {
@@ -50,7 +51,51 @@ const cumsum = (a) => {
   return b
 }
 
+const makeTriangle = (n = 1, p0 = [-1, 0, 0], p1 = [1, 0, 0], p2 = [0, Math.sqrt(3), 0]) => {
+  const { add, sub, muls } = glm.vec3
+  const u1 = sub(p1, p0)
+  const u2 = sub(p2, p0)
+
+  const nV = (n + 2) * (n + 1) / 2
+  const nF = n * n
+  const verts = Matrix.empty([nV, 3])
+  const f2v = Matrix.empty([nF, 3], Uint32Array)
+
+  let k = 0 // track vertex index
+  let l = 0 // track face index
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n - j; i++) {
+      // (i, j+1) --- (i+1, j+1)       c --- d
+      //     |     \     |             |  \  |
+      // (i,   j) --- (i+1, j)         a --- b
+      const a = k++
+      const b = a + 1
+      const c = a + n + 1 - j
+      const d = c + 1
+
+      // Create vertex at (i, j)
+      verts.row(a).set(
+        add(p0, add(muls(u1, i / n), muls(u2, j / n))))
+
+      // Create two face
+      f2v.row(l++).set([a, b, c])
+      if (i < n - j - 1) {
+        f2v.row(l++).set([d, c, b])
+      }
+    }
+
+    // Create vertex at (n - j, j)
+    verts.row(k++).set(
+      add(p0, add(muls(u1, (n - j) / n), muls(u2, j / n))))
+  }
+
+  // Create vertex at (0, n)
+  verts.row(k++).set(p2)
+
+  return { verts, f2v }
+}
+
 export {
   normalizePositions, normalizePositionsV2,
-  getSignedColor, cumsum
+  getSignedColor, cumsum, makeTriangle
 }
