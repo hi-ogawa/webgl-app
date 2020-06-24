@@ -15,20 +15,6 @@ import { equal, deepEqual, closeTo, deepCloseTo } from './test-misc.js'
 
 const { PI } = Math
 
-// const equal = assert.strictEqual
-// const deepEqual = assert.deepStrictEqual
-// const closeTo = (actual, expected, epsilon = 1e-6) => {
-//   if (Math.abs(actual - expected) < epsilon) { return }
-//   assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-// }
-// const deepCloseTo = (actual, expected, epsilon = 1e-6) => {
-//   if (actual.length !== expected.length) {
-//     assert.fail(`\nactual: ${actual}\nexpected: ${expected}\n`)
-//   }
-//   actual = _.flattenDeep(actual)
-//   expected = _.flattenDeep(expected)
-//   _.zip(actual, expected).forEach(([a, e]) => closeTo(a, e, epsilon))
-// }
 const fsReadFile = util.promisify(fs.readFile)
 const readFile = (f) => fsReadFile(f).then(buffer => buffer.toString())
 
@@ -433,8 +419,8 @@ describe('ddg', () => {
       const { foundBoundary, boundaryEdge, numBoundaryEdgesPerFace } =
         ddg.computeTopologyV2(f2v, verts.shape[0])
       equal(foundBoundary, true)
-      equal(boundaryEdge.reduce(_.add), 27)
-      equal(numBoundaryEdgesPerFace.filter(n => n > 0).length, 27)
+      equal(boundaryEdge.reduce(_.add), 56)
+      equal(numBoundaryEdgesPerFace.filter(n => n > 0).length, 56)
       equal(numBoundaryEdgesPerFace.every(n => n === 0 || n === 1), true)
     })
 

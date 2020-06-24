@@ -3,6 +3,8 @@ import * as Utils from '../index.js'
 import * as UtilsMisc from '../misc.js'
 import * as UtilsMisc2 from '../misc2.js'
 
+const { THREE } = AFRAME
+
 AFRAME.registerGeometry('g-torus', {
   schema: {
     genus: { default: 2, min: 0, type: 'int' },

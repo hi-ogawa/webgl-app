@@ -548,6 +548,7 @@ const computeTopologyV2 = (f2v, nV) => {
           d0.data[2 * eCount] = -1
           d0.data[2 * eCount + 1] = 1
 
+          // Check if previous pair (v0 <-> vPrev) had opposite
           if (dup === 0) {
             foundBoundary = true
             boundaryEdge[ePrev] = true
@@ -569,6 +570,13 @@ const computeTopologyV2 = (f2v, nV) => {
         vPrev = v1
         ePrev = eCount
         fPrev = f
+      }
+
+      // Check if previous pair (v0 <-> vPrev) had opposite
+      if (dup === 0) {
+        foundBoundary = true
+        boundaryEdge[ePrev] = true
+        numBoundaryEdgesPerFace[fPrev]++
       }
     }
   }
