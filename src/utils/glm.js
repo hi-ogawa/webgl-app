@@ -86,6 +86,10 @@ const vec3 = {
   ...generateOperators('max', (lhs, rhs) => `Math.max(${lhs}, ${rhs})`, 3),
   ...generateOperators('min', (lhs, rhs) => `Math.min(${lhs}, ${rhs})`, 3),
 
+  zeros: () => {
+    return [0, 0, 0]
+  },
+
   sqrt: (a) => {
     return [Math.sqrt(a[0]), Math.sqrt(a[1]), Math.sqrt(a[2])]
   },

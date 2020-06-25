@@ -3,7 +3,7 @@
 
 import fs from 'fs'
 import util from 'util'
-import { readOFF } from './reader.js'
+import { readOFF, readMESH } from './reader.js'
 import { timeit } from './timeit.js'
 
 const fsReadFile = util.promisify(fs.readFile)
@@ -22,6 +22,18 @@ describe('readOFF', () => {
     // 11381 22704
     const data = await readFile('thirdparty/libigl-tutorial-data/camelhead.off')
     const run = () => readOFF(data)
+    const { resultString } = timeit('args.run()', '', '', { run })
+    console.log(resultString)
+  })
+})
+
+describe('readMESH', () => {
+  it('bunny', async () => {
+    // c0: 5433
+    // c2: 6966
+    // c3: 34055
+    const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
+    const run = () => readMESH(data)
     const { resultString } = timeit('args.run()', '', '', { run })
     console.log(resultString)
   })

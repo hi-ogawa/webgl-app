@@ -106,8 +106,13 @@ const measure = (label, func) => {
   return result
 }
 
+// Quick way to assert with expression as message
+const assertf = (f) => {
+  if (!f()) { throw new Error(f.toString().slice(6)) }
+}
+
 export {
   normalizePositions, normalizePositionsV2,
   getSignedColor, cumsum, makeTriangle,
-  measure
+  measure, assertf
 }

@@ -4,11 +4,12 @@
 import assert from 'assert'
 import fs from 'fs'
 import util from 'util'
-import { readOFF, readOBJ } from './reader.js'
+import _ from '../../web_modules/lodash.js'
+import { readOFF, readOBJ, readMESH } from './reader.js'
+import { equal, deepEqual, deepCloseTo } from './test-misc.js'
+import * as glm from './glm.js'
 
 /* eslint-disable no-unused-vars */
-const equal = assert.strictEqual
-const deepEqual = assert.deepStrictEqual
 const fsReadFile = util.promisify(fs.readFile)
 const readFile = (f) => fsReadFile(f).then(buffer => buffer.toString())
 /* eslint-enable no-unused-vars */
@@ -44,5 +45,27 @@ describe('readOBJ', () => {
     const { verts, f2v } = readOBJ(data)
     equal(verts.length, 25905)
     equal(f2v.length, 51712)
+  })
+})
+
+describe('readMESH', () => {
+  it('works 0', async () => {
+    const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
+    const { verts, f2v, c3xc0 } = readMESH(data)
+    deepEqual(verts.shape, [5433, 3])
+    deepEqual(f2v.shape, [6966, 3])
+    deepEqual(c3xc0.shape, [34055, 4])
+    assert(f2v.data.every(i => 0 <= i && i < 5433))
+    assert(c3xc0.data.every(i => 0 <= i && i < 5433))
+
+    const nV = verts.shape[0]
+    const rows = _.range(nV).map(i => verts.row(i))
+    const { add, min, max, divs } = glm.vec3
+    const center = divs(rows.reduce(add, [0, 0, 0]), nV)
+    const bboxMax = rows.reduce(max, [-1e3, -1e3, -1e3])
+    const bboxMin = rows.reduce(min, [+1e3, +1e3, +1e3])
+    deepCloseTo(center, [-0.026, 0.089, 0.0089], 1e-2)
+    deepCloseTo(bboxMax, [0.061, 0.18, 0.058], 1e-2)
+    deepCloseTo(bboxMin, [-0.094, 0.032, -0.061], 1e-2)
   })
 })

@@ -7,6 +7,10 @@
 import _ from '../../web_modules/lodash.js'
 import AFRAME from '../../web_modules/aframe.js'
 import '../utils/aframe/geometry.js'
+import '../utils/aframe/url-geometry.js'
+import * as reader from '../utils/reader.js'
+import { $ } from '../utils/misc.js'
+import * as misc2 from '../utils/misc2.js'
 
 const stringToElement = (s) => {
   const template = document.createElement('template')
@@ -69,8 +73,37 @@ AFRAME.registerSystem('open-inspector', {
   }
 })
 
+const getData = (url) => {
+  return new Promise((resolve, reject) => {
+    const loader = new THREE.FileLoader()
+    loader.load(url, resolve, () => {}, reject)
+  })
+}
+
+AFRAME.registerComponent('reader-test', {
+  schema: {
+    url: { default: '../../thirdparty/libigl-tutorial-data/bunny.mesh' }
+  },
+
+  async init () {
+    const { url } = this.data
+    const data = await getData(url)
+    const { verts, f2v } = reader.readMESH(data)
+    misc2.normalizePositionsV2(verts)
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.index = new THREE.BufferAttribute(f2v.data, 1)
+    geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
+    geometry.computeVertexNormals()
+
+    const object = new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({roughness: 0.7, color: '#f84', flatShading: true}))
+    this.el.setObject3D('bunny', object)
+  }
+})
+
 const main = () => {
-  const $ = (...args) => document.querySelector(...args)
   const scene = $('#scene').content.cloneNode(true)
   $('#root').appendChild(scene)
 }
