@@ -17,15 +17,23 @@ describe('physics', () => {
 
   describe('Example01', () => {
     it('works', () => {
-      const { verts, f2v } = misc2.makeTriangle(6)
+      const { verts, f2v } = misc2.makeTriangle(20)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new Example01()
-      solver.init(verts, f2v, handles)
 
-      // TODO: Where's the bottleneck? (projection via SVD or global conjugate gradient solve)
-      const run = () => solver.update()
-      const { resultString } = timeit('args.run()', '', '', { run }, 8)
-      console.log(resultString)
+      {
+        const run = () => solver.init(verts, f2v, handles)
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
+        console.log('Example01.init')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.update()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example01.update')
+        console.log(resultString)
+      }
     })
   })
 })

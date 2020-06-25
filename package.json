@@ -3,8 +3,8 @@
   "scripts": {
     "start": "serve -c config/serve.json",
     "deploy": "now -d -A config/now.json",
-    "test": "mocha --file src/mocha_jsdom.js 'src/**/*.test.js'",
-    "bench": "mocha -t 0 'src/**/*.bench.js'",
+    "test": "mocha --file src/mocha_jsdom.js --file src/mocha_preload.js 'src/**/*.test.js'",
+    "bench": "mocha --file src/mocha_preload.js -t 0 'src/**/*.bench.js'",
     "build": "snowpack install --config config/snowpack.config.json",
     "lint": "standard -v",
     "lint_all": "standard -v 'src/**/*.js'",

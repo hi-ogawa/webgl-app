@@ -1,3 +1,5 @@
+/* global performance */
+
 //
 // Miscellaneous but (hopefully) without external dependencies
 //
@@ -95,7 +97,17 @@ const makeTriangle = (n = 1, p0 = [-1, 0, 0], p1 = [1, 0, 0], p2 = [0, Math.sqrt
   return { verts, f2v }
 }
 
+// TODO: use or implement similar to https://github.com/visionmedia/debug
+const measure = (label, func) => {
+  const t0 = performance.now()
+  const result = func()
+  const t1 = performance.now()
+  console.log(`[measure:${label}] ${(t1 - t0).toPrecision(5)} msec`)
+  return result
+}
+
 export {
   normalizePositions, normalizePositionsV2,
-  getSignedColor, cumsum, makeTriangle
+  getSignedColor, cumsum, makeTriangle,
+  measure
 }

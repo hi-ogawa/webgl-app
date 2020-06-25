@@ -218,7 +218,6 @@ class Example01 {
     //
     // Geometry
     //
-    // const { verts, f2v } = misc2.makeTriangle(n)
     const { vec3, mat3 } = glm
     const { sign, sqrt } = Math
     const eye3 = Matrix.eye([3, 3])
@@ -277,9 +276,9 @@ class Example01 {
       A.setSlice([[3, 6], [6, 9]], eye3)
 
       // Matrix P \in SO(3) is represented as a single vector R^9 as in
-      // P u1 =  / u1^T          \  / Prow1 \
-      //         |     u1^T      |  | Prow2 |
-      //         \          u1^T /  \ Prow3 /
+      // P u1 =  / u1^T          \  / Prow1^T \
+      //         |     u1^T      |  | Prow2^T |
+      //         \          u1^T /  \ Prow3^T /
       const B = Matrix.empty([6, 9])
       {
         const m1 = Matrix.fromArray(u1_rest, [1, 3])
@@ -292,6 +291,8 @@ class Example01 {
         B.setSlice([[5, 6], [6, 9]], m2)
       }
 
+      const { matmul, transpose } = mat3
+
       const projection = (p, x0, x1, x2) => {
         // Cf. Procrustes problem
         // argmin_P |X - P Xr| = argmax_P Tr[P Xr XT] = V E UT = (U E VT)^T
@@ -302,7 +303,6 @@ class Example01 {
         const u2 = vec3.sub(x2, x0)
         const X = [...u1, ...u2, 0, 0, 0]
 
-        const { matmul, transpose } = mat3
         const W = matmul(X_rest, transpose(X))
         const [U, D, VT] = mat3.svdNonInvertible(W)
 
@@ -342,15 +342,21 @@ class Example01 {
       Bs.push(B)
     }
 
-    const A = Matrix.stack(As)
-    const B = Matrix.stackDiagonal(Bs)
+    const A = Matrix.stack(As) // shape = 6 nF x 3 nV
+    const B = Matrix.stackDiagonal(Bs) // shape = 6 nF x 9 nF
     const AT = A.transpose()
-    const AT_B = AT.matmul(B)
-    const AT_A = AT.matmul(A)
+    const AT_sparse = MatrixCSR.fromDense(AT) // Avoid dense matmul AT @ A and AT @ B
+    const AT_B = Matrix.empty([AT.shape[0], B.shape[1]])
+    const AT_A = Matrix.empty([AT.shape[0], A.shape[1]])
+    AT_sparse.matmul(AT_B, B)
+    AT_sparse.matmul(AT_A, A)
 
     const Md = M.clone().diveqs(dt ** 2) // M / dt^2
     const E = Md.clone().addeq(AT_A) // E = M / dt^2 + A^T A
-    const Esparse = MatrixCSR.fromDense(E)
+    const E_sparse = MatrixCSR.fromDense(E)
+
+    const Md_vec = new Matrix(MatrixCSR.fromDense(Md).data, [3 * nV, 1])
+    const AT_B_sparse = MatrixCSR.fromDense(AT_B)
 
     // Initial position
     const xx = verts
@@ -364,11 +370,15 @@ class Example01 {
     // Projection variable (used as temporary variable during `update`, so allocate it here)
     const p = Matrix.empty([nP, 1])
 
+    // Temporary variables
+    const tmp1 = Matrix.emptyLike(x)
+    const tmp2 = Matrix.emptyLike(x)
+
     _.assign(this, {
       g, iterPD, dt, mass,
       constraints, pCumsum,
-      Md, AT_B, Esparse,
-      xx, x, x0, vv, v, p,
+      Md_vec, AT_B_sparse, E_sparse,
+      xx, x, x0, vv, v, p, tmp1, tmp2,
       nV, nF, nP,
       verts, f2v
     })
@@ -378,8 +388,8 @@ class Example01 {
     const {
       g, iterPD, dt,
       constraints, pCumsum,
-      Md, AT_B, Esparse,
-      xx, x, x0, vv, v, p,
+      Md_vec, AT_B_sparse, E_sparse,
+      xx, x, x0, vv, v, p, tmp1, tmp2,
       nV
     } = this
 
@@ -400,17 +410,22 @@ class Example01 {
 
     // Projective dynamics iteration
     for (let i = 0; i < iterPD; i++) {
+      // misc2.measure('projection', () => {
       // Local step: invoke each constraint projection to obtain p
       for (let j = 0; j < constraints.length; j++) {
         const { projection, selector } = constraints[j]
         const selectP = p.data.subarray(pCumsum[j], pCumsum[j + 1])
-        const selectXs = _.map(selector, s => xx.row(s))
+        // NOTE: `_.map(selector, s => xx.row(s))` is terribly slow.
+        const selectXs = _.range(selector.length).map(i => xx.row(selector[i]))
         projection(selectP, ...selectXs)
       }
+      // })
 
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p
-      const rhs = Md.matmul(x).addeq(AT_B.matmul(p))
-      Esparse.conjugateGradient(x, rhs)
+      const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
+      // misc2.measure('conjugateGradient', () => {
+      E_sparse.conjugateGradient(x, rhs)
+      // })
     }
 
     // Reset velocity (v = (x - x0) / dt)

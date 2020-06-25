@@ -23,13 +23,20 @@ const { $ } = UtilsMisc
 AFRAME.registerComponent('physics', {
   play () {
     // Define geometry
-    const n = 8
+    const n = 10
     const { verts, f2v } = misc2.makeTriangle(n)
     this.geometry = this.el.components.geometry.geometry
     this.geometry.attributes = {}
     this.geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
     this.geometry.index = new THREE.BufferAttribute(f2v.data, 1)
     this.geometry.computeVertexNormals()
+
+    this.surface = new THREE.Mesh(
+      this.geometry,
+      new THREE.MeshStandardMaterial({
+        roughness: 0.5, opacity: 0.8, transparent: true, color: '#f84', side: THREE.DoubleSide
+      }))
+    this.el.setObject3D('surface', this.surface)
 
     // Define interaction handles
     this.handles = [
@@ -53,6 +60,7 @@ AFRAME.registerComponent('physics', {
     this.solver.update()
 
     // Geometry update
+    this.geometry.computeVertexNormals()
     this.geometry.attributes.position.needsUpdate = true
   }
 })

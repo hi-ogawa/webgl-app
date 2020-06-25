@@ -1,5 +1,4 @@
 /* eslint camelcase: 0 */
-/* global performance */
 
 //
 // Experiment with discrete differential geometry
@@ -23,14 +22,6 @@ import { Matrix, MatrixCSR } from '../utils/array.js'
 
 const THREE = AFRAME.THREE
 const { $ } = UtilsMisc
-
-const measure = (label, func) => {
-  const t0 = performance.now()
-  const result = func()
-  const t1 = performance.now()
-  console.log(`[measure:${label}] ${(t1 - t0).toPrecision(5)} msec`)
-  return result
-}
 
 AFRAME.registerComponent('mean-curvature-flow', {
   schema: {
@@ -63,7 +54,7 @@ AFRAME.registerComponent('mean-curvature-flow', {
     const x = verts
     const b = verts.clone()
 
-    measure('gauss-seidel', () => {
+    UtilsMisc2.measure('gauss-seidel', () => {
       _.range(iteration).forEach(() => {
         A.stepGaussSeidel(x, b)
       })

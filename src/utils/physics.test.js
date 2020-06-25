@@ -24,7 +24,7 @@ describe('physics', () => {
     it('works', function () {
       this.timeout(10000)
 
-      const { verts, f2v } = misc2.makeTriangle(6)
+      const { verts, f2v } = misc2.makeTriangle(8)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new Example01()
       solver.init(verts, f2v, handles)
