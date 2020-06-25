@@ -17,7 +17,7 @@ describe('physics', () => {
 
   describe('Example01', () => {
     it('works', () => {
-      const { verts, f2v } = misc2.makeTriangle(20)
+      const { verts, f2v } = misc2.makeTriangle(12)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new Example01()
 

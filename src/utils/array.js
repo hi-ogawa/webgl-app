@@ -703,7 +703,6 @@ class MatrixCSR {
   // Proof
   // - feels obvious by construction
   // TODO:
-  // - LDLT (i.e. L with unit diagonal)
   // - Approximate minimum degree ordering (AMD)
   choleskyComputeV3 () {
     const A = this
@@ -992,6 +991,7 @@ class MatrixCSR {
   }
 
   // L X = B
+  // aka solveCscTriLow
   solveCscL (x, b) {
     const L = this
     const N = L.shape[0]
@@ -1018,19 +1018,20 @@ class MatrixCSR {
   }
 
   // L^T X = B
+  // aka solveCsrTriUp
   solveCscLT (x, b) {
     const L = this
     const N = L.shape[0]
     const K = x.shape[1]
 
     for (let i = N - 1; i >= 0; i--) { // Loop L^T row from bottom
-      const p0 = L.indptr[i]
-      const LTii = L.data[p0]
+      let p = L.indptr[i]
+      const LTii = L.data[p++]
 
       for (let k = 0; k < K; k++) { // Loop X col
         let rhs = b.get(i, k)
 
-        for (let p = p0; p < L.indptr[i + 1]; p++) { // Loop L^T col
+        for (; p < L.indptr[i + 1]; p++) { // Loop L^T col
           const j = L.indices[p]
           const LTij = L.data[p]
           rhs -= LTij * x.get(j, k)

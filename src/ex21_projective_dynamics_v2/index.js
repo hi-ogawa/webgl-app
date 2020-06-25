@@ -23,7 +23,7 @@ const { $ } = UtilsMisc
 AFRAME.registerComponent('physics', {
   play () {
     // Define geometry
-    const n = 10
+    const n = 12
     const { verts, f2v } = misc2.makeTriangle(n)
     this.geometry = this.el.components.geometry.geometry
     this.geometry.attributes = {}

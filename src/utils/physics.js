@@ -354,6 +354,12 @@ class Example01 {
     const Md = M.clone().diveqs(dt ** 2) // M / dt^2
     const E = Md.clone().addeq(AT_A) // E = M / dt^2 + A^T A
     const E_sparse = MatrixCSR.fromDense(E)
+    const E_cholesky = E_sparse.choleskyComputeV3()
+
+    // [ Debug choleskyCompute ]
+    // const LT = E_cholesky.toDense()
+    // const L = LT.transpose()
+    // console.log(E.clone().subeq(L.matmul(LT)).dotHS2())
 
     const Md_vec = new Matrix(MatrixCSR.fromDense(Md).data, [3 * nV, 1])
     const AT_B_sparse = MatrixCSR.fromDense(AT_B)
@@ -377,7 +383,7 @@ class Example01 {
     _.assign(this, {
       g, iterPD, dt, mass,
       constraints, pCumsum,
-      Md_vec, AT_B_sparse, E_sparse,
+      Md_vec, AT_B_sparse, E_sparse, E_cholesky,
       xx, x, x0, vv, v, p, tmp1, tmp2,
       nV, nF, nP,
       verts, f2v
@@ -388,7 +394,7 @@ class Example01 {
     const {
       g, iterPD, dt,
       constraints, pCumsum,
-      Md_vec, AT_B_sparse, E_sparse,
+      Md_vec, AT_B_sparse, E_sparse, E_cholesky, // eslint-disable-line
       xx, x, x0, vv, v, p, tmp1, tmp2,
       nV
     } = this
@@ -411,6 +417,7 @@ class Example01 {
     // Projective dynamics iteration
     for (let i = 0; i < iterPD; i++) {
       // misc2.measure('projection', () => {
+
       // Local step: invoke each constraint projection to obtain p
       for (let j = 0; j < constraints.length; j++) {
         const { projection, selector } = constraints[j]
@@ -419,13 +426,26 @@ class Example01 {
         const selectXs = _.range(selector.length).map(i => xx.row(selector[i]))
         projection(selectP, ...selectXs)
       }
-      // })
+
+      // }) // measure projection
 
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p
       const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
+
+      // [ Compare with conjugateGradient ]
       // misc2.measure('conjugateGradient', () => {
-      E_sparse.conjugateGradient(x, rhs)
+      // E_sparse.conjugateGradient(x, rhs)
       // })
+
+      // misc2.measure('choleskySolve', () => {
+
+      E_cholesky.choleskySolveV3(x, rhs)
+
+      // }) // measure choleskySolve
+
+      // [ Debug choleskySolve ]
+      // const Ex = E_sparse.matmul(Matrix.emptyLike(x), x)
+      // console.log(Ex.subeq(rhs).dotHS2())
     }
 
     // Reset velocity (v = (x - x0) / dt)
