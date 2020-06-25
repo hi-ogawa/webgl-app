@@ -23,7 +23,7 @@ describe('physics', () => {
 
       {
         const run = () => solver.init(verts, f2v, handles)
-        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
+        const { resultString } = timeit('args.run()', '', '', { run })
         console.log('Example01.init')
         console.log(resultString)
       }

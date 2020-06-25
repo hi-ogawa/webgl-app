@@ -291,7 +291,7 @@ class Example01 {
         B.setSlice([[5, 6], [6, 9]], m2)
       }
 
-      const { matmul, transpose } = mat3
+      const { matmul, transpose } = mat3 // eslint-disable-line
 
       const projection = (p, x0, x1, x2) => {
         // Cf. Procrustes problem
@@ -299,13 +299,24 @@ class Example01 {
         //   where
         //   - SVD decomp: Xr XT = U D VT
         //   - E = diag(sign(D11), sign(D22), sign(D11) * sign(D22)) (note that D33 = 0)
-        const u1 = vec3.sub(x1, x0)
-        const u2 = vec3.sub(x2, x0)
-        const X = [...u1, ...u2, 0, 0, 0]
 
-        const W = matmul(X_rest, transpose(X))
+        // [ Before inline ]
+        // const u1 = vec3.sub(x1, x0)
+        // const u2 = vec3.sub(x2, x0)
+        // const X = [...u1, ...u2, 0, 0, 0]
+        // const W = matmul(X_rest, transpose(X))
+
+        // [ Inline ]
+        const u1 = [x1[0] - x0[0], x1[1] - x0[1], x1[2] - x0[2]]
+        const u2 = [x2[0] - x0[0], x2[1] - x0[1], x2[2] - x0[2]]
+        const XT = [
+          u1[0], u2[0], 0,
+          u1[1], u2[1], 0,
+          u1[2], u2[2], 0
+        ]
+        const W = matmul(X_rest, XT)
+
         const [U, D, VT] = mat3.svdNonInvertible(W)
-
         const E = mat3.diag([sign(D[0]), sign(D[1]), sign(D[0]) * sign(D[1])])
         const U_E_VT = matmul(U, matmul(E, VT))
         p.set(U_E_VT)

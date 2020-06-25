@@ -620,7 +620,7 @@ const mat3 = {
     ]
   },
 
-  matmul: (a, b) => {
+  matmul_: (out, a, b) => {
     const a00 = a[0]
     const a10 = a[1]
     const a20 = a[2]
@@ -639,16 +639,25 @@ const mat3 = {
     const b02 = b[6]
     const b12 = b[7]
     const b22 = b[8]
-    const c00 = a00 * b00 + a01 * b10 + a02 * b20
-    const c10 = a10 * b00 + a11 * b10 + a12 * b20
-    const c20 = a20 * b00 + a21 * b10 + a22 * b20
-    const c01 = a00 * b01 + a01 * b11 + a02 * b21
-    const c11 = a10 * b01 + a11 * b11 + a12 * b21
-    const c21 = a20 * b01 + a21 * b11 + a22 * b21
-    const c02 = a00 * b02 + a01 * b12 + a02 * b22
-    const c12 = a10 * b02 + a11 * b12 + a12 * b22
-    const c22 = a20 * b02 + a21 * b12 + a22 * b22
-    return [c00, c10, c20, c01, c11, c21, c02, c12, c22]
+    out[0] = a00 * b00 + a01 * b10 + a02 * b20
+    out[1] = a10 * b00 + a11 * b10 + a12 * b20
+    out[2] = a20 * b00 + a21 * b10 + a22 * b20
+    out[3] = a00 * b01 + a01 * b11 + a02 * b21
+    out[4] = a10 * b01 + a11 * b11 + a12 * b21
+    out[5] = a20 * b01 + a21 * b11 + a22 * b21
+    out[6] = a00 * b02 + a01 * b12 + a02 * b22
+    out[7] = a10 * b02 + a11 * b12 + a12 * b22
+    out[8] = a20 * b02 + a21 * b12 + a22 * b22
+    return out
+  },
+
+  matmuleq: (a, b) => {
+    return mat3.matmul_(a, a, b)
+  },
+
+  matmul: (a, b) => {
+    const out = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    return mat3.matmul_(out, a, b)
   },
 
   householderQR: (A) => {
@@ -803,6 +812,8 @@ const mat3 = {
 
   svdNonInvertible: (A) => {
     const { matmul, transpose } = mat3
+    // [ Try inplace version of matmul ]
+    // const { matmuleq } = mat3
 
     // Reduce to mat2.svd
     const AT = mat3.transpose(A)
@@ -817,12 +828,15 @@ const mat3 = {
     //                  ? ? 0
     //                  0 0 0
     const B = matmul(U2T, matmul(A, U1))
+    // const B = matmuleq(U2T, matmuleq(A, U1))
     const [Ub, Db, VTb] = mat2.svd(mat3.toMat2(B))
 
     // Back to mat3
     const U = matmul(U2, mat2.toMat3(Ub))
+    // const U = matmuleq(U2, mat2.toMat3(Ub))
     const D = [Db[0], Db[1], 0]
     const VT = matmul(mat2.toMat3(VTb), U1T)
+    // const VT = matmuleq(mat2.toMat3(VTb), U1T)
     return [U, D, VT]
   },
 
