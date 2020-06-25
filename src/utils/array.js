@@ -72,6 +72,29 @@ class Matrix {
     return Matrix.empty(other.shape, other.data.constructor)
   }
 
+  static eye (shape, Klass = Float32Array) {
+    const result = Matrix.empty(shape, Klass)
+    const n = Math.min(shape[0], shape[1])
+    for (let i = 0; i < n; i++) {
+      result.set(i, i, 1)
+    }
+    return result
+  }
+
+  static fromArray (array, shape = [array.length, 1], Klass = Float32Array) {
+    const result = Matrix.empty(shape, Klass)
+    result.data.set(array)
+    return result
+  }
+
+  setSlice ([[i0, i1], [j0, j1]], other) {
+    for (let i = i0; i < i1; i++) {
+      for (let j = j0; j < j1; j++) {
+        this.set(i, j, other.get(i - i0, j - j0))
+      }
+    }
+  }
+
   reshape (shape) {
     if (shape[0] === -1) {
       shape[0] = this.size / shape[1]

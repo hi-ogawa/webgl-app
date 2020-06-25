@@ -1,7 +1,7 @@
 /* eslint camelcase: 0 */
 
 //
-// Discrete trivial connection with prescribed singularity
+// Projective dynamics (Curve strain/curvature constraint)
 //
 
 import AFRAME from '../../web_modules/aframe.js'
