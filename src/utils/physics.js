@@ -206,11 +206,10 @@ class Example00 {
 }
 
 class Example01 {
-  init () {
+  init (verts, f2v, handles) {
     //
     // Configuration
     //
-    const n = 6
     const g = 9.8
     const iterPD = 16
     const dt = 1 / 60
@@ -219,7 +218,7 @@ class Example01 {
     //
     // Geometry
     //
-    const { verts, f2v } = misc2.makeTriangle(n)
+    // const { verts, f2v } = misc2.makeTriangle(n)
     const { vec3, mat3 } = glm
     const { sign, sqrt } = Math
     const eye3 = Matrix.eye([3, 3])
@@ -232,31 +231,27 @@ class Example01 {
     // Constraints
     //
     const constraints = []
-    const handles = []
 
-    // Pin constraint for (0..n)-th vertices
-    for (let i = 0; i <= n; i++) {
+    // Pin constraint (`handle.target` will be mutated by the user before `update`)
+    for (const handle of handles) {
       const stiffness = 2 ** 14
 
-      // Initially use rest position
-      const rest = verts.row(i).slice()
-      handles[i] = rest
-
-      // TODO: Implement switching off constraint by p.set(x)
       const projection = (p, x) => {
-        p.set(handles[i])
+        p.set(handle.target)
+        // TODO:
+        //   I thought setting `x` would make it equivalent to no constraint,
+        //   but that is wrong since this simply forces x to follow "explicit method" solution.
+        //   But, then how would people implement dynamic constraint e.g. for collision??
+        // p.set(handle.enabled ? handle.target : x)
       }
 
       const weight = stiffness
       constraints.push({
         projection,
-        selector: [i],
+        selector: [handle.vertex],
         A: eye3.clone().muleqs(weight),
         B: eye3.clone().muleqs(weight)
       })
-
-      // TODO: just use one for now
-      break
     }
 
     // Surface strain constraint for all faces
@@ -358,7 +353,7 @@ class Example01 {
     const Esparse = MatrixCSR.fromDense(E)
 
     // Initial position
-    const xx = verts.clone()
+    const xx = verts
     const x = xx.reshape([-1, 1]) // Single vector view
     const x0 = x.clone() // Need to keep previous state during `update`
 
@@ -371,7 +366,7 @@ class Example01 {
 
     _.assign(this, {
       g, iterPD, dt, mass,
-      constraints, handles, pCumsum,
+      constraints, pCumsum,
       Md, AT_B, Esparse,
       xx, x, x0, vv, v, p,
       nV, nF, nP,

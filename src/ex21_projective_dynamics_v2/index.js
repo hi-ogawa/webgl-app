@@ -14,34 +14,45 @@ import '../utils/aframe/coordinate-grid.js'
 import '../utils/aframe/geometry.js'
 import '../utils/aframe/simple-controls.js'
 import * as glm from '../utils/glm.js'
+import * as misc2 from '../utils/misc2.js'
 import { Example01 } from '../utils/physics.js'
 
 const THREE = AFRAME.THREE
 const { $ } = UtilsMisc
 
 AFRAME.registerComponent('physics', {
-  dependencies: ['geometry'],
+  play () {
+    // Define geometry
+    const n = 8
+    const { verts, f2v } = misc2.makeTriangle(n)
+    this.geometry = this.el.components.geometry.geometry
+    this.geometry.attributes = {}
+    this.geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
+    this.geometry.index = new THREE.BufferAttribute(f2v.data, 1)
+    this.geometry.computeVertexNormals()
 
-  init () {
+    // Define interaction handles
+    this.handles = [
+      { vertex: 0, target: [-1, 0, 0] },
+      { vertex: n, target: [1, 0, 0] }
+    ]
+
+    // Initialize solver
     this.solver = new Example01()
-    this.solver.init()
-
-    const { x, f2v } = this.solver
-
-    const { geometry } = this.el.components.geometry
-    geometry.attributes.position = new THREE.BufferAttribute(x.data, 3)
-    geometry.index = new THREE.BufferAttribute(f2v.data, 1)
-    geometry.computeVertexNormals()
-    this.geometry = geometry
+    this.solver.init(verts, f2v, this.handles)
   },
 
   tick () {
     // Interactive handle
-    glm.vec3.copy(
-      this.solver.handles[0],
-      this.el.sceneEl.querySelector('#handle1').object3D.position.toArray())
+    this.handles[0].enabled = this.data.handle1
+    this.handles[1].enabled = this.data.handle2
+    glm.vec3.copy(this.handles[0].target, $('#root #handle1').object3D.position.toArray())
+    glm.vec3.copy(this.handles[1].target, $('#root #handle2').object3D.position.toArray())
 
+    // Solver update
     this.solver.update()
+
+    // Geometry update
     this.geometry.attributes.position.needsUpdate = true
   }
 })

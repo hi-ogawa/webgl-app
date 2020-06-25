@@ -1,7 +1,7 @@
 /* global describe, it */
 
-import assert from 'assert'
 import { Example00, Example01 } from './physics.js'
+import { timeit } from './timeit.js'
 import * as misc2 from './misc2.js'
 
 describe('physics', () => {
@@ -9,31 +9,23 @@ describe('physics', () => {
     it('works', () => {
       const solver = new Example00()
       solver.init()
-
-      const { x, dt } = solver
-      const duration = 1
-      const N = duration * Math.ceil(1 / dt)
-      for (let i = 0; i < N; i++) {
-        solver.update()
-      }
-      assert(x.data.every(i => !Number.isNaN(i)))
+      const run = () => solver.update()
+      const { resultString } = timeit('args.run()', '', '', { run }, 8)
+      console.log(resultString)
     })
   })
 
   describe('Example01', () => {
-    it('works', function () {
-      this.timeout(10000)
-
+    it('works', () => {
       const { verts, f2v } = misc2.makeTriangle(6)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new Example01()
       solver.init(verts, f2v, handles)
 
-      const { x } = solver
-      for (let i = 0; i < 60; i++) {
-        solver.update()
-        assert(x.data.every(i => !Number.isNaN(i)))
-      }
+      // TODO: Where's the bottleneck? (projection via SVD or global conjugate gradient solve)
+      const run = () => solver.update()
+      const { resultString } = timeit('args.run()', '', '', { run }, 8)
+      console.log(resultString)
     })
   })
 })
