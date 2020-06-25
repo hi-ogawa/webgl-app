@@ -8,7 +8,7 @@ import * as ddg from './ddg.js'
 import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
-import { readOFF } from './reader.js'
+import { readOFF, readMESH } from './reader.js'
 import { hash11 } from './hash.js'
 import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
 import { equal, deepEqual, closeTo, deepCloseTo } from './test-misc.js'
@@ -687,6 +687,64 @@ describe('ddg', () => {
       assert(residue < 0.01)
       assert(_.max(phi.data) > 2) // looks too much rotation...
       assert(_.min(phi.data) < -1)
+    })
+  })
+
+  describe('computeTopologyV3', () => {
+    it('works 0', () => {
+      const nV = 4
+      const c3xc0 = Matrix.empty([1, 4], Uint32Array)
+      c3xc0.data.set([
+        0, 1, 2, 3
+      ])
+      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
+      deepCloseTo(f2v.shape, [4, 3])
+      deepCloseTo(d2.shape, [1, 4])
+      deepCloseTo(f2v.data, [
+        0, 1, 2,
+        0, 1, 3,
+        0, 2, 3,
+        1, 2, 3
+      ])
+      deepCloseTo(d2.toDense().data, [
+        -1, 1, -1, 1
+      ])
+    })
+
+    it('works 1', () => {
+      const nV = 5
+      const c3xc0 = Matrix.empty([2, 4], Uint32Array)
+      c3xc0.data.set([
+        0, 1, 2, 3,
+        1, 2, 3, 4
+      ])
+      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
+      deepCloseTo(f2v.shape, [7, 3])
+      deepCloseTo(d2.shape, [2, 7])
+      deepCloseTo(f2v.data, [
+        0, 1, 2,
+        0, 1, 3,
+        0, 2, 3,
+        1, 2, 3,
+        1, 2, 4,
+        1, 3, 4,
+        2, 3, 4
+      ])
+      deepCloseTo(d2.toDense().data, [
+        -1, 1, -1, 1, 0, 0, 0,
+        0, 0, 0, -1, 1, -1, 1
+      ])
+    })
+
+    it('works 2', async () => {
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
+      const { verts, f2v: f2v_mesh, c3xc0 } = readMESH(data)
+      const nV = verts.shape[0]
+      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
+      deepEqual(f2v_mesh.shape, [6966, 3])
+      deepEqual(f2v.shape, [68716, 3])
+      deepEqual(d2.shape, [34055, 68716])
+      // TODO: compute boundary faces from d2 and compare with f2v_mesh
     })
   })
 })

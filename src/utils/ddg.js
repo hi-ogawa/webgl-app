@@ -2,7 +2,8 @@
 
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
-import { Matrix, MatrixCOO, MatrixCSR } from './array.js'
+import { Matrix, MatrixCOO, MatrixCSR, TensorCOO, TensorCSR } from './array.js'
+import * as misc2 from './misc2.js'
 
 const { PI } = Math
 
@@ -479,6 +480,7 @@ const solvePoisson = (verts, f2v, rho_dual) => {
 
 // Compute d0 and d1 as sparse matrix
 // Sparsity is same as laplacian so the performance should be same order as `computeLaplacianV2`
+// TODO: prove/disprove that boundary can be computed by "(1, .., 1) d1"
 const computeTopologyV2 = (f2v, nV) => {
   // Make sparse v2v with the entry is "signed" face for edge (vi, vj)
   // TODO: maybe it's interesting to embed "opposite vertex" data as well,
@@ -881,6 +883,97 @@ class VectorFieldSolver {
   }
 }
 
+// Compute d2 of co-chain complex
+//   Omega_0 -(d0)-> Omega_1 -(d1)-> Omage_2 -(d2)-> Omega_3
+// Then, boundary surface can be obtained by
+//   (1, .., 1) d2
+// TODO:
+// - consider if d0 and d1 can be computed within the same loop
+const computeTopologyV3 = (c3xc0, nV) => {
+  // Note that this approach quite nicely parallels to `computeTopologyV2`
+
+  //
+  // Enumerate vertex triple with face-orientation from tetrahedron as COO-tensor
+  //
+  const nC3 = c3xc0.shape[0]
+  const nnzReserve = 12 * nC3
+  const vvvCoo = TensorCOO.empty([nV, nV, nV], nnzReserve, Int32Array)
+
+  for (let i = 0; i < nC3; i++) {
+    const vs = c3xc0.row(i)
+    const v0 = vs[0]
+    const v1 = vs[1]
+    const v2 = vs[2]
+    const v3 = vs[3]
+    const fo0 = misc2.sortParity3(v0, v2, v1)
+    const fo1 = misc2.sortParity3(v0, v3, v2)
+    const fo2 = misc2.sortParity3(v0, v1, v3)
+    const fo3 = misc2.sortParity3(v1, v2, v3)
+
+    // Encode orientation by sign (but in order to handle "0" we increment original value by "1")
+    vvvCoo.set(fo0[0], fo0[1], fo0[2], fo0[3] * (i + 1))
+    vvvCoo.set(fo1[0], fo1[1], fo1[2], fo1[3] * (i + 1))
+    vvvCoo.set(fo2[0], fo2[1], fo2[2], fo2[3] * (i + 1))
+    vvvCoo.set(fo3[0], fo3[1], fo3[2], fo3[3] * (i + 1))
+  }
+
+  // Convert to CSR
+  const vvv = TensorCSR.fromCOO(vvvCoo)
+
+  // Make d2 (aka c3xc2)
+  const nF = vvvCoo.nnz - vvv.numDups
+  const d2 = MatrixCSR.empty([nC3, nF], 4 * nC3)
+
+  // Make f2v (aka c2xc0)
+  const f2v = Matrix.empty([nF, 3], Uint32Array)
+
+  // Indptr is trivial
+  for (let i = 1; i <= nC3; i++) {
+    d2.indptr[i] = 4 * i
+  }
+
+  // Indices and data
+  {
+    const { sign, abs } = Math
+    const d2Counts = new Uint32Array(nF)
+    let fCount = -1
+    let p = 0
+    for (let v0 = 0; v0 < nV; v0++) { // Loop vvv ind0
+      let v1Prev = -1
+      let v2Prev = -1
+      let dup = 0
+
+      for (; p < vvv.indptr[v0 + 1]; p++) { // Loop vvv ind1/ind2
+        const v1 = vvv.ind1[p]
+        const v2 = vvv.ind2[p]
+        const c3o = vvv.data[p]
+        const c3 = abs(c3o) - 1 // Remember how we enconded 3-cell and orientation
+        const o = sign(c3o)
+
+        if (v1 === v1Prev && v2 === v2Prev) {
+          if (++dup > 2) {
+            throw new Error('[computeTopologyV3] More than 2 tetrahedra share single face')
+          }
+        } else {
+          // Register "Triangle (2-cell) to Vertex (0-cell)"
+          f2v.row(++fCount).set([v0, v1, v2])
+          v1Prev = v1
+          v2Prev = v2
+          dup = 0
+        }
+
+        // Register "Tetrahedron (3-cell) to Triangle (2-cell)"
+        const q = d2.indptr[c3] + d2Counts[c3]
+        d2.indices[q] = fCount
+        d2.data[q] = o
+        d2Counts[c3]++
+      }
+    }
+  }
+
+  return { d2, f2v }
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
@@ -888,5 +981,6 @@ export {
   matmul, transposeVerts, computeMeanCurvatureV2,
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
-  VectorFieldSolver
+  VectorFieldSolver,
+  computeTopologyV3
 }

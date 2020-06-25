@@ -111,8 +111,108 @@ const assertf = (f) => {
   if (!f()) { throw new Error(f.toString().slice(6)) }
 }
 
+// Inlined insertion sort of three elements
+const sort3 = (i, j, k) => {
+  // [i, (j), k]
+  if (j < i) {
+    // [j, i, (k)]
+    if (k < i) {
+      // [j, (k), i]
+      if (k < j) {
+        return [k, j, i]
+      }
+      return [j, k, i]
+    }
+    return [j, i, k]
+  }
+
+  // [i, j, (k)]
+  if (k < j) {
+    // [i, (k), j]
+    if (k < i) {
+      return [k, i, j]
+    }
+    return [i, k, j]
+  }
+  return [i, j, k]
+}
+
+// Variant of `sort3` where it returns four elements with last entry indicetes parity
+const sortParity3 = (i, j, k) => {
+  // [i, (j), k]
+  if (j < i) {
+    // [j, i, (k)]
+    if (k < i) {
+      // [j, (k), i]
+      if (k < j) {
+        return [k, j, i, -1]
+      }
+      return [j, k, i, 1]
+    }
+    return [j, i, k, -1]
+  }
+
+  // [i, j, (k)]
+  if (k < j) {
+    // [i, (k), j]
+    if (k < i) {
+      return [k, i, j, 1]
+    }
+    return [i, k, j, -1]
+  }
+  return [i, j, k, 1]
+}
+
+// I thought inplace version might be faster but it seems not (cf. misc2.bench.js)
+const _sortParity3 = (ijk) => {
+  const i = ijk[0]
+  const j = ijk[1]
+  const k = ijk[2]
+
+  // [i, (j), k]
+  if (j < i) {
+    // [j, i, (k)]
+    if (k < i) {
+      // [j, (k), i]
+      if (k < j) {
+        ijk[0] = k
+        ijk[1] = j
+        ijk[2] = i
+        return false
+      }
+      ijk[0] = j
+      ijk[1] = k
+      ijk[2] = i
+      return true
+    }
+    ijk[0] = j
+    ijk[1] = i
+    ijk[2] = k
+    return false
+  }
+
+  // [i, j, (k)]
+  if (k < j) {
+    // [i, (k), j]
+    if (k < i) {
+      ijk[0] = k
+      ijk[1] = i
+      ijk[2] = j
+      return true
+    }
+    ijk[0] = i
+    ijk[1] = k
+    ijk[2] = j
+    return false
+  }
+  ijk[0] = i
+  ijk[1] = j
+  ijk[2] = k
+  return true
+}
+
 export {
   normalizePositions, normalizePositionsV2,
   getSignedColor, cumsum, makeTriangle,
-  measure, assertf
+  measure, assertf, sort3, sortParity3, _sortParity3
 }

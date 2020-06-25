@@ -144,7 +144,7 @@ const readMESH = (data) => {
   for (let i = 0; i < nC3; i++) {
     const v = lines[i].split(' ')
     for (let j = 0; j < 4; j++) {
-      c3xc0.data[3 * i + j] = Number(v[j]) - 1 // Originally "1" based index
+      c3xc0.data[4 * i + j] = Number(v[j]) - 1 // Originally "1" based index
     }
   }
   lines.splice(0, nC3)

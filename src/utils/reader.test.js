@@ -55,8 +55,8 @@ describe('readMESH', () => {
     deepEqual(verts.shape, [5433, 3])
     deepEqual(f2v.shape, [6966, 3])
     deepEqual(c3xc0.shape, [34055, 4])
-    assert(f2v.data.every(i => 0 <= i && i < 5433))
-    assert(c3xc0.data.every(i => 0 <= i && i < 5433))
+    assert(f2v.data.every(i => i >= 0 && i < 5433))
+    assert(c3xc0.data.every(i => i >= 0 && i < 5433))
 
     const nV = verts.shape[0]
     const rows = _.range(nV).map(i => verts.row(i))

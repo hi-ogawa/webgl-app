@@ -12,6 +12,8 @@ import * as reader from '../utils/reader.js'
 import { $ } from '../utils/misc.js'
 import * as misc2 from '../utils/misc2.js'
 
+const { THREE } = AFRAME
+
 const stringToElement = (s) => {
   const template = document.createElement('template')
   template.innerHTML = s.trim()
@@ -98,7 +100,7 @@ AFRAME.registerComponent('reader-test', {
 
     const object = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({roughness: 0.7, color: '#f84', flatShading: true}))
+      new THREE.MeshStandardMaterial({ roughness: 0.7, color: '#f84', flatShading: true }))
     this.el.setObject3D('bunny', object)
   }
 })

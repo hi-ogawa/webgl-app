@@ -1497,4 +1497,104 @@ class MatrixCSR {
   }
 }
 
-export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR, splitByIndptr }
+// Just usable enough to implement `ddg.computeTopologyV3`
+class TensorCOO {
+  static empty (shape, nnzMax, Klass = Float32Array) {
+    const data = new Klass(nnzMax)
+    const ind0 = new Uint32Array(nnzMax)
+    const ind1 = new Uint32Array(nnzMax)
+    const ind2 = new Uint32Array(nnzMax)
+    const nnz = 0
+    const result = new TensorCOO()
+    _.assign(result, {
+      data, ind0, ind1, ind2, shape, nnz, nnzMax
+    })
+    return result
+  }
+
+  set (i, j, k, v) {
+    this.ind0[this.nnz] = i
+    this.ind1[this.nnz] = j
+    this.ind2[this.nnz] = k
+    this.data[this.nnz] = v
+    this.nnz++
+  }
+}
+
+// Just usable enough to implement `ddg.computeTopologyV3`
+class TensorCSR {
+  static fromCOO (a) {
+    const b = new TensorCSR()
+    const n = a.shape[0]
+    b.shape = a.shape
+    b.indptr = new Uint32Array(n + 1)
+    b.ind1 = new Uint32Array(a.nnz)
+    b.ind2 = new Uint32Array(a.nnz)
+    b.data = new a.data.constructor(a.nnz)
+
+    // Count non-zero column for each row (aka ind0)
+    const counts = new Uint32Array(n)
+    for (let i = 0; i < a.nnz; i++) {
+      counts[a.ind0[i]]++
+    }
+
+    // Construct `indptr` by cumsum
+    for (let i = 0; i < n; i++) {
+      b.indptr[i + 1] = b.indptr[i] + counts[i]
+    }
+
+    // Construct `data` and `indices`
+    for (let i = 0; i < a.nnz; i++) {
+      const r = a.ind0[i]
+      const k = b.indptr[r] + (--counts[r])
+      b.ind1[k] = a.ind1[i]
+      b.ind2[k] = a.ind2[i]
+      b.data[k] = a.data[i]
+    }
+
+    // Sort ind1/ind2 within each ind0 (aka sortIndices)
+    const { indptr, ind1, ind2, data } = b
+    let numDups = 0
+    let p = 0
+    for (let i = 0; i < n; i++) { // Loop ind0
+      // Apply insertion sort with counting duplicate key
+      for (p++; p < indptr[i + 1]; p++) { // Loop ind1/ind2
+        let q = p
+        while (indptr[i] < q) {
+          if (ind1[q - 1] < ind1[q]) { break }
+          if (ind1[q - 1] === ind1[q]) {
+            if (ind2[q - 1] < ind2[q]) {
+              break
+            }
+            if (ind2[q - 1] === ind2[q]) {
+              numDups++
+              break
+            }
+          }
+
+          {
+            const tmp = ind1[q - 1]
+            ind1[q - 1] = ind1[q]
+            ind1[q] = tmp
+          }
+          {
+            const tmp = ind2[q - 1]
+            ind2[q - 1] = ind2[q]
+            ind2[q] = tmp
+          }
+          {
+            const tmp = data[q - 1]
+            data[q - 1] = data[q]
+            data[q] = tmp
+          }
+          q--
+        }
+      }
+    }
+
+    b.numDups = numDups
+    return b
+  }
+}
+
+export { Vector, NdArray, Matrix, MatrixCOO, MatrixCSR, splitByIndptr, TensorCOO, TensorCSR }

@@ -4,7 +4,7 @@
 import fs from 'fs'
 import util from 'util'
 import * as ddg from './ddg.js'
-import { readOFF } from './reader.js'
+import { readOFF, readMESH } from './reader.js'
 import { timeit } from './timeit.js'
 import { Matrix, MatrixCSR } from './array.js'
 
@@ -278,6 +278,17 @@ describe('ddg', () => {
         console.log('VectorFieldSolver.compute3')
         console.log(resultString)
       }
+    })
+  })
+
+  describe('computeTopologyV3', () => {
+    it('works 0', () => {
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.mesh').toString()
+      const { verts, c3xc0 } = readMESH(data)
+      const nV = verts.shape[0]
+      const run = () => ddg.computeTopologyV3(c3xc0, nV)
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log(resultString)
     })
   })
 })
