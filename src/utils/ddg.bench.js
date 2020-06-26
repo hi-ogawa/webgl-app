@@ -281,12 +281,12 @@ describe('ddg', () => {
     })
   })
 
-  describe('computeTopologyV3', () => {
+  describe('computeD2', () => {
     it('works 0', () => {
       const data = fs.readFileSync('thirdparty/libigl-tutorial-data/bunny.mesh').toString()
       const { verts, c3xc0 } = readMESH(data)
       const nV = verts.shape[0]
-      const run = () => ddg.computeTopologyV3(c3xc0, nV)
+      const run = () => ddg.computeD2(c3xc0, nV)
       const { resultString } = timeit('args.run()', '', '', { run })
       console.log(resultString)
     })

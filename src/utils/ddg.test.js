@@ -690,7 +690,7 @@ describe('ddg', () => {
     })
   })
 
-  describe('computeTopologyV3', () => {
+  describe('computeD2', () => {
     it('works 0', () => {
       //
       //  3
@@ -699,26 +699,80 @@ describe('ddg', () => {
       //  |  /
       //  0 ----- 1
       //
-      const nV = 4
       const c3xc0 = Matrix.empty([1, 4], Uint32Array)
-      c3xc0.data.set([
-        0, 1, 2, 3
-      ])
-      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
-      deepCloseTo(f2v.shape, [4, 3])
-      deepCloseTo(d2.shape, [1, 4])
-      deepCloseTo(f2v.data, [
+      c3xc0.data.set([0, 1, 2, 3])
+      const nC0 = 4
+      const nC3 = c3xc0.shape[0]
+
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const nC1 = c1xc0.shape[0]
+
+      const { d0 } = ddg.computeD0(c1xc0, nC0)
+
+      deepCloseTo([nC0, nC1, nC2, nC3], [4, 6, 4, 1])
+      deepCloseTo(nC0 - nC1 + nC2 - nC3, 1) // Euler characteristics
+      deepCloseTo(c2xc0.shape, [nC2, 3])
+      deepCloseTo(c1xc0.shape, [nC1, 2])
+      deepCloseTo(d2.shape, [nC3, nC2])
+      deepCloseTo(d1.shape, [nC2, nC1])
+      deepCloseTo(d0.shape, [nC1, nC0])
+
+      deepCloseTo(c2xc0.data, [
         0, 1, 2,
         0, 1, 3,
         0, 2, 3,
         1, 2, 3
       ])
+      deepCloseTo(c1xc0.data, [
+        0, 1,
+        0, 2,
+        0, 3,
+        1, 2,
+        1, 3,
+        2, 3
+      ])
       deepCloseTo(d2.toDense().data, [
         -1, 1, -1, 1
       ])
+      deepCloseTo(d1.toDense().data, [
+        1, -1, 0, 1, 0, 0,
+        1, 0, -1, 0, 1, 0,
+        0, 1, -1, 0, 0, 1,
+        0, 0, 0, 1, -1, 1
+      ])
+      deepCloseTo(d0.toDense().data, [
+        -1, 1, 0, 0,
+        -1, 0, 1, 0,
+        -1, 0, 0, 1,
+        0, -1, 1, 0,
+        0, -1, 0, 1,
+        0, 0, -1, 1
+      ])
 
-      const f2vB = ddg.computeBoundary(f2v, d2)
-      deepCloseTo(f2vB.data, [
+      // de Rham co-chain
+      //         d0          d1          d2
+      // Omega0 ---> Omega1 ---> Omega2 ---> Omega3
+      const d1d0 = d1.matmulCsr(d0)
+      const d2d1 = d2.matmulCsr(d1)
+      assert(d1d0.data.every(v => v === 0)) // d1 . d0 = 0
+      assert(d2d1.data.every(v => v === 0)) // d2 . d1 = 0
+
+      // Singular chain
+      //      b1      b2      b3
+      // C0 <--- C1 <--- C2 <--- C3
+      const b3 = d2.transpose()
+      const b2 = d1.transpose()
+      const b1 = d0.transpose()
+      const b2b3 = b2.matmulCsr(b3)
+      const b1b2 = b1.matmulCsr(b2)
+      assert(b2b3.data.every(v => v === 0)) // b2 . b3 = 0
+      assert(b1b2.data.every(v => v === 0)) // b1 . b2 = 0
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      deepCloseTo(c2xc0B.data, [
         0, 2, 1,
         0, 1, 3,
         0, 3, 2,
@@ -727,16 +781,32 @@ describe('ddg', () => {
     })
 
     it('works 1', () => {
-      const nV = 5
       const c3xc0 = Matrix.empty([2, 4], Uint32Array)
       c3xc0.data.set([
         0, 1, 2, 3,
         1, 2, 3, 4
       ])
-      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
-      deepCloseTo(f2v.shape, [7, 3])
-      deepCloseTo(d2.shape, [2, 7])
-      deepCloseTo(f2v.data, [
+      const nC0 = 5
+      const nC3 = c3xc0.shape[0]
+
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const nC1 = c1xc0.shape[0]
+
+      const { d0 } = ddg.computeD0(c1xc0, nC0)
+
+      deepCloseTo([nC0, nC1, nC2, nC3], [5, 9, 7, 2])
+      deepCloseTo(nC0 - nC1 + nC2 - nC3, 1) // Euler characteristics
+
+      deepCloseTo(c2xc0.shape, [nC2, 3])
+      deepCloseTo(c1xc0.shape, [nC1, 2])
+      deepCloseTo(d2.shape, [nC3, nC2])
+      deepCloseTo(d1.shape, [nC2, nC1])
+      deepCloseTo(d0.shape, [nC1, nC0])
+
+      deepCloseTo(c2xc0.data, [
         0, 1, 2,
         0, 1, 3,
         0, 2, 3,
@@ -750,8 +820,8 @@ describe('ddg', () => {
         0, 0, 0, -1, 1, -1, 1
       ])
 
-      const f2vB = ddg.computeBoundary(f2v, d2)
-      deepCloseTo(f2vB.data, [
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      deepCloseTo(c2xc0B.data, [
         0, 2, 1,
         0, 1, 3,
         0, 3, 2,
@@ -762,42 +832,59 @@ describe('ddg', () => {
     })
 
     it('works 2', async () => {
-      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
-      const { verts, f2v: f2v_mesh, c3xc0 } = readMESH(data)
-      const nV = verts.shape[0]
-      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
-      deepEqual(f2v_mesh.shape, [6966, 3])
-      deepEqual(f2v.shape, [68716, 3])
-      deepEqual(d2.shape, [34055, 68716])
+      const data = await readFile('misc/data/bunny.off.tetwild.mesh')
+      const { verts, c3xc0 } = readMESH(data)
+      const nC0 = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
 
-      const f2vB = ddg.computeBoundary(f2v, d2)
-      deepCloseTo(f2vB.shape, [914, 3])
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
 
-      // [ Debug ] writing out OFF file of boundary surface
-      // TODO: bunny.mesh might not be tetrahedrization of bunny?
-      // writeOFF(verts.data, f2vB.data, fs.createWriteStream('misc/data/bunny.mesh.off'))
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const nC1 = c1xc0.shape[0]
+
+      const { d0 } = ddg.computeD0(c1xc0, nC0)
+
+      deepCloseTo([nC0, nC1, nC2, nC3], [7630, 42974, 67013, 30996])
+
+      // Euler characteristics is a bit crazy
+      // - it seems tetwild generates disconnected manifold
+      // - Related? https://github.com/Yixin-Hu/TetWild/issues/41
+      // - But probably bug in my processing
+      deepCloseTo(nC0 - nC1 + nC2 - nC3, 673)
+
+      deepCloseTo(c2xc0.shape, [nC2, 3])
+      deepCloseTo(c1xc0.shape, [nC1, 2])
+      deepCloseTo(d2.shape, [nC3, nC2])
+      deepCloseTo(d1.shape, [nC2, nC1])
+      deepCloseTo(d0.shape, [nC1, nC0])
+
+      // d.d = 0
+      const d1d0 = d1.matmulCsr(d0)
+      const d2d1 = d2.matmulCsr(d1)
+      assert(d1d0.data.every(v => v === 0))
+      assert(!d2d1.data.every(v => v === 0)) // TODO: this should imply input wasn't 3-manifold (or my routines have a bug)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      deepCloseTo(c2xc0B.shape, [9400, 3])
     })
 
     it('works 3', async () => {
-      const data = await readFile('misc/data/bunny.off.tetwild.mesh')
+      const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
       const { verts, c3xc0 } = readMESH(data)
-      const nV = verts.shape[0]
+      const nC0 = verts.shape[0]
       const nC3 = c3xc0.shape[0]
-      deepEqual(verts.shape, [7630, 3])
-      deepEqual(c3xc0.shape, [30996, 4])
 
-      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
-      // const nF = f2v.shape[0]
-      deepEqual(f2v.shape, [67013, 3])
-      deepEqual(d2.shape, [nC3, 67013])
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0) // eslint-disable-line
+      const nC2 = c2xc0.shape[0]
 
-      const f2vB = ddg.computeBoundary(f2v, d2)
-      // const nFB = f2vB.shape[0]
-      deepCloseTo(f2vB.shape, [9400, 3])
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0) // eslint-disable-line
+      const nC1 = c1xc0.shape[0]
 
-      // [ Debug ] Writing out OFF file (cf. scripts/meshToOff.js)
-      // TODO: this seems to generate some isolated triangle inside of mesh. (not sure if it's bug in data or my routines)
-      // writeOFF(verts.data, f2vB.data, fs.createWriteStream('misc/data/bunny.off.tetwild.mesh.off'))
+      const { d0 } = ddg.computeD0(c1xc0, nC0) // eslint-disable-line
+
+      deepCloseTo([nC0, nC1, nC2, nC3], [5433, 39823, 68716, 34055])
+      deepCloseTo(nC0 - nC1 + nC2 - nC3, 271)
     })
   })
 })

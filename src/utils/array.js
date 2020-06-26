@@ -307,7 +307,7 @@ class MatrixCOO {
     const B = MatrixCOO.empty(A.shape, nnz, A.data.constructor)
     let p = 0
     for (let j = 0; j < A.shape[1]; j++) { // Loop A col
-      for (; p < A.indptr[j + 1]; p++) {
+      for (; p < A.indptr[j + 1]; p++) { // Loop A row
         const i = A.indices[p]
         const Aij = A.data[p]
         B.set(i, j, Aij)
@@ -411,6 +411,14 @@ class MatrixCSR {
     }
 
     return b
+  }
+
+  transpose () {
+    const csr = this
+    const [N, M] = csr.shape
+    const csc = _.assign({}, csr, { shape: [M, N] })
+    const coo = MatrixCOO.fromCSC(csc)
+    return MatrixCSR.fromCOO(coo)
   }
 
   // NOTE: convinient but not good for performance (cf. matmul below)
@@ -1497,7 +1505,7 @@ class MatrixCSR {
   }
 }
 
-// Just usable enough to implement `ddg.computeTopologyV3`
+// Just usable enough to implement `ddg.computeD2`
 class TensorCOO {
   static empty (shape, nnzMax, Klass = Float32Array) {
     const data = new Klass(nnzMax)
@@ -1521,7 +1529,7 @@ class TensorCOO {
   }
 }
 
-// Just usable enough to implement `ddg.computeTopologyV3`
+// Just usable enough to implement `ddg.computeD2`
 class TensorCSR {
   static fromCOO (a) {
     const b = new TensorCSR()

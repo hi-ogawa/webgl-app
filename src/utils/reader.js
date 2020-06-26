@@ -128,6 +128,23 @@ const readOBJ = (data) => {
   return { verts, f2v }
 }
 
+const writeOBJ = (verts, f2v, ostr) => {
+  const nV = verts.length / 3
+  const nF = f2v.length / 3
+  for (let i = 0; i < nV; i++) {
+    const x = verts[3 * i + 0]
+    const y = verts[3 * i + 1]
+    const z = verts[3 * i + 2]
+    ostr.write(`v ${x} ${y} ${z}\n`)
+  }
+  for (let i = 0; i < nF; i++) {
+    const v0 = f2v[3 * i + 0] + 1
+    const v1 = f2v[3 * i + 1] + 1
+    const v2 = f2v[3 * i + 2] + 1
+    ostr.write(`f ${v0} ${v1} ${v2}\n`)
+  }
+}
+
 const readMESH = (data) => {
 //
 // MeshVersionFormatted 1
@@ -243,4 +260,4 @@ const readELENODE = (ele, node) => {
   return { verts, c3xc0 }
 }
 
-export { readOFF, writeOFF, readOBJ, readMESH, readELENODE }
+export { readOFF, writeOFF, readOBJ, writeOBJ, readMESH, readELENODE }

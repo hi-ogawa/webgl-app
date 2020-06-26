@@ -480,7 +480,7 @@ const solvePoisson = (verts, f2v, rho_dual) => {
 
 // Compute d0 and d1 as sparse matrix
 // Sparsity is same as laplacian so the performance should be same order as `computeLaplacianV2`
-// TODO: prove/disprove that boundary can be computed by "(1, .., 1) d1"
+// TODO: prove/disprove that boundary can be computed by "(1, .., 1) d1" (cf. computeD2 and computeBoundary)
 const computeTopologyV2 = (f2v, nV) => {
   // Make sparse v2v with the entry is "signed" face for edge (vi, vj)
   // TODO: maybe it's interesting to embed "opposite vertex" data as well,
@@ -560,7 +560,7 @@ const computeTopologyV2 = (f2v, nV) => {
         } else {
           dup++
           if (dup > 2) {
-            throw new Error('[computeTopologyV3] More than 2 faces share single edge')
+            throw new Error('[computeD2] More than 2 faces share single edge')
           }
         }
 
@@ -887,18 +887,15 @@ class VectorFieldSolver {
 //   Omega_0 -(d0)-> Omega_1 -(d1)-> Omage_2 -(d2)-> Omega_3
 // Then, boundary surface can be obtained by
 //   (1, .., 1) d2
-// TODO:
-// - obtain e2v
-// - consider if d0 and d1 can be computed within the same loop
-const computeTopologyV3 = (c3xc0, nV) => {
-  // Note that this approach quite nicely parallels to `computeTopologyV2`
+const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc0 and d2
+  // Note that this construction quite nicely parallels to `computeTopologyV2`
 
   //
   // Enumerate vertex triple with face-orientation from tetrahedron as COO-tensor
   //
   const nC3 = c3xc0.shape[0]
   const nnzReserve = 12 * nC3
-  const vvvCoo = TensorCOO.empty([nV, nV, nV], nnzReserve, Int32Array)
+  const vvvCoo = TensorCOO.empty([nC0, nC0, nC0], nnzReserve, Int32Array)
 
   for (let i = 0; i < nC3; i++) {
     const vs = c3xc0.row(i)
@@ -922,24 +919,24 @@ const computeTopologyV3 = (c3xc0, nV) => {
   const vvv = TensorCSR.fromCOO(vvvCoo)
 
   // Make d2 (aka c3xc2)
-  const nF = vvvCoo.nnz - vvv.numDups
-  const d2 = MatrixCSR.empty([nC3, nF], 4 * nC3)
+  const nC2 = vvvCoo.nnz - vvv.numDups
+  const d2 = MatrixCSR.empty([nC3, nC2], 4 * nC3)
 
-  // Make f2v (aka c2xc0)
-  const f2v = Matrix.empty([nF, 3], Uint32Array)
+  // Make c2xc0
+  const c2xc0 = Matrix.empty([nC2, 3], Uint32Array)
 
   // d2.indptr is trivial
   for (let i = 1; i <= nC3; i++) {
     d2.indptr[i] = 4 * i
   }
 
-  // f2v, d2.indices, d2.data
+  // c2xc0, d2.indices, d2.data
   {
     const { sign, abs } = Math
-    const d2Counts = new Uint32Array(nF)
+    const d2Counts = new Uint32Array(nC3)
     let fCount = -1
     let p = 0
-    for (let v0 = 0; v0 < nV; v0++) { // Loop vvv ind0
+    for (let v0 = 0; v0 < nC0; v0++) { // Loop vvv ind0
       let v1Prev = -1
       let v2Prev = -1
       let dup = 0
@@ -953,11 +950,11 @@ const computeTopologyV3 = (c3xc0, nV) => {
 
         if (v1 === v1Prev && v2 === v2Prev) {
           if (++dup > 2) {
-            throw new Error('[computeTopologyV3] More than 2 tetrahedra share a single face')
+            throw new Error('[computeD2] More than 2 tetrahedra share a single face')
           }
         } else {
           // Register "Triangle (2-cell) to Vertex (0-cell)"
-          f2v.row(++fCount).set([v0, v1, v2])
+          c2xc0.row(++fCount).set([v0, v1, v2])
           v1Prev = v1
           v2Prev = v2
           dup = 0
@@ -972,10 +969,115 @@ const computeTopologyV3 = (c3xc0, nV) => {
     }
   }
 
-  return { d2, f2v }
+  return { c2xc0, d2 }
 }
 
-// Find surface boundary of tetrahedral mesh (f2v and d2 is from `computeTopologyV3`)
+// c2xc0 -> c1xc0 and d1
+// NOTE:
+//   Almost same but simplified version of `computeTopologyV2`
+//   in order to support c2xc0 obtained from 3-manifold
+const computeD1 = (c2xc0, nC0, checkTwoManifold = false) => {
+  const nC2 = c2xc0.shape[0]
+  const nnzReserve = 3 * nC2
+  const vvCoo = MatrixCOO.empty([nC0, nC0], nnzReserve, Int32Array)
+
+  //
+  // Enumerate vertex pair with edge-orientation from triangle as COO-matrix
+  //
+
+  const { min, max } = Math
+
+  for (let i = 0; i < nC2; i++) {
+    const vs = c2xc0.row(i)
+    const v0 = vs[0]
+    const v1 = vs[1]
+    const v2 = vs[2]
+
+    // Encode orientation by sign (but in order to handle "0" we increment original value by "1")
+    vvCoo.set(min(v0, v1), max(v0, v1), (v0 < v1 ? 1 : -1) * (i + 1))
+    vvCoo.set(min(v1, v2), max(v1, v2), (v1 < v2 ? 1 : -1) * (i + 1))
+    vvCoo.set(min(v2, v0), max(v2, v0), (v2 < v0 ? 1 : -1) * (i + 1))
+  }
+
+  // Convert to CSR
+  const vv = MatrixCSR.fromCOO(vvCoo)
+  const numDups = vv.sortIndices()
+  const nC1 = vv.indptr[nC0] - numDups
+
+  // Make d1 and c1xc0
+  const d1 = MatrixCSR.empty([nC2, nC1], 3 * nC1)
+  const c1xc0 = Matrix.empty([nC1, 2], Uint32Array)
+
+  // d1.indptr is trivial
+  for (let i = 1; i <= nC2; i++) {
+    d1.indptr[i] = 3 * i
+  }
+
+  // c1xc0, d1.indices, d1.data
+  {
+    const { sign, abs } = Math
+    const d1Counts = new Uint32Array(nC1)
+    let c1Count = -1
+    let p = 0
+    for (let v0 = 0; v0 < nC0; v0++) { // Loop vv ind0
+      let v1Prev = -1
+      let dup = 0
+
+      for (; p < vv.indptr[v0 + 1]; p++) { // Loop vv ind1
+        const v1 = vv.indices[p]
+        const c2o = vv.data[p]
+        const c2 = abs(c2o) - 1 // Remember how we enconded 2-cell and orientation
+        const o = sign(c2o)
+
+        if (v1 === v1Prev) {
+          if (++dup > 2) {
+            if (checkTwoManifold) {
+              throw new Error('[computeD1] More than 2 triangles share a single edge')
+            }
+          }
+        } else {
+          // Register "Edge (1-cell) to Vertex (0-cell)"
+          c1xc0.row(++c1Count).set([v0, v1])
+          v1Prev = v1
+          dup = 0
+        }
+
+        // Register "Triangle (2-cell) to Edge (1-cell)"
+        const q = d1.indptr[c2] + d1Counts[c2]
+        d1.indices[q] = c1Count
+        d1.data[q] = o
+        d1Counts[c2]++
+      }
+    }
+  }
+
+  return { c1xc0, d1 }
+}
+
+// c1xc0 -> d0
+const computeD0 = (c1xc0, nC0) => {
+  const nC1 = c1xc0.shape[0]
+  const d0 = MatrixCSR.empty([nC1, nC0], 2 * nC1)
+  d0.indices.set(c1xc0.data)
+  for (let i = 0; i < nC1; i++) {
+    d0.indptr[i + 1] = 2 * (i + 1)
+    d0.data[2 * i + 0] = -1
+    d0.data[2 * i + 1] = 1
+  }
+  return { d0 }
+}
+
+// Find surface boundary of tetrahedral mesh (f2v and d2 is from `computeD2`)
+// TODO:
+// - Probably, we can generalize this to "c{n}xc{0}, d{n} -> boundary c{n}xc{0}"
+// - What's happening (co)-homologically? (we get the singular chain by the taking the adjoint of de Rham co-chain?)
+//
+//           d2
+//   Omega2 ----> Omega3
+//
+//     C2   <----   C3
+//           b3
+//
 const computeBoundary = (f2v, d2) => {
   const [nC3, nF] = d2.shape
   const ones = Matrix.empty([nC3, 1], Int32Array)
@@ -1014,5 +1116,5 @@ export {
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
-  computeTopologyV3, computeBoundary
+  computeD2, computeD1, computeD0, computeBoundary
 }
