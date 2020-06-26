@@ -8,7 +8,7 @@ import * as ddg from './ddg.js'
 import * as glm from './glm.js'
 import fs from 'fs'
 import util from 'util'
-import { readOFF, readMESH } from './reader.js'
+import { readOFF, writeOFF, readMESH, readELENODE } from './reader.js' // eslint-disable-line
 import { hash11 } from './hash.js'
 import { Matrix, MatrixCSR, splitByIndptr } from './array.js'
 import { equal, deepEqual, closeTo, deepCloseTo } from './test-misc.js'
@@ -692,6 +692,13 @@ describe('ddg', () => {
 
   describe('computeTopologyV3', () => {
     it('works 0', () => {
+      //
+      //  3
+      //  |      2
+      //  |    /
+      //  |  /
+      //  0 ----- 1
+      //
       const nV = 4
       const c3xc0 = Matrix.empty([1, 4], Uint32Array)
       c3xc0.data.set([
@@ -708,6 +715,14 @@ describe('ddg', () => {
       ])
       deepCloseTo(d2.toDense().data, [
         -1, 1, -1, 1
+      ])
+
+      const f2vB = ddg.computeBoundary(f2v, d2)
+      deepCloseTo(f2vB.data, [
+        0, 2, 1,
+        0, 1, 3,
+        0, 3, 2,
+        1, 2, 3
       ])
     })
 
@@ -734,6 +749,16 @@ describe('ddg', () => {
         -1, 1, -1, 1, 0, 0, 0,
         0, 0, 0, -1, 1, -1, 1
       ])
+
+      const f2vB = ddg.computeBoundary(f2v, d2)
+      deepCloseTo(f2vB.data, [
+        0, 2, 1,
+        0, 1, 3,
+        0, 3, 2,
+        1, 2, 4,
+        1, 4, 3,
+        2, 3, 4
+      ])
     })
 
     it('works 2', async () => {
@@ -744,7 +769,35 @@ describe('ddg', () => {
       deepEqual(f2v_mesh.shape, [6966, 3])
       deepEqual(f2v.shape, [68716, 3])
       deepEqual(d2.shape, [34055, 68716])
-      // TODO: compute boundary faces from d2 and compare with f2v_mesh
+
+      const f2vB = ddg.computeBoundary(f2v, d2)
+      deepCloseTo(f2vB.shape, [914, 3])
+
+      // [ Debug ] writing out OFF file of boundary surface
+      // TODO: bunny.mesh might not be tetrahedrization of bunny?
+      // writeOFF(verts.data, f2vB.data, fs.createWriteStream('misc/data/bunny.mesh.off'))
+    })
+
+    it('works 3', async () => {
+      const data = await readFile('misc/data/bunny.off.tetwild.mesh')
+      const { verts, c3xc0 } = readMESH(data)
+      const nV = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
+      deepEqual(verts.shape, [7630, 3])
+      deepEqual(c3xc0.shape, [30996, 4])
+
+      const { f2v, d2 } = ddg.computeTopologyV3(c3xc0, nV)
+      // const nF = f2v.shape[0]
+      deepEqual(f2v.shape, [67013, 3])
+      deepEqual(d2.shape, [nC3, 67013])
+
+      const f2vB = ddg.computeBoundary(f2v, d2)
+      // const nFB = f2vB.shape[0]
+      deepCloseTo(f2vB.shape, [9400, 3])
+
+      // [ Debug ] Writing out OFF file (cf. scripts/meshToOff.js)
+      // TODO: this seems to generate some isolated triangle inside of mesh. (not sure if it's bug in data or my routines)
+      // writeOFF(verts.data, f2vB.data, fs.createWriteStream('misc/data/bunny.off.tetwild.mesh.off'))
     })
   })
 })

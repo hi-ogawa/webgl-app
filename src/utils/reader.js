@@ -67,6 +67,40 @@ const readOFF = (data, typedarray = false) => {
   }
 }
 
+const writeOFF = (verts, f2v, ostr) => {
+  const nV = verts.length / 3
+  const nF = f2v.length / 3
+  // [ Header ]
+  // OFF
+  // <nV> <nF> <nE>
+  ostr.write(`OFF\n${nV} ${nF} 0\n`)
+
+  // [ verts ]
+  // <x> <y> <z>
+  for (let i = 0; i < nV; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (j > 0) {
+        ostr.write(' ')
+      }
+      ostr.write(String(verts[3 * i + j]))
+    }
+    ostr.write('\n')
+  }
+
+  // [ f2v ]
+  // 3 <v0> <v1> <v2>
+  for (let i = 0; i < nF; i++) {
+    ostr.write('3 ')
+    for (let j = 0; j < 3; j++) {
+      if (j > 0) {
+        ostr.write(' ')
+      }
+      ostr.write(String(f2v[3 * i + j]))
+    }
+    ostr.write('\n')
+  }
+}
+
 const readOBJ = (data) => {
 //
 // v <x> <y> <z>
@@ -152,4 +186,61 @@ const readMESH = (data) => {
   return { verts, f2v, c3xc0 }
 }
 
-export { readOFF, readOBJ, readMESH }
+// Cf.
+// - http://wias-berlin.de/software/tetgen/fformats.ele.html
+// - http://wias-berlin.de/software/tetgen/fformats.node.html
+// - https://github.com/mattoverby/admm-elastic/tree/master/samples/data
+const readELENODE = (ele, node) => {
+// [ .ele ]
+// 2510  4  0
+//     0     211   731   164   733
+//     1     508   394   518   596
+//     ...
+  let c3xc0
+  {
+    const lines = ele.split('\n')
+    assertf(() => lines.length > 0)
+
+    const [_nC3, four, zero] = lines.shift().split(/\s+/)
+    assertf(() => four === '4')
+    assertf(() => zero === '0')
+
+    const nC3 = Number(_nC3)
+    c3xc0 = Matrix.empty([nC3, 4], Uint32Array)
+    for (let i = 0; i < nC3; i++) {
+      const v = lines[i].trim().split(/\s+/)
+      for (let j = 0; j < 4; j++) {
+        c3xc0.data[4 * i + j] = Number(v[j + 1])
+      }
+    }
+  }
+
+  // [ .node ]
+  // 777  3  0  0
+  //    0    -0.086654700000000001  0.15273100000000001  0.011778500000000001
+  //    1    -0.063722399999999998  0.16536600000000001  -0.061750800000000002
+  //    ...
+  let verts
+  {
+    const lines = node.split('\n')
+    assertf(() => lines.length > 0)
+
+    const [_nV, three, zero0, zero1] = lines.shift().split(/\s+/)
+    assertf(() => three === '3')
+    assertf(() => zero0 === '0')
+    assertf(() => zero1 === '0')
+
+    const nV = Number(_nV)
+    verts = Matrix.empty([nV, 3])
+    for (let i = 0; i < nV; i++) {
+      const v = lines[i].trim().split(/\s+/)
+      for (let j = 0; j < 3; j++) {
+        verts.data[3 * i + j] = Number(v[j + 1])
+      }
+    }
+  }
+
+  return { verts, c3xc0 }
+}
+
+export { readOFF, writeOFF, readOBJ, readMESH, readELENODE }

@@ -98,10 +98,7 @@ AFRAME.registerComponent('reader-test', {
     geometry.attributes.position = new THREE.BufferAttribute(verts.data, 3)
     geometry.computeVertexNormals()
 
-    const object = new THREE.Mesh(
-      geometry,
-      new THREE.MeshStandardMaterial({ roughness: 0.7, color: '#f84', flatShading: true }))
-    this.el.setObject3D('bunny', object)
+    this.el.setObject3D('mesh', new THREE.Mesh(geometry))
   }
 })
 

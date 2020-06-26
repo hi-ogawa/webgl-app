@@ -763,22 +763,22 @@ class VectorFieldSolver {
   //
   // - Algorithm
   //   - 1. Construct
-  //     - laplacian   (for step 2)
-  //     - kg          (for step 2)
-  //     - hodge1      (for step 3)
-  //     - d0          (for step 3)
-  //     - edge vector (for step 4)
-  //     - face normal (for step 4)
-  //     - f2f         (for step 4)
+  //     - laplacian   (for step 2.1)
+  //     - kg          (for step 2.1)
+  //     - hodge1      (for step 2.2)
+  //     - d0          (for step 2.2)
+  //     - edge vector (for step 3.3)
+  //     - face normal (for step 3.3)
+  //     - f2f         (for step 3.2)
   //
   //   - 2.
   //     - 2.1. Solve "u" s.t. L u = b = - kg + 2pi s
   //     - 2.2. phi = hodge1 d0 u (connection angle)
   //
   //   - 3.
-  //     - Define v0 initial unit vector on initFace
-  //     - Construct spanning tree F_T with root initFace
-  //     - Extend vector field by parallel-transport based on phi along tree F_T
+  //     - 3.1. Define v0 initial unit vector on initFace
+  //     - 3.2. Construct spanning tree F_T with root initFace
+  //     - 3.3. Extend vector field by parallel-transport based on phi along tree F_T
   //
 
   compute1 (verts, f2v) {
@@ -888,6 +888,7 @@ class VectorFieldSolver {
 // Then, boundary surface can be obtained by
 //   (1, .., 1) d2
 // TODO:
+// - obtain e2v
 // - consider if d0 and d1 can be computed within the same loop
 const computeTopologyV3 = (c3xc0, nV) => {
   // Note that this approach quite nicely parallels to `computeTopologyV2`
@@ -927,12 +928,12 @@ const computeTopologyV3 = (c3xc0, nV) => {
   // Make f2v (aka c2xc0)
   const f2v = Matrix.empty([nF, 3], Uint32Array)
 
-  // Indptr is trivial
+  // d2.indptr is trivial
   for (let i = 1; i <= nC3; i++) {
     d2.indptr[i] = 4 * i
   }
 
-  // Indices and data
+  // f2v, d2.indices, d2.data
   {
     const { sign, abs } = Math
     const d2Counts = new Uint32Array(nF)
@@ -952,7 +953,7 @@ const computeTopologyV3 = (c3xc0, nV) => {
 
         if (v1 === v1Prev && v2 === v2Prev) {
           if (++dup > 2) {
-            throw new Error('[computeTopologyV3] More than 2 tetrahedra share single face')
+            throw new Error('[computeTopologyV3] More than 2 tetrahedra share a single face')
           }
         } else {
           // Register "Triangle (2-cell) to Vertex (0-cell)"
@@ -974,6 +975,37 @@ const computeTopologyV3 = (c3xc0, nV) => {
   return { d2, f2v }
 }
 
+// Find surface boundary of tetrahedral mesh (f2v and d2 is from `computeTopologyV3`)
+const computeBoundary = (f2v, d2) => {
+  const [nC3, nF] = d2.shape
+  const ones = Matrix.empty([nC3, 1], Int32Array)
+  ones.data.fill(1)
+
+  // boundary = (1, .., 1) . d2
+  const boundary = Matrix.empty([nF, 1], Int32Array)
+  d2.matmulT(boundary, ones)
+
+  const nFB = boundary.data.filter(s => s !== 0).length
+  const f2vB = Matrix.empty([nFB, 3], Uint32Array)
+  let p = 0
+  for (let i = 0; i < nF; i++) {
+    const s = boundary.data[i]
+    if (s === 0) { continue }
+
+    const vs = f2v.row(i)
+    if (s === 1) {
+      f2vB.row(p++).set(vs)
+      continue
+    }
+    if (s === -1) {
+      f2vB.row(p++).set([vs[0], vs[2], vs[1]])
+      continue
+    }
+    throw new Error('[computeBoundary]')
+  }
+  return f2vB
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
@@ -982,5 +1014,5 @@ export {
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
-  computeTopologyV3
+  computeTopologyV3, computeBoundary
 }
