@@ -707,7 +707,7 @@ describe('ddg', () => {
       const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
       const nC2 = c2xc0.shape[0]
 
-      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, false)
       const nC1 = c1xc0.shape[0]
 
       const { d0 } = ddg.computeD0(c1xc0, nC0)
@@ -792,7 +792,7 @@ describe('ddg', () => {
       const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
       const nC2 = c2xc0.shape[0]
 
-      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, false)
       const nC1 = c1xc0.shape[0]
 
       const { d0 } = ddg.computeD0(c1xc0, nC0)
@@ -832,7 +832,7 @@ describe('ddg', () => {
     })
 
     it('works 2', async () => {
-      const data = await readFile('misc/data/bunny.off.tetwild.mesh')
+      const data = await readFile('misc/data/bunny.off.tetwild.1e-2.mesh')
       const { verts, c3xc0 } = readMESH(data)
       const nC0 = verts.shape[0]
       const nC3 = c3xc0.shape[0]
@@ -840,18 +840,13 @@ describe('ddg', () => {
       const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
       const nC2 = c2xc0.shape[0]
 
-      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0)
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, false)
       const nC1 = c1xc0.shape[0]
 
       const { d0 } = ddg.computeD0(c1xc0, nC0)
 
-      deepCloseTo([nC0, nC1, nC2, nC3], [7630, 42974, 67013, 30996])
-
-      // Euler characteristics is a bit crazy
-      // - it seems tetwild generates disconnected manifold
-      // - Related? https://github.com/Yixin-Hu/TetWild/issues/41
-      // - But probably bug in my processing
-      deepCloseTo(nC0 - nC1 + nC2 - nC3, 673)
+      deepCloseTo([nC0, nC1, nC2, nC3], [1167, 6474, 9937, 4629])
+      equal(nC0 - nC1 + nC2 - nC3, 1)
 
       deepCloseTo(c2xc0.shape, [nC2, 3])
       deepCloseTo(c1xc0.shape, [nC1, 2])
@@ -863,13 +858,14 @@ describe('ddg', () => {
       const d1d0 = d1.matmulCsr(d0)
       const d2d1 = d2.matmulCsr(d1)
       assert(d1d0.data.every(v => v === 0))
-      assert(!d2d1.data.every(v => v === 0)) // TODO: this should imply input wasn't 3-manifold (or my routines have a bug)
+      assert(!d2d1.data.every(v => v === 0)) // TODO: probably there's still a bug in computeD2 or computeD1
 
       const c2xc0B = ddg.computeBoundary(c2xc0, d2)
-      deepCloseTo(c2xc0B.shape, [9400, 3])
+      deepCloseTo(c2xc0B.shape, [1358, 3])
     })
 
     it('works 3', async () => {
+      // NOTE: this libigl's data seems like convex hull of bunny (cf. ex13_inspector)
       const data = await readFile('thirdparty/libigl-tutorial-data/bunny.mesh')
       const { verts, c3xc0 } = readMESH(data)
       const nC0 = verts.shape[0]
@@ -878,13 +874,16 @@ describe('ddg', () => {
       const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0) // eslint-disable-line
       const nC2 = c2xc0.shape[0]
 
-      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0) // eslint-disable-line
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, false) // eslint-disable-line
       const nC1 = c1xc0.shape[0]
 
       const { d0 } = ddg.computeD0(c1xc0, nC0) // eslint-disable-line
 
-      deepCloseTo([nC0, nC1, nC2, nC3], [5433, 39823, 68716, 34055])
-      deepCloseTo(nC0 - nC1 + nC2 - nC3, 271)
+      deepCloseTo([nC0, nC1, nC2, nC3], [5433, 39822, 68445, 34055])
+      deepCloseTo(nC0 - nC1 + nC2 - nC3, 1)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      deepCloseTo(c2xc0B.shape, [670, 3])
     })
   })
 })

@@ -368,6 +368,13 @@ class MatrixCSR {
 
   nnz () { return this.indptr[this.shape[0]] }
 
+  row (i) {
+    const A = this
+    const indices = A.indices.subarray(A.indptr[i], A.indptr[i + 1])
+    const data = A.data.subarray(A.indptr[i], A.indptr[i + 1])
+    return { indices, data }
+  }
+
   static empty (shape, nnzMax, Klass = Float32Array) {
     const a = new MatrixCSR()
     a.shape = shape
@@ -1563,12 +1570,14 @@ class TensorCSR {
     // Sort ind1/ind2 within each ind0 (aka sortIndices)
     const { indptr, ind1, ind2, data } = b
     let numDups = 0
-    let p = 0
     for (let i = 0; i < n; i++) { // Loop ind0
-      // Apply insertion sort with counting duplicate key
-      for (p++; p < indptr[i + 1]; p++) { // Loop ind1/ind2
+      // Apply insertion sort within this range [p0, p1) with counting duplicate key
+      const p0 = indptr[i]
+      const p1 = indptr[i + 1]
+      for (let p = p0 + 1; p < p1; p++) { // Loop ind1/ind2
         let q = p
-        while (indptr[i] < q) {
+        while (p0 < q) {
+          // Check order "v1 < v1' or (v1 = v1' and v2 < v2')"
           if (ind1[q - 1] < ind1[q]) { break }
           if (ind1[q - 1] === ind1[q]) {
             if (ind2[q - 1] < ind2[q]) {
@@ -1579,7 +1588,7 @@ class TensorCSR {
               break
             }
           }
-
+          // Swap
           {
             const tmp = ind1[q - 1]
             ind1[q - 1] = ind1[q]

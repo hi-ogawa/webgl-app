@@ -887,7 +887,7 @@ class VectorFieldSolver {
 //   Omega_0 -(d0)-> Omega_1 -(d1)-> Omage_2 -(d2)-> Omega_3
 // Then, boundary surface can be obtained by
 //   (1, .., 1) d2
-const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc0 and d2
+const computeD2 = (c3xc0, nC0, checkThreeManifold = true) => { // c3xc0 -> c2xc0 and d2
   // Note that this construction quite nicely parallels to `computeTopologyV2`
 
   //
@@ -934,7 +934,7 @@ const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc
   {
     const { sign, abs } = Math
     const d2Counts = new Uint32Array(nC3)
-    let fCount = -1
+    let c2Count = -1
     let p = 0
     for (let v0 = 0; v0 < nC0; v0++) { // Loop vvv ind0
       let v1Prev = -1
@@ -948,13 +948,18 @@ const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc
         const c3 = abs(c3o) - 1 // Remember how we enconded 3-cell and orientation
         const o = sign(c3o)
 
+        // [ Debug: see if TensorCSR indices are sorted correctly ]
+        // console.log(v0, v1, v2)
+
         if (v1 === v1Prev && v2 === v2Prev) {
           if (++dup > 2) {
-            throw new Error('[computeD2] More than 2 tetrahedra share a single face')
+            if (checkThreeManifold) {
+              throw new Error('[computeD2] More than 2 tetrahedra share a single face')
+            }
           }
         } else {
           // Register "Triangle (2-cell) to Vertex (0-cell)"
-          c2xc0.row(++fCount).set([v0, v1, v2])
+          c2xc0.row(++c2Count).set([v0, v1, v2])
           v1Prev = v1
           v2Prev = v2
           dup = 0
@@ -962,7 +967,7 @@ const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc
 
         // Register "Tetrahedron (3-cell) to Triangle (2-cell)"
         const q = d2.indptr[c3] + d2Counts[c3]
-        d2.indices[q] = fCount
+        d2.indices[q] = c2Count
         d2.data[q] = o
         d2Counts[c3]++
       }
@@ -976,7 +981,7 @@ const computeD2 = (c3xc0, nC0, checkThreeManifold = false) => { // c3xc0 -> c2xc
 // NOTE:
 //   Almost same but simplified version of `computeTopologyV2`
 //   in order to support c2xc0 obtained from 3-manifold
-const computeD1 = (c2xc0, nC0, checkTwoManifold = false) => {
+const computeD1 = (c2xc0, nC0, checkTwoManifold = true) => {
   const nC2 = c2xc0.shape[0]
   const nnzReserve = 3 * nC2
   const vvCoo = MatrixCOO.empty([nC0, nC0], nnzReserve, Int32Array)
@@ -1108,6 +1113,19 @@ const computeBoundary = (f2v, d2) => {
   return f2vB
 }
 
+const c3xc0Toc0xc3 = (c3xc0, nC0) => {
+  // Represent c3xc0 as MatrixCSR
+  const nC3 = c3xc0.shape[0]
+  const tmp = MatrixCSR.empty([nC3, nC0], 4 * nC3, Uint8Array) // 0/1 entry
+  tmp.indptr = _.range(nC3 + 1).map(i => 4 * i)
+  tmp.indices = c3xc0.data
+  tmp.data.fill(1)
+
+  // Take transpose which represents c0xc3 (we don't have "uniform" row structure any more)
+  const c0xc3 = tmp.transpose()
+  return c0xc3
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
@@ -1116,5 +1134,5 @@ export {
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
-  computeD2, computeD1, computeD0, computeBoundary
+  computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3
 }
