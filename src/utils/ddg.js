@@ -1113,6 +1113,64 @@ const computeBoundary = (f2v, d2) => {
   return f2vB
 }
 
+// Compute 1-cell boundary (oriented) and 0-cell boundary (not oriented)
+const computeBoundaryC2 = (d0, d1) => {
+  // |b1|. |b2 (1,..,1)^T | = (|(1,..,1) d1^T| |d0|^T)^T
+  // where |~| represents point-wise absolute value
+  const [nC2, nC1] = d1.shape
+  const nC0 = d0.shape[1]
+
+  const ones = Matrix.empty([nC2, 1], Int32Array)
+  ones.data.fill(1)
+
+  // Compute boundary 1-cell (oriented)
+  //   c1B = (1,..,1) d1^T
+  const c1B = Matrix.empty([nC1, 1], Int32Array)
+  d1.matmulT(c1B, ones)
+
+  // |d0|
+  const _d0 = d0.clone()
+  _d0.data.fill(1)
+
+  // |c1B|
+  const _c1B = c1B.clone().abs()
+
+  // Compute boundary 0-cell (not oriented)
+  //   c0B = |c1B| |d0|^T
+  const c0B = Matrix.empty([nC0, 1], Int32Array)
+  _d0.matmulT(c0B, _c1B)
+
+  return { c1B, c0B }
+}
+
+const computeBoundaryLoop = (root, c0B, c1B, c1xc0) => {
+  // assert root in c0B
+  if (c0B.data[root] === 0) {
+    throw new Error('[computeBoundaryLoop]')
+  }
+
+  const nC0 = c0B.data.length
+  const nC1 = c1B.data.length
+  const nC1B = c1B.data.filter(v => v !== 0).length
+
+  // Make c0xc0 adjacency matrix with oriented boundary edge as data (as encoding is "sign * (id + 1)")
+  // Actually `data` is not necessarily for `computeSpanningTreeV3` to work,
+  // but probably it is useful/natural if `loop` already combines edge data.
+  let c0xc0 = MatrixCOO.empty([nC0, nC0], 2 * nC1B, Int32Array)
+  for (let i = 0; i < nC1; i++) {
+    if (c1B.data[i] === 0) { continue }
+    const vs = c1xc0.row(i)
+    c0xc0.set(vs[0], vs[1], i + 1)
+    c0xc0.set(vs[1], vs[0], -(i + 1))
+  }
+  c0xc0 = MatrixCSR.fromCOO(c0xc0)
+
+  // `computeSpanningTreeV3` returns MatrixCOO with DFS topological order of vertices, which should be naturally loop.
+  // TODO: currently it allocates MatrixCOO with nnz = nC0. maybe should support nnz as optional argument?
+  const loop = computeSpanningTreeV3(root, c0xc0)
+  return loop
+}
+
 const c3xc0Toc0xc3 = (c3xc0, nC0) => {
   // Represent c3xc0 as MatrixCSR
   const nC3 = c3xc0.shape[0]
@@ -1134,5 +1192,6 @@ export {
   computeLaplacianV2, computeMoreV2, computeTopologyV2, computeHodge1,
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
-  computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3
+  computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
+  computeBoundaryC2, computeBoundaryLoop
 }

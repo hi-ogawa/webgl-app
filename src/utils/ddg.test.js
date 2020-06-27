@@ -422,6 +422,21 @@ describe('ddg', () => {
       equal(boundaryEdge.reduce(_.add), 56)
       equal(numBoundaryEdgesPerFace.filter(n => n > 0).length, 56)
       equal(numBoundaryEdgesPerFace.every(n => n === 0 || n === 1), true)
+
+      // We can canonically obtain boundary based on boundary operator (i.e. adjoint of exterior derivative)
+      {
+        const nC0 = verts.shape[0]
+        const c2xc0 = f2v
+        const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, true)
+        const { d0 } = ddg.computeD0(c1xc0, nC0)
+        const { c1B, c0B } = ddg.computeBoundaryC2(d0, d1)
+
+        // Boundary edges
+        equal(c1B.data.filter(v => v !== 0).length, 56)
+
+        // Boundary vertices
+        equal(c0B.data.filter(v => v !== 0).length, 56)
+      }
     })
 
     it('works 0', () => {
@@ -884,6 +899,29 @@ describe('ddg', () => {
 
       const c2xc0B = ddg.computeBoundary(c2xc0, d2)
       deepCloseTo(c2xc0B.shape, [670, 3])
+    })
+  })
+
+  describe('computeBoundaryLoop', () => {
+    it('works', () => {
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/camelhead.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      const c2xc0 = new Matrix(f2v, [f2v.length / 3, 3])
+      const nC0 = verts.shape[0]
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, /* checkTwoManiforld */ true)
+      const { d0 } = ddg.computeD0(c1xc0, nC0)
+      const { c0B, c1B } = ddg.computeBoundaryC2(d0, d1)
+      const root = c0B.data.findIndex(v => v !== 0)
+      const loop = ddg.computeBoundaryLoop(root, c0B, c1B, c1xc0)
+
+      const nC0B = c0B.data.filter(v => v !== 0).length
+      equal(loop.nnz, nC0B - 1)
+
+      console.log(verts.row(root))
+      for (let i = 0; i < loop.nnz; i++) {
+        console.log(verts.row(loop.col[i]))
+      }
     })
   })
 })

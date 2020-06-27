@@ -162,6 +162,13 @@ class Matrix {
     return x
   }
 
+  abs () {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] = Math.abs(this.data[i])
+    }
+    return this
+  }
+
   // TODO: generate more basic operations (cf. glm.generateOperators)
   muleq (other) {
     for (let i = 0; i < this.data.length; i++) {
