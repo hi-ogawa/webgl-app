@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>WebGL App</title>
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+  <div id="root"></div>
+
+  <template id="scene">
+    <a-scene
+      background="color: #233"
+      light="defaultLightsEnabled: false"
+      inspector="url: ../../web_modules/aframe-inspector.js"
+    >
+      <a-entity
+        harmonic-parametrization
+        url-geometry-loader="url: ../../thirdparty/libigl-tutorial-data/camelhead.off"
+        material="side: double; src: url(../../misc/data/uv-blender.png)"
+        position="0 0 0"
+      ></a-entity>
+
+      <!-- Camera and Sun light -->
+      <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 2 7" orbit-controls="drawLookat: false">
+        <a-entity light="type: directional; intensity: 0.35"></a-entity>
+      </a-entity>
+
+      <!-- Coordinate grid -->
+      <a-entity coordinate-grid="y: false"></a-entity>
+
+      <!-- Ambient light -->
+      <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+    </a-scene>
+  </template>
+
+  <script type="module">
+    import { main } from './index.js';
+    main()
+  </script>
+</body>

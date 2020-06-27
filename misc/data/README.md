@@ -1,3 +1,5 @@
+- uv-blender.png is from Blender's "Color Grid"
+
 - Generate .mesh file by [TetWild](https://github.com/Yixin-Hu/TetWild).
 
 ```
