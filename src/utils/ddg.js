@@ -1171,6 +1171,125 @@ const computeBoundaryLoop = (root, c0B, c1B, c1xc0) => {
   return loop
 }
 
+const toSelectorMatrix = (bools) => {
+  const nS = bools.length
+  const nT = bools.filter(v => v !== 0).length // treat as true if not zero
+  const S = MatrixCSR.empty([nT, nS], nT)
+  S.indptr.set(_.range(nT + 1))
+  S.data.fill(1)
+  let k = 0
+  for (let i = 0; i < nS; i++) {
+    if (bools[i] === 0) { continue }
+    S.indices[k++] = i
+  }
+  return S
+}
+
+// Typical example for Laplace equation with Dirichlet boundary condition
+class HarmonicParametrizationSolver {
+  compute (verts, c2xc0, iteration = 1024, residue = 1e-2) {
+    const nC0 = verts.shape[0]
+
+    // 1. laplacian
+    let L = computeLaplacianV2(verts, c2xc0)
+    L = MatrixCSR.fromCOO(L)
+    L.sumDuplicates()
+
+    // 2. boundary
+    const { c1xc0, d1 } = computeD1(c2xc0, nC0, /* checkTwoManiforld */ true)
+    const { d0 } = computeD0(c1xc0, nC0)
+    const { c0B, c1B } = computeBoundaryC2(d0, d1)
+    const nC0B = c0B.data.filter(v => v !== 0).length
+    const nC0I = nC0 - nC0B
+    if (nC0B === 0) {
+      throw new Error('[HarmonicParametrizationSolver] boundary vertex not found')
+    }
+
+    // 3. interior selector matrix
+    const Si = toSelectorMatrix(c0B.clone().negate().data)
+
+    // 4. laplacian restricted on interior
+    const SiT = Si.transpose()
+    const Si_L = Si.matmulCsr(L)
+    const Si_L_SiT = Si_L.matmulCsr(SiT) // negative definite if there's really boundary vertex
+    const neg_Si_L_SiT = Si_L_SiT.clone().muleqs(-1) // positive definite
+
+    // 5. boundary loop
+    const root = c0B.data.findIndex(v => v !== 0)
+    const loop = computeBoundaryLoop(root, c0B, c1B, c1xc0) // MatrixCOO
+    let orient
+    {
+      // currently computeBoundaryLoop is not smart enough,
+      // so here is quick way to find orientation of loop
+      const { sign, abs } = Math
+      const d1T = d1.transpose()
+      const e = abs(loop.data[0]) - 1
+      orient = sign(d1T.row(e).data[0])
+    }
+
+    // 6. map boundary loop to 2d loop (i.e. boundary condition for Laplace equation)
+    //   (here, just map curve which only respects |\del_t \gamma|)
+    const u = Matrix.empty([nC0, 1]) // directly fill boundary value to solution vector
+    const v = Matrix.empty([nC0, 1])
+    {
+      const { cos, sin, PI } = Math
+      const { sub, length } = glm.vec3
+
+      // Compute edge lengths
+      const lengths = new Float32Array(loop.nnz)
+      let total = 0
+      let p = verts.row(root)
+      for (let i = 0; i < loop.nnz; i++) { // Traverse loop as MatrixCOO
+        const q = verts.row(loop.col[i])
+        const l = length(sub(q, p))
+        lengths[i] = l
+        total += l
+        p = q
+      }
+      total += length(sub(verts.row(root), p))
+
+      // Scale and map to unit circle
+      let t = 0
+      u.data[root] = cos(t)
+      v.data[root] = sin(t)
+      for (let i = 0; i < loop.nnz; i++) {
+        t += orient * 2 * PI * lengths[i] / total
+        u.data[loop.col[i]] = cos(t)
+        v.data[loop.col[i]] = sin(t)
+      }
+    }
+
+    // 7. solve laplace equation
+    //  0 = (L u)|_interior
+    //    = Si . L . (Si^T ui + Sb^T ub)
+    //    = (Si . L . Si^T) ui + (Si . L . Sb^T) ub
+    //  <=>
+    //  - (Si . L . Si^T) ui = (Si . L . Sb^T) ub
+    const stats = {}
+    {
+      const ui = Matrix.empty([nC0I, 1])
+      const rhs = Matrix.emptyLike(ui)
+      Si_L.matmul(rhs, u) // we've filled boundary value "SbT . ub" directly in "u"
+      stats.u = neg_Si_L_SiT.conjugateGradient(ui, rhs, iteration, residue)
+      // u = Si^T ui + Sb^T ub
+      const SiT_ui = Matrix.emptyLike(u)
+      SiT.matmul(SiT_ui, ui)
+      u.addeq(SiT_ui)
+    }
+    {
+      const vi = Matrix.empty([nC0I, 1])
+      const rhs = Matrix.emptyLike(vi)
+      Si_L.matmul(rhs, v)
+      stats.v = neg_Si_L_SiT.conjugateGradient(vi, rhs, iteration, residue)
+      const SiT_vi = Matrix.emptyLike(v)
+      SiT.matmul(SiT_vi, vi)
+      v.addeq(SiT_vi)
+    }
+
+    return { u, v, stats }
+  }
+}
+
 const c3xc0Toc0xc3 = (c3xc0, nC0) => {
   // Represent c3xc0 as MatrixCSR
   const nC3 = c3xc0.shape[0]
@@ -1193,5 +1312,6 @@ export {
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
   computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
-  computeBoundaryC2, computeBoundaryLoop
+  computeBoundaryC2, computeBoundaryLoop,
+  HarmonicParametrizationSolver
 }

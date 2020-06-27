@@ -914,14 +914,24 @@ describe('ddg', () => {
       const { c0B, c1B } = ddg.computeBoundaryC2(d0, d1)
       const root = c0B.data.findIndex(v => v !== 0)
       const loop = ddg.computeBoundaryLoop(root, c0B, c1B, c1xc0)
-
       const nC0B = c0B.data.filter(v => v !== 0).length
       equal(loop.nnz, nC0B - 1)
+    })
+  })
 
-      console.log(verts.row(root))
-      for (let i = 0; i < loop.nnz; i++) {
-        console.log(verts.row(loop.col[i]))
-      }
+  describe('HarmonicParametrizationSolver', () => {
+    it('works', function () {
+      this.timeout(10000)
+      const data = fs.readFileSync('thirdparty/libigl-tutorial-data/camelhead.off').toString()
+      let { verts, f2v } = readOFF(data, true)
+      verts = new Matrix(verts, [verts.length / 3, 3])
+      const c2xc0 = new Matrix(f2v, [f2v.length / 3, 3])
+      const solver = new ddg.HarmonicParametrizationSolver()
+      const { u, v, stats } = solver.compute(verts, c2xc0)
+      assert(stats.u.residue < 1e-2)
+      assert(stats.v.residue < 1e-2)
+      const nC0 = verts.shape[0]
+      assert(_.range(nC0).every(i => u.data[i] ** 2 + v.data[i] ** 2 <= 1.01))
     })
   })
 })

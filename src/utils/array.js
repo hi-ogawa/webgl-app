@@ -169,6 +169,13 @@ class Matrix {
     return this
   }
 
+  negate () {
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] = !this.data[i]
+    }
+    return this
+  }
+
   // TODO: generate more basic operations (cf. glm.generateOperators)
   muleq (other) {
     for (let i = 0; i < this.data.length; i++) {
@@ -684,6 +691,14 @@ class MatrixCSR {
     return this
   }
 
+  muleqs (h) {
+    const nnz = this.nnz()
+    for (let i = 0; i < nnz; i++) {
+      this.data[i] *= h
+    }
+    return this
+  }
+
   // - A + h I (useful for making negative semi-definite into positive definite)
   negadddiags (h) {
     let p0 = 0
@@ -1076,6 +1091,9 @@ class MatrixCSR {
     C.indptr = new Uint32Array(C.shape[0] + 1)
     C.indices = []
     C.data = []
+    // const nnzReserve = A.nnz() + B.nnz()
+    // C.indices = new Uint32Array(nnzReserve)
+    // C.data = new A.data.constructor(nnzReserve)
 
     for (let i = 0; i < A.shape[0]; i++) { // Loop A row
       C.indptr[i + 1] = C.indptr[i]
@@ -1091,6 +1109,8 @@ class MatrixCSR {
           // Set C[i, j]
           C.indices.push(j)
           C.data.push(Aik * Bkj)
+          // C.indices[C.indptr[i + 1]] = j
+          // C.data[C.indptr[i + 1]] = Aik * Bkj
           C.indptr[i + 1]++
         }
       }
