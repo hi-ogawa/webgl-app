@@ -5,6 +5,7 @@ import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from './index.js'
 import * as glm from './glm.js'
 import * as ddg from './ddg.js'
+import { hash11 } from './hash.js'
 
 const THREE = AFRAME.THREE
 
@@ -568,7 +569,7 @@ const makeIcosphere = (n) => {
   }
 }
 
-const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true) => {
+const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true, uniformTriangulation = true) => {
   const n = segmentsX
   const m = segmentsY
 
@@ -591,7 +592,17 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
         nn * ((y + 1) % mm) + ((x + 1) % nn),
         nn * ((y + 1) % mm) + ((x + 0) % nn)
       ]
-      const faces = triangle ? quadToTriIndex(quad) : [quad]
+      if (!triangle) {
+        index.push(quad)
+        continue
+      }
+      if (uniformTriangulation) {
+        index.push(...quadToTriIndex(quad))
+        continue
+      }
+      const [a, b, c, d] = quad
+      const cointoss = hash11(x * 123 + (y * 235) << 8) >= 0.5
+      const faces = cointoss ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]]
       index.push(...faces)
     }
   }

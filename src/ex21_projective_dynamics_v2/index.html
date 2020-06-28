@@ -27,8 +27,9 @@
         geometry
         material="shader: flat; wireframe: true; wireframeLinewidth: 1.5; color: #f84; opacity: 0.8"
       ></a-entity>
-      <a-entity id="handle1" position="-1 0 0" simple-controls><a-entity mixin="point"></a-entity></a-entity>
-      <a-entity id="handle2" position="1 0 0.05" simple-controls><a-entity mixin="point"></a-entity></a-entity>
+      <a-entity id="handle1" position="-0.5 0 0" simple-controls><a-entity mixin="point"></a-entity></a-entity>
+      <a-entity id="handle2" position="0.5 0 0.01" simple-controls><a-entity mixin="point"></a-entity></a-entity>
+      <a-entity id="handle3" position="0 0 -0.01" simple-controls><a-entity mixin="point"></a-entity></a-entity>
 
       <!-- Camera and Sun light -->
       <a-entity camera="fov: 39; near: 1e-2; far: 1e2" position="1 1 6" orbit-controls="drawLookat: false">

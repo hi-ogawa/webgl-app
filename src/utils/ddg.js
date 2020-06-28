@@ -1223,7 +1223,7 @@ class HarmonicParametrizationSolver {
       // so here is quick way to find orientation of loop
       const { sign, abs } = Math
       const d1T = d1.transpose()
-      const e = abs(loop.data[0]) - 1
+      const e = abs(loop.data[0]) - 1 // our encoding (note that this "sign" is NOT 1-cell orientation wrt. 2-cell boundary)
       orient = sign(d1T.row(e).data[0])
     }
 
@@ -1313,5 +1313,5 @@ export {
   VectorFieldSolver,
   computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
   computeBoundaryC2, computeBoundaryLoop,
-  HarmonicParametrizationSolver
+  HarmonicParametrizationSolver, toSelectorMatrix
 }

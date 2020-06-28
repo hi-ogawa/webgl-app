@@ -6,6 +6,7 @@
 import _ from '../../web_modules/lodash.js'
 import { Matrix, MatrixCSR } from './array.js'
 import * as glm from './glm.js'
+import * as ddg from './ddg.js'
 import * as misc2 from './misc2.js'
 
 // Curve
@@ -219,7 +220,7 @@ class Example01 {
     // Geometry
     //
     const { vec3, mat3 } = glm
-    const { sign, sqrt } = Math
+    const { sqrt } = Math
     const eye3 = Matrix.eye([3, 3])
     const eye3neg = eye3.clone().muleqs(-1)
 
@@ -256,7 +257,7 @@ class Example01 {
     // Surface strain constraint for all faces
     // TODO: analyze weighting by area
     for (let j = 0; j < f2v.shape[0]; j++) {
-      const stiffness = 64
+      const stiffness = 2 ** 7
       const vs = f2v.row(j)
       const x0 = verts.row(vs[0])
       const x1 = verts.row(vs[1])
@@ -291,14 +292,15 @@ class Example01 {
         B.setSlice([[5, 6], [6, 9]], m2)
       }
 
-      const { matmul, transpose } = mat3 // eslint-disable-line
+      const { matmul, transpose, det } = mat3 // eslint-disable-line
 
       const projection = (p, x0, x1, x2) => {
         // Cf. Procrustes problem
         // argmin_P |X - P Xr| = argmax_P Tr[P Xr XT] = V E UT = (U E VT)^T
         //   where
         //   - SVD decomp: Xr XT = U D VT
-        //   - E = diag(sign(D11), sign(D22), sign(D11) * sign(D22)) (note that D33 = 0)
+        //   - E = diag(1, 1, det(U VT)) (flip smallest diagonal's sign if U.VT is inverted)
+        //         (for 2d case, D[2, 2] = 0, so this actually doesn't affect strain energy)
 
         // [ Before inline ]
         // const u1 = vec3.sub(x1, x0)
@@ -316,8 +318,8 @@ class Example01 {
         ]
         const W = matmul(X_rest, XT)
 
-        const [U, D, VT] = mat3.svdNonInvertible(W)
-        const E = mat3.diag([sign(D[0]), sign(D[1]), sign(D[0]) * sign(D[1])])
+        const [U, D, VT] = mat3.svdNonInvertible(W) // eslint-disable-line
+        const E = mat3.diag([1, 1, det(U) * det(VT)])
         const U_E_VT = matmul(U, matmul(E, VT))
         p.set(U_E_VT)
       }
@@ -328,6 +330,51 @@ class Example01 {
         selector: vs,
         A: A.muleqs(sqrt(weight)),
         B: B.muleqs(sqrt(weight))
+      })
+    }
+
+    // Surface mean curvature constraint for all dual faces
+    {
+      // Laplacian based on rest surface
+      let L = ddg.computeLaplacianV2(verts, f2v)
+      L = MatrixCSR.fromCOO(L)
+      L.sumDuplicates()
+
+      // Make boundary vertices selector
+      const { d1, c1xc0 } = ddg.computeD1(f2v, nV)
+      const { d0 } = ddg.computeD0(c1xc0, nV)
+      const { c0B } = ddg.computeBoundaryC2(d0, d1)
+      const Si = ddg.toSelectorMatrix(c0B.negate().data)
+      const nVI = Si.shape[0] // interior verts count
+
+      // Select all
+      const selector = _.range(nV)
+
+      // R^{3 * nVI x 3 * nV}
+      const A = Matrix.empty([3 * nVI, 3 * nV])
+      const Si_L = Si.matmulCsr(L) // Laplacian restricted to interior
+
+      // TODO: for now manually duplicate to three components
+      for (let i = 0; i < Si_L.shape[0]; i++) {
+        for (let p = Si_L.indptr[i]; p < Si_L.indptr[i + 1]; p++) {
+          const j = Si_L.indices[p]
+          const v = Si_L.data[p]
+          A.set(3 * i, 3 * j, v)
+          A.set(3 * i + 1, 3 * j + 1, v)
+          A.set(3 * i + 2, 3 * j + 2, v)
+        }
+      }
+
+      // R^{3 * nVI x 1}
+      const B = Matrix.empty([3 * nVI, 3]) // = 0
+      const projection = () => {} // no-op
+
+      const weight = 4
+      constraints.push({
+        projection,
+        selector,
+        A: A.muleqs(sqrt(weight)),
+        B
       })
     }
 

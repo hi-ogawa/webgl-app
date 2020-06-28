@@ -3,8 +3,10 @@
 //
 // Miscellaneous but (hopefully) without external dependencies
 //
+import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
 import { Matrix } from './array.js'
+import { hash11 } from './hash.js'
 
 // Scale a set of positions to [-1, 1]^3
 const normalizePositions = (verts) => {
@@ -53,7 +55,7 @@ const cumsum = (a) => {
   return b
 }
 
-const makeTriangle = (n = 1, p0 = [-1, 0, 0], p1 = [1, 0, 0], p2 = [0, Math.sqrt(3), 0]) => {
+const makeTriangle = (n = 1, p0 = [0, 0, 0], p1 = [1, 0, 0], p2 = [0.5, 0.5 * Math.sqrt(3), 0]) => {
   const { add, sub, muls } = glm.vec3
   const u1 = sub(p1, p0)
   const u2 = sub(p2, p0)
@@ -211,8 +213,62 @@ const _sortParity3 = (ijk) => {
   return true
 }
 
+// Conversion routine from previously often used geometry format of mine
+const toMatrices = (position, index) => {
+  const nV = position.length
+  const nF = index.length
+  const verts = Matrix.empty([nV, 3])
+  const f2v = Matrix.empty([nF, 3], Uint32Array)
+  verts.data.set(position.flat())
+  f2v.data.set(index.flat())
+  return { verts, f2v }
+}
+
+// TODO: Sadly this is copy-paste from misc.js to use this in physics.bench.js and avoid AFRAME dependency
+const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true, uniformTriangulation = true) => {
+  const n = segmentsX
+  const m = segmentsY
+
+  // verts
+  const xx = _.range(n + 1).map(i => i / n)
+  const yy = _.range(n + 1).map(i => i / m)
+  if (periodicX) { xx.pop() }
+  if (periodicY) { yy.pop() }
+  const position = yy.map(y => xx.map(x => [x, y, 0])).flat()
+
+  // f2v
+  const index = []
+  const nn = periodicX ? n : n + 1
+  const mm = periodicY ? m : m + 1
+  for (const x of _.range(n)) {
+    for (const y of _.range(m)) {
+      const quad = [
+        nn * ((y + 0) % mm) + ((x + 0) % nn),
+        nn * ((y + 0) % mm) + ((x + 1) % nn),
+        nn * ((y + 1) % mm) + ((x + 1) % nn),
+        nn * ((y + 1) % mm) + ((x + 0) % nn)
+      ]
+      if (!triangle) {
+        index.push(quad)
+        continue
+      }
+      const [a, b, c, d] = quad
+      if (uniformTriangulation) {
+        index.push([a, b, c], [a, c, d])
+        continue
+      }
+      const cointoss = hash11(x * 123 + (y * 235) << 8) >= 0.5
+      const faces = cointoss ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]]
+      index.push(...faces)
+    }
+  }
+
+  return { position, index }
+}
+
 export {
   normalizePositions, normalizePositionsV2,
   getSignedColor, cumsum, makeTriangle,
-  measure, assertf, sort3, sortParity3, _sortParity3
+  measure, assertf, sort3, sortParity3, _sortParity3,
+  makePlane, toMatrices
 }

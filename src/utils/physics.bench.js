@@ -16,11 +16,35 @@ describe('physics', () => {
   })
 
   describe('Example01', () => {
-    it('works', () => {
+    it('works 0', () => {
       const { verts, f2v } = misc2.makeTriangle(12)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new Example01()
 
+      console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
+      {
+        const run = () => solver.init(verts, f2v, handles)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('Example01.init')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.update()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example01.update')
+        console.log(resultString)
+      }
+    })
+
+    it('works 1', () => {
+      const n = 20
+      const { position, index } = misc2.makePlane(n, n, false, false, true, false)
+      const { verts, f2v } = misc2.toMatrices(position, index)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new Example01()
+
+      console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
       {
         const run = () => solver.init(verts, f2v, handles)
         const { resultString } = timeit('args.run()', '', '', { run })
