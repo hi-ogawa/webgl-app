@@ -90,8 +90,8 @@ const getData = (url) => {
 AFRAME.registerComponent('visualize-tetrahedron-mesh', {
   schema: {
     url: { default: '../../misc/data/bunny.off.tetwild.1e-2.mesh' },
-    c0: { default: 0, type: 'int' },
-    c3: { default: 0, type: 'int' },
+    c0: { default: 0, min: 0, type: 'int' },
+    c3: { default: 0, min: 0, type: 'int' },
     type: { default: 'c0xc3', oneOf: ['c0xc3', 'c3xc0'] }
   },
 
@@ -132,13 +132,22 @@ AFRAME.registerComponent('visualize-tetrahedron-mesh', {
     const { verts, c0xc3, c3xc0, geometry2 } = this
     if (!geometry2) { return }
 
+    const nC0 = c0xc3.shape[0]
+    const nC3 = c3xc0.shape[0]
+
     if (type === 'c3xc0') {
+      if (c3 >= nC3) { return }
       $('#root #c0').object3D.visible = false
     }
 
     if (type === 'c0xc3') {
+      if (c0 >= nC0) { return }
+
       const offset = c3
-      c3 = c0xc3.indices[c0xc3.indptr[c0] + offset]
+      const k = c0xc3.indptr[c0] + offset
+      if (k >= c0xc3.indptr[c0 + 1]) { return }
+
+      c3 = c0xc3.indices[k]
       // [ Debug ]
       console.log(`c0: ${c0}, c3: ${c3}, offset: ${offset}`)
       const p = verts.row(c0)

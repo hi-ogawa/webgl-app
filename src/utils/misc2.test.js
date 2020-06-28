@@ -4,6 +4,7 @@
 import assert from 'assert'
 import * as misc2 from './misc2.js'
 import * as ddg from './ddg.js'
+import * as glm from './glm.js'
 
 const equal = assert.strictEqual
 const deepEqual = assert.deepStrictEqual
@@ -35,6 +36,7 @@ describe('misc2', () => {
       deepEqual(Array.from(numBoundaryEdgesPerFace), [2, 0, 2, 2])
     })
   })
+
   describe('sort3', () => {
     it('works 0', () => {
       const a = [0, 1, 2]
@@ -53,6 +55,72 @@ describe('misc2', () => {
       deepEqual(misc2.sortParity3(1, 2, 0), [0, 1, 2, 1])
       deepEqual(misc2.sortParity3(2, 0, 1), [0, 1, 2, 1])
       deepEqual(misc2.sortParity3(2, 1, 0), [0, 1, 2, -1])
+    })
+  })
+
+  describe('makeTetrahedralizedCube', () => {
+    it('works 0', () => {
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(1)
+      const nC0 = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
+
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+
+      const { c1xc0 } = ddg.computeD1(c2xc0, nC0, false)
+      const nC1 = c1xc0.shape[0]
+
+      deepEqual([nC0, nC1, nC2, nC3], [
+        8, // cube vertices
+        12 + 6 + 1, // (original cube edge) + (face cuts) + (diagonal)
+        2 * 6 + 2 * 3, // (triangulated cube faces) + (triangulated diagonal planes)
+        6 // tetrahedrize 6 patterns of x < y < z
+      ])
+      equal(nC0 - nC1 + nC2 - nC3, 1)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      const nC2B = c2xc0B.shape[0]
+      equal(nC2B, 12) // triangulated cube faces
+
+      // Check signed volume of tetrahedra
+      const { sub } = glm.vec3
+      const { det } = glm.mat3
+      for (let i = 0; i < nC3; i++) {
+        const vs = c3xc0.row(i)
+        const u1 = sub(verts.row(vs[1]), verts.row(vs[0]))
+        const u2 = sub(verts.row(vs[2]), verts.row(vs[0]))
+        const u3 = sub(verts.row(vs[3]), verts.row(vs[0]))
+        const T = [...u1, ...u2, ...u3]
+        equal(det(T), 1)
+      }
+    })
+
+    it('works 1', () => {
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(2)
+      const nC0 = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+      const { c1xc0 } = ddg.computeD1(c2xc0, nC0, false)
+      const nC1 = c1xc0.shape[0]
+      deepEqual([nC0, nC1, nC2, nC3], [27, 98, 120, 48])
+      equal(nC0 - nC1 + nC2 - nC3, 1)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      const nC2B = c2xc0B.shape[0]
+      equal(nC2B, 48)
+
+      // Check signed volume of tetrahedra
+      const { sub } = glm.vec3
+      const { det } = glm.mat3
+      for (let i = 0; i < nC3; i++) {
+        const vs = c3xc0.row(i)
+        const u1 = sub(verts.row(vs[1]), verts.row(vs[0]))
+        const u2 = sub(verts.row(vs[2]), verts.row(vs[0]))
+        const u3 = sub(verts.row(vs[3]), verts.row(vs[0]))
+        const T = [...u1, ...u2, ...u3]
+        equal(det(T), 1 / 8)
+      }
     })
   })
 })

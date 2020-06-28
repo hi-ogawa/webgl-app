@@ -203,6 +203,39 @@ const readMESH = (data) => {
   return { verts, f2v, c3xc0 }
 }
 
+const writeMESH = (verts, c3xc0, ostr) => {
+  const nC0 = verts.length / 3
+  const nC3 = c3xc0.length / 4
+
+  ostr.write('MeshVersionFormatted 1\n')
+  ostr.write('Dimension 3\n')
+
+  // Vertices
+  ostr.write('Vertices\n')
+  ostr.write(`${nC0}\n`)
+  for (let i = 0; i < nC0; i++) {
+    const x = verts[3 * i + 0]
+    const y = verts[3 * i + 1]
+    const z = verts[3 * i + 2]
+    ostr.write(`${x} ${y} ${z} ${0}\n`)
+  }
+
+  // Triangles
+  ostr.write('Triangles\n')
+  ostr.write('0\n')
+
+  // Tetrahedra
+  ostr.write('Tetrahedra\n')
+  ostr.write(`${nC3}\n`)
+  for (let i = 0; i < nC3; i++) {
+    const v0 = c3xc0[4 * i + 0] + 1
+    const v1 = c3xc0[4 * i + 1] + 1
+    const v2 = c3xc0[4 * i + 2] + 1
+    const v3 = c3xc0[4 * i + 3] + 1
+    ostr.write(`${v0} ${v1} ${v2} ${v3} 0\n`)
+  }
+}
+
 // Cf.
 // - http://wias-berlin.de/software/tetgen/fformats.ele.html
 // - http://wias-berlin.de/software/tetgen/fformats.node.html
@@ -260,4 +293,4 @@ const readELENODE = (ele, node) => {
   return { verts, c3xc0 }
 }
 
-export { readOFF, writeOFF, readOBJ, writeOBJ, readMESH, readELENODE }
+export { readOFF, writeOFF, readOBJ, writeOBJ, readMESH, writeMESH, readELENODE }

@@ -266,9 +266,70 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
   return { position, index }
 }
 
+const tetrahedralizeBox = (a0, a1, a2, a3, a4, a5, a6, a7) => {
+  // Tetrahedralize box by 6 permutations of x < y < z
+  //    6 -- 7
+  //   /|  / |
+  // 4 -- 5  |
+  // |  | |  |
+  // |  2 |- 3
+  // | /  |/
+  // 0 -- 1
+  return [
+    // Enumerate permutation group S3
+    a0, a1, a3, a7, // z < y < x (1)
+    a0, a4, a5, a7, // y < x < z (2) (rotate (1))
+    a0, a2, a6, a7, // x < z < y (3) (rotate (2))
+    a0, a3, a2, a7, // z < x < y (4) (flip x and y of (1))
+    a0, a5, a1, a7, // z < x < y (5) (rotate (4))
+    a0, a6, a4, a7 // z < x < y (6) (rotate (5))
+  ]
+}
+
+const makeTetrahedralizedCube = (n = 1) => {
+  const nC0 = (n + 1) ** 3
+  const nC3 = 6 * (n ** 3)
+
+  const verts = Matrix.empty([nC0, 3])
+  const c3xc0 = Matrix.empty([nC3, 4], Uint32Array)
+
+  // verts
+  for (let k = 0; k <= n; k++) {
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        const p = (n + 1) * (n + 1) * k + (n + 1) * j + i
+        verts.row(p).set([i / n, j / n, k / n])
+      }
+    }
+  }
+
+  // c3xc0
+  let q = 0
+  for (let k = 0; k < n; k++) {
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a0 = (n + 1) * (n + 1) * k + (n + 1) * j + i
+        const a1 = a0 + 1
+        const a2 = a0 + (n + 1)
+        const a3 = a2 + 1
+        const a4 = a0 + (n + 1) * (n + 1)
+        const a5 = a4 + 1
+        const a6 = a4 + (n + 1)
+        const a7 = a6 + 1
+        const offset = c3xc0.index(6 * (q++), 0)
+        const tetrahedra = tetrahedralizeBox(a0, a1, a2, a3, a4, a5, a6, a7)
+        c3xc0.data.set(tetrahedra, offset)
+      }
+    }
+  }
+
+  return { verts, c3xc0 }
+}
+
 export {
   normalizePositions, normalizePositionsV2,
   getSignedColor, cumsum, makeTriangle,
   measure, assertf, sort3, sortParity3, _sortParity3,
-  makePlane, toMatrices
+  makePlane, toMatrices,
+  makeTetrahedralizedCube, tetrahedralizeBox
 }

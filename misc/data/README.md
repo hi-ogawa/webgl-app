@@ -1,3 +1,9 @@
+- Generate tetrahedralized cube (cube-4.mesh)
+
+```
+node scripts/makeTetrahedralizedCube.js 4 misc/data/cube.mesh
+```
+
 - uv-blender.png is from Blender's "Color Grid"
 
 - Generate .mesh file by [TetWild](https://github.com/Yixin-Hu/TetWild).
