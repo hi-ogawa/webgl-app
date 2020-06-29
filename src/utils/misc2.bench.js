@@ -34,4 +34,13 @@ describe('misc2', () => {
       }
     })
   })
+
+  describe('binom', () => {
+    it('works', () => {
+      const run = () => misc2.binom(64, 4) // ~ 2 ** 6 ** 4 = 2 ** 24
+      const { resultString } = timeit('args.run()', '', '', { run })
+      console.log('binom(64, 4)')
+      console.log(resultString)
+    })
+  })
 })

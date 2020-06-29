@@ -271,6 +271,15 @@ const mat2 = {
     ]
   },
 
+  inverse: (m) => {
+    const a = m[0]
+    const c = m[1]
+    const b = m[2]
+    const d = m[3]
+    const det = a * d - b * c
+    return [d / det, -c / det, -b / det, a / det]
+  },
+
   eye: () => {
     return [1, 0, 0, 1]
   },
@@ -853,6 +862,49 @@ const mat3 = {
   }
 }
 
+const mat4 = {
+  det: (a) => {
+    const a00 = a[0]
+    const a10 = a[1]
+    const a20 = a[2]
+    const a30 = a[3]
+    const a01 = a[4 + 0]
+    const a11 = a[4 + 1]
+    const a21 = a[4 + 2]
+    const a31 = a[4 + 3]
+    const a02 = a[8 + 0]
+    const a12 = a[8 + 1]
+    const a22 = a[8 + 2]
+    const a32 = a[8 + 3]
+    const a03 = a[12 + 0]
+    const a13 = a[12 + 1]
+    const a23 = a[12 + 2]
+    const a33 = a[12 + 3]
+    const b00 = mat3.det([
+      a11, a21, a31,
+      a12, a22, a32,
+      a13, a23, a33
+    ])
+    const b10 = mat3.det([
+      a01, a21, a31,
+      a02, a22, a32,
+      a03, a23, a33
+    ])
+    const b20 = mat3.det([
+      a01, a11, a31,
+      a02, a12, a32,
+      a03, a13, a33
+    ])
+    const b30 = mat3.det([
+      a01, a11, a21,
+      a02, a12, a22,
+      a03, a13, a23
+    ])
+    const det = a00 * b00 - a10 * b10 + a20 * b20 - a30 * b30
+    return det
+  }
+}
+
 // Versers (unit quartenion) utilities
 const quat = {
   toSo3: (q) => {
@@ -871,4 +923,4 @@ const quat = {
   }
 }
 
-export { scalar, vec2, vec3, mat2, mat3, quat }
+export { scalar, vec2, vec3, mat2, mat3, mat4, quat }

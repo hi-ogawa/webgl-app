@@ -389,11 +389,166 @@ const makeTetrahedralizedCubeSymmetric = (m = 1) => {
   return { verts, c3xc0 }
 }
 
+const intersectLines2d = (p1, v1, p2, v2) => {
+  // <(p1 + t v1) - p2, n2> = 0  <==>  t = <p2 - p1, n2> / <v1, n2>
+  const { sub, dot } = glm.vec2
+  const n2 = [v2[1], -v2[0]]
+  const t = dot(sub(p2, p1), n2) / dot(v1, n2)
+  return t
+}
+
+const intersectLinePlane = (p1, v1, p2, n2) => {
+  const { sub, dot } = glm.vec3
+  const t = dot(sub(p2, p1), n2) / dot(v1, n2)
+  return t
+}
+
+const circumsphere = (p0, p1, p2, p3) => {
+  const { vec3, mat3, mat2 } = glm
+  const { add, sub, muls, cross, normalize } = glm.vec3
+
+  const v1 = sub(p1, p0)
+  const v2 = sub(p2, p0)
+  const v3 = sub(p3, p0)
+  const frame = [...v1, ...v2, ...v3]
+  if (mat3.det(frame) < 1e-7) {
+    throw new Error('[circumsphere]')
+  }
+  const n = normalize(cross(v1, v2))
+
+  // circum circle of base triangle p0, p1, p2
+  let cc
+  {
+    // from/to barycoord
+    const A = [...v1, ...v2, 0, 0, 0] // from barycoord
+    const AT = mat3.transpose(A)
+    const AT_A = mat3.matmul(AT, A)
+    const AT_A_inv = mat2.toMat3(mat2.inverse(mat3.toMat2(AT_A))) // eslint-disable-line
+    const B = mat3.matmul(AT_A_inv, AT) // to barycoord
+
+    // intersection of bisectors in barycoord (3rd component is meaningless)
+    const q1 = [0.5, 0, 0]
+    const q2 = [0, 0.5, 0]
+    const n01 = vec3.matmul(B, cross(n, v1))
+    const n02 = vec3.matmul(B, cross(v2, n))
+    const t = intersectLines2d(q1, n01, q2, n02)
+    cc = vec3.matmul(A, add(q1, muls(n01, t))) // relative to p0
+  }
+
+  // intersection of line[cc + t n] and bisecting-plane[p0, p3]
+  const t = intersectLinePlane(cc, n, muls(v3, 0.5), v3)
+  const c = add(cc, muls(n, t))
+
+  // all above was relative to p0
+  return add(c, p0)
+}
+
+const factorial = (n) => n <= 1 ? 1 : n * factorial(n - 1)
+
+const _binom = (n, k, result, ptr) => {
+  if (k < 0 || n < k) {
+    return 0
+  }
+
+  if (k === 0) {
+    ptr[0]++
+    return 1
+  }
+
+  if (k === n) {
+    // Set (0, .., k - 1)
+    for (let i = 0; i < k; i++) {
+      result.set(ptr[0], i, i)
+    }
+    ptr[0]++
+    return 1
+  }
+
+  const q0 = _binom(n - 1, k, result, ptr)
+  const q1 = _binom(n - 1, k - 1, result, ptr)
+
+  // Append (n) to the last q1 result
+  for (let i = 0; i < q1; i++) {
+    result.set(ptr[0] - q1 + i, k - 1, n - 1)
+  }
+
+  return q0 + q1
+}
+
+const binom = (n, k) => {
+  const b = (factorial(n) / factorial(k)) / factorial(n - k)
+  const result = Matrix.empty([b, k], Uint32Array)
+  const ptr = new Uint32Array(1) // mutable pointer
+  _binom(n, k, result, ptr)
+  return result
+}
+
+const circumsphereTest = (u1, u2, u3, u4) => {
+  // true if u4 is inside of circumsphere(0, u1, u2, u3)
+  const m = [
+    ...u1, glm.vec3.dot2(u1),
+    ...u2, glm.vec3.dot2(u2),
+    ...u3, glm.vec3.dot2(u3),
+    ...u4, glm.vec3.dot2(u4)
+  ]
+  return glm.mat4.det(m) < 0
+}
+
+// Delaunay tesselation by brute force
+const delaunayBruteforce = (verts) => {
+  const { vec3, mat3 } = glm
+
+  const n = verts.shape[0]
+  if (n > 64) { throw new Error('[delaunayBruteforce]') }
+
+  let ptr = 0
+  const c3xc0 = Matrix.empty([10 * n, 4], Uint32Array) // hopefully safe over-estimation
+
+  const bn4 = binom(n, 4)
+  for (let i = 0; i < bn4.shape[0]; i++) {
+    let [v0, v1, v2, v3] = bn4.row(i)
+
+    // Correct orientation
+    const p0 = verts.row(v0)
+    const p1 = verts.row(v1)
+    const p2 = verts.row(v2)
+    const p3 = verts.row(v3)
+    const u1 = vec3.sub(p1, p0)
+    let u2 = vec3.sub(p2, p0)
+    let u3 = vec3.sub(p3, p0)
+    let det = mat3.det([...u1, ...u2, ...u3])
+    if (det < 0) {
+      det = -det;
+      [u2, u3] = [u3, u2];
+      [v2, v3] = [v3, v2]
+    }
+    if (det < 1e-7) { continue }
+
+    let fail = false
+    for (let j = 0; j < n; j++) {
+      if (j === v0 || j === v1 || j === v2 || j === v3) { continue }
+
+      const u4 = vec3.sub(verts.row(j), p0)
+      fail = circumsphereTest(u1, u2, u3, u4)
+      if (fail) { break }
+    }
+
+    if (fail) { continue }
+
+    c3xc0.row(ptr++).set([v0, v1, v2, v3])
+  }
+
+  // shrink to fit
+  c3xc0.reshape([ptr, 4])
+  c3xc0.data = c3xc0.data.slice(0, 4 * ptr)
+  return c3xc0
+}
+
 export {
   normalizePositions, normalizePositionsV2,
   getSignedColor, cumsum, makeTriangle,
   measure, assertf, sort3, sortParity3, _sortParity3,
   makePlane, toMatrices,
   makeTetrahedralizedCube, makeTetrahedralizedCubeSymmetric,
-  roll
+  roll, circumsphere, binom, delaunayBruteforce
 }

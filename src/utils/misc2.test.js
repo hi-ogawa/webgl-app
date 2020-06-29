@@ -5,9 +5,8 @@ import assert from 'assert'
 import * as misc2 from './misc2.js'
 import * as ddg from './ddg.js'
 import * as glm from './glm.js'
-
-const equal = assert.strictEqual
-const deepEqual = assert.deepStrictEqual
+import { Matrix } from './array.js'
+import { equal, deepEqual, deepCloseTo } from './test-misc.js'
 
 describe('misc2', () => {
   describe('makeTriangle', () => {
@@ -187,6 +186,71 @@ describe('misc2', () => {
         const T = [...u1, ...u2, ...u3]
         assert(det(T) > 0)
       }
+    })
+  })
+
+  describe('circumsphere', () => {
+    it('works 0', () => {
+      const p0 = [1, 1, 1]
+      const p1 = [0, 0, 1]
+      const p2 = [0, 1, 0]
+      const p3 = [1, 0, 0]
+      const c = misc2.circumsphere(p0, p1, p2, p3)
+      deepCloseTo(c, [0.5, 0.5, 0.5])
+    })
+  })
+
+  describe('delaunayBruteforce', () => {
+    it('works 0', () => {
+      const verts = Matrix.empty([5, 3])
+      verts.data.set([
+        0, 0, 0,
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+        1, 1, -1
+      ])
+      const c3xc0 = misc2.delaunayBruteforce(verts)
+      deepCloseTo(c3xc0.data, [
+        0, 1, 2, 3,
+        0, 1, 4, 2
+      ])
+    })
+
+    it('works 1', () => {
+      const verts = Matrix.empty([5, 3])
+      verts.data.set([
+        0, 0, 0,
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+        1 / 4, 1 / 4, 1 / 4
+      ])
+      const c3xc0 = misc2.delaunayBruteforce(verts)
+      deepCloseTo(c3xc0.data, [
+        0, 1, 2, 4,
+        0, 1, 4, 3,
+        0, 2, 3, 4,
+        1, 2, 4, 3
+      ])
+    })
+  })
+
+  describe('binom', () => {
+    it('works 0', () => {
+      const b = misc2.binom(5, 2)
+      deepEqual(b.data, new Uint32Array([
+        0, 1,
+        0, 2,
+        1, 2,
+        0, 3,
+        1, 3,
+        2, 3,
+        0, 4,
+        1, 4,
+        2, 4,
+        3, 4
+      ]))
     })
   })
 })

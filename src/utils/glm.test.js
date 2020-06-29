@@ -3,7 +3,7 @@
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
 import { hash11 } from './hash.js'
-import { deepEqual, deepCloseTo } from './test-misc.js'
+import { closeTo, deepEqual, deepCloseTo } from './test-misc.js'
 
 describe('glm', () => {
   describe('vec3', () => {
@@ -306,6 +306,44 @@ describe('glm', () => {
           deepCloseTo(matmul(transpose(VT), VT), eye())
           deepCloseTo(matmul(U, matmul(diag(D), VT)), A)
         }
+      })
+    })
+  })
+
+  describe('mat4', () => {
+    describe('det', () => {
+      it('works 0', () => {
+        const { mat4 } = glm
+        const a = [
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1
+        ]
+        closeTo(mat4.det(a), 1)
+      })
+
+      it('works 1', () => {
+        const { mat4 } = glm
+        const { normalize, cross } = glm.vec3
+
+        const x = normalize([hash11(0x13), hash11(0x57), hash11(0x9b)])
+        const y = normalize(cross(x, [hash11(0x31), hash11(0x75), hash11(0xb9)]))
+        const z = cross(x, y)
+
+        closeTo(mat4.det([
+          ...x, 0,
+          ...y, 0,
+          ...z, 0,
+          0, 0, 0, 1
+        ]), 1)
+
+        closeTo(mat4.det([
+          ...x, 0,
+          ...y, 0,
+          0, 0, 0, 1,
+          ...z, 0
+        ]), -1)
       })
     })
   })
