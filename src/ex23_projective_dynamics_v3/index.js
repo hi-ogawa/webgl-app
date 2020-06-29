@@ -68,7 +68,7 @@ AFRAME.registerComponent('physics', {
 
   init () {
     const n = 4
-    const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(n, false)
+    const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
     this.n = n
 
     // boundary surface

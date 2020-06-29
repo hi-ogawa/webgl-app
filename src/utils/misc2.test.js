@@ -123,4 +123,70 @@ describe('misc2', () => {
       }
     })
   })
+
+  describe('makeTetrahedralizedCubeSymmetric', () => {
+    it('works 0', () => {
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(1)
+      const nC0 = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
+
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+
+      const { c1xc0 } = ddg.computeD1(c2xc0, nC0, false)
+      const nC1 = c1xc0.shape[0]
+
+      deepEqual([nC0, nC1, nC2, nC3], [
+        3 ** 3,
+        90,
+        104,
+        5 * 8 // 5 tetrahedra x octants
+      ])
+      equal(nC0 - nC1 + nC2 - nC3, 1)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      const nC2B = c2xc0B.shape[0]
+      equal(nC2B, 8 * 6)
+
+      // Check signed volume of tetrahedra
+      const { sub } = glm.vec3
+      const { det } = glm.mat3
+      for (let i = 0; i < nC3; i++) {
+        const vs = c3xc0.row(i)
+        const u1 = sub(verts.row(vs[1]), verts.row(vs[0]))
+        const u2 = sub(verts.row(vs[2]), verts.row(vs[0]))
+        const u3 = sub(verts.row(vs[3]), verts.row(vs[0]))
+        const T = [...u1, ...u2, ...u3]
+        assert(det(T) > 0)
+      }
+    })
+
+    it('works 1', () => {
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(4)
+      const nC0 = verts.shape[0]
+      const nC3 = c3xc0.shape[0]
+      const { c2xc0, d2 } = ddg.computeD2(c3xc0, nC0)
+      const nC2 = c2xc0.shape[0]
+      const { c1xc0 } = ddg.computeD1(c2xc0, nC0, false)
+      const nC1 = c1xc0.shape[0]
+      deepEqual([nC0, nC1, nC2, nC3], [729, 3672, 5504, 2560])
+      equal(nC0 - nC1 + nC2 - nC3, 1)
+
+      const c2xc0B = ddg.computeBoundary(c2xc0, d2)
+      const nC2B = c2xc0B.shape[0]
+      equal(nC2B, 768)
+
+      // Check signed volume of tetrahedra
+      const { sub } = glm.vec3
+      const { det } = glm.mat3
+      for (let i = 0; i < nC3; i++) {
+        const vs = c3xc0.row(i)
+        const u1 = sub(verts.row(vs[1]), verts.row(vs[0]))
+        const u2 = sub(verts.row(vs[2]), verts.row(vs[0]))
+        const u3 = sub(verts.row(vs[3]), verts.row(vs[0]))
+        const T = [...u1, ...u2, ...u3]
+        assert(det(T) > 0)
+      }
+    })
+  })
 })

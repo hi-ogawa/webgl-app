@@ -266,7 +266,7 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
   return { position, index }
 }
 
-const tetrahedralizeBox = (a0, a1, a2, a3, a4, a5, a6, a7) => {
+const tetrahedralizeBox6 = (a0, a1, a2, a3, a4, a5, a6, a7) => {
   // Tetrahedralize box by 6 permutations of x < y < z
   //    6 -- 7
   //   /|  / |
@@ -286,6 +286,17 @@ const tetrahedralizeBox = (a0, a1, a2, a3, a4, a5, a6, a7) => {
   ]
 }
 
+const tetrahedralizeBox5 = (a0, a1, a2, a3, a4, a5, a6, a7) => {
+  // Tetrahedralize box by one regular tetrahedron and four left-overs
+  return [
+    a4, a1, a2, a7, // regular
+    a0, a1, a2, a4,
+    a3, a1, a7, a2,
+    a5, a1, a4, a7,
+    a6, a2, a7, a4
+  ]
+}
+
 const roll = (a, shift) => {
   shift = ((shift % a.length) + a.length) % a.length
   const i = a.length - shift
@@ -293,7 +304,7 @@ const roll = (a, shift) => {
   return b
 }
 
-const makeTetrahedralizedCube = (n = 1, uniform = true) => {
+const makeTetrahedralizedCube = (n = 1) => {
   const nC0 = (n + 1) ** 3
   const nC3 = 6 * (n ** 3)
 
@@ -323,15 +334,53 @@ const makeTetrahedralizedCube = (n = 1, uniform = true) => {
         const a5 = a4 + 1
         const a6 = a4 + (n + 1)
         const a7 = a6 + 1
-        if (!uniform) {
-          // TODO: need to align face with neighbors (probably this is not that easy...)
-          // // pseudo randomly choose from 4 patterns of diagonal direction
-          // const choice = Math.floor(4 * hash11(i * 123 + (j * 235) << 8 + (k * 379) << 16));
-          // [a0, a1, a3, a2] = roll([a0, a1, a3, a2], choice);
-          // [a4, a5, a7, a6] = roll([a4, a5, a7, a6], choice);
-        }
-        const tetrahedra = tetrahedralizeBox(a0, a1, a2, a3, a4, a5, a6, a7)
+        const tetrahedra = tetrahedralizeBox6(a0, a1, a2, a3, a4, a5, a6, a7)
         const offset = c3xc0.index(6 * (q++), 0)
+        c3xc0.data.set(tetrahedra, offset)
+      }
+    }
+  }
+
+  return { verts, c3xc0 }
+}
+
+const makeTetrahedralizedCubeSymmetric = (m = 1) => {
+  const n = 2 * m
+  const nC0 = (n + 1) ** 3
+  const nC3 = 5 * (n ** 3)
+
+  const verts = Matrix.empty([nC0, 3])
+  const c3xc0 = Matrix.empty([nC3, 4], Uint32Array)
+
+  // verts
+  for (let k = 0; k <= n; k++) {
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        const p = (n + 1) * (n + 1) * k + (n + 1) * j + i
+        verts.row(p).set([i / n, j / n, k / n])
+      }
+    }
+  }
+
+  // c3xc0
+  let q = 0
+  for (let k = 0; k < n; k++) {
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        let a0 = (n + 1) * (n + 1) * k + (n + 1) * j + i
+        let a1 = a0 + 1
+        let a2 = a0 + (n + 1)
+        let a3 = a2 + 1
+        let a4 = a0 + (n + 1) * (n + 1)
+        let a5 = a4 + 1
+        let a6 = a4 + (n + 1)
+        let a7 = a6 + 1
+        if ((i + j + k) % 2 === 0) {
+          [a0, a1, a3, a2] = roll([a0, a1, a3, a2], 1);
+          [a4, a5, a7, a6] = roll([a4, a5, a7, a6], 1)
+        }
+        const tetrahedra = tetrahedralizeBox5(a0, a1, a2, a3, a4, a5, a6, a7)
+        const offset = c3xc0.index(5 * (q++), 0)
         c3xc0.data.set(tetrahedra, offset)
       }
     }
@@ -345,6 +394,6 @@ export {
   getSignedColor, cumsum, makeTriangle,
   measure, assertf, sort3, sortParity3, _sortParity3,
   makePlane, toMatrices,
-  makeTetrahedralizedCube, tetrahedralizeBox,
+  makeTetrahedralizedCube, makeTetrahedralizedCubeSymmetric,
   roll
 }

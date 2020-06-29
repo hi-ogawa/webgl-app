@@ -64,7 +64,7 @@ describe('physics', () => {
   describe('Example02', () => {
     it('works 0', () => {
       const n = 4
-      const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(n)
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example02()
 
