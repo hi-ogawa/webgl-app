@@ -781,12 +781,12 @@ const mat3 = {
     const r = a00 * a11 * a22 - a00 * a12 * a21 - a01 * a10 * a22 + a01 * a12 * a20 + a02 * a10 * a21 - a02 * a11 * a20
 
     let x = 0
-    const N = 10 // Believe this is enough since quadratic convergence
+    const N = 20 // Believe this is enough since quadratic convergence
     for (let i = 0; i < N; i++) {
       const x3 = x ** 3
       const x2 = x ** 2
       const f = -x3 + p * x2 + q * x + r
-      if (Math.abs(f) < 1e-7) {
+      if (Math.abs(f) < 1e-14) {
         return x
       }
       const df = -3 * x2 + 2 * p * x + q
@@ -844,6 +844,7 @@ const mat3 = {
     return [U, D, VT]
   },
 
+  // TODO: Analyze http://pages.cs.wisc.edu/~sifakis/project_pages/svd.html
   svd: (A) => {
     if (Math.abs(mat3.det(A)) < 1e-7) {
       return mat3.svdNonInvertible(A)

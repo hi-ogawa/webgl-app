@@ -1,7 +1,7 @@
 /* eslint camelcase: 0 */
 
 //
-// Projective dynamics (Surface strain)
+// Projective dynamics (Surface strain and mean curvature constraint)
 //
 
 import AFRAME from '../../web_modules/aframe.js'

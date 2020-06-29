@@ -1,13 +1,13 @@
 /* global describe, it */
 
-import { Example00, Example01 } from './physics.js'
+import * as physics from './physics.js'
 import { timeit } from './timeit.js'
 import * as misc2 from './misc2.js'
 
 describe('physics', () => {
   describe('Example00', () => {
     it('works', () => {
-      const solver = new Example00()
+      const solver = new physics.Example00()
       solver.init()
       const run = () => solver.update()
       const { resultString } = timeit('args.run()', '', '', { run }, 8)
@@ -19,7 +19,7 @@ describe('physics', () => {
     it('works 0', () => {
       const { verts, f2v } = misc2.makeTriangle(12)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
-      const solver = new Example01()
+      const solver = new physics.Example01()
 
       console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
       {
@@ -42,7 +42,7 @@ describe('physics', () => {
       const { position, index } = misc2.makePlane(n, n, false, false, true, false)
       const { verts, f2v } = misc2.toMatrices(position, index)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
-      const solver = new Example01()
+      const solver = new physics.Example01()
 
       console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
       {
@@ -56,6 +56,32 @@ describe('physics', () => {
         const run = () => solver.update()
         const { resultString } = timeit('args.run()', '', '', { run }, 5)
         console.log('Example01.update')
+        console.log(resultString)
+      }
+    })
+  })
+
+  describe('Example02', () => {
+    it('works 0', () => {
+      const n = 4
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(n)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new physics.Example02()
+
+      console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}`)
+      {
+        const run = () => solver.init(verts, c3xc0, handles)
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('Example02.init')
+        console.log(resultString)
+      }
+
+      const { AT_B_sparse } = solver // eslint-disable-line
+      console.log(`AT_B: [${AT_B_sparse.shape}]`)
+      {
+        const run = () => solver.update()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example02.update')
         console.log(resultString)
       }
     })

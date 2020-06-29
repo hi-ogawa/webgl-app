@@ -1,13 +1,13 @@
 /* global describe, it */
 
 import assert from 'assert'
-import { Example00, Example01 } from './physics.js'
+import * as physics from './physics.js'
 import * as misc2 from './misc2.js'
 
 describe('physics', () => {
   describe('Example00', () => {
     it('works', () => {
-      const solver = new Example00()
+      const solver = new physics.Example00()
       solver.init()
 
       const { x, dt } = solver
@@ -26,10 +26,32 @@ describe('physics', () => {
 
       const { verts, f2v } = misc2.makeTriangle(8)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
-      const solver = new Example01()
+      const solver = new physics.Example01()
       solver.init(verts, f2v, handles)
 
-      const { x } = solver
+      const { x, AT_B_sparse } = solver // eslint-disable-line
+      console.log(`AT_B: [${AT_B_sparse.shape}]`)
+
+      for (let i = 0; i < 60; i++) {
+        solver.update()
+        assert(x.data.every(i => !Number.isNaN(i)))
+      }
+    })
+  })
+
+  describe('Example02', () => {
+    it('works', function () {
+      this.timeout(10000)
+
+      const n = 4
+      const { verts, c3xc0 } = misc2.makeTetrahedralizedCube(n)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new physics.Example02()
+      solver.init(verts, c3xc0, handles)
+
+      const { x, AT_B_sparse } = solver // eslint-disable-line
+      console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}, AT_B: [${AT_B_sparse.shape}]`)
+
       for (let i = 0; i < 60; i++) {
         solver.update()
         assert(x.data.every(i => !Number.isNaN(i)))

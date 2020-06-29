@@ -2,6 +2,10 @@
 //
 // Projective dynamics (Bouaziz et. al.)
 //
+// TODO
+// - dynamic constraint (e.g. for collision)
+// - more sparse matrix during init
+//
 
 import _ from '../../web_modules/lodash.js'
 import { Matrix, MatrixCSR } from './array.js'
@@ -206,6 +210,7 @@ class Example00 {
   }
 }
 
+// Surface
 class Example01 {
   init (verts, f2v, handles) {
     //
@@ -271,7 +276,7 @@ class Example01 {
       ]
 
       const A = Matrix.empty([6, 9])
-      A.setSlice([[0, 3], [0, 3]], eye3neg) // TODO
+      A.setSlice([[0, 3], [0, 3]], eye3neg)
       A.setSlice([[0, 3], [3, 6]], eye3)
       A.setSlice([[3, 6], [0, 3]], eye3neg)
       A.setSlice([[3, 6], [6, 9]], eye3)
@@ -515,4 +520,251 @@ class Example01 {
   }
 }
 
-export { Example00, Example01 }
+// Volume (mostly copy-and-paste of Example01)
+class Example02 {
+  init (verts, c3xc0, handles) {
+    //
+    // Configuration
+    //
+    const g = 9.8
+    const iterPD = 16
+    const dt = 1 / 60
+    const mass = 1
+
+    //
+    // Misc setup
+    //
+    const { vec3, mat3 } = glm
+    const { sqrt } = Math
+    const eye3 = Matrix.eye([3, 3])
+    const eye3neg = eye3.clone().muleqs(-1)
+
+    const nV = verts.shape[0]
+    const nC3 = c3xc0.shape[0]
+
+    //
+    // Constraints
+    //
+    const constraints = []
+
+    // Pin constraint (`handle.target` will be mutated by the user before `update`)
+    for (const handle of handles) {
+      const stiffness = 2 ** 12
+
+      const projection = (p, x) => {
+        p.set(handle.target)
+      }
+
+      const weight = stiffness
+      constraints.push({
+        projection,
+        selector: [handle.vertex],
+        A: eye3.clone().muleqs(sqrt(weight)),
+        B: eye3.clone().muleqs(sqrt(weight))
+      })
+    }
+
+    // Volume strain constraint
+    for (let i = 0; i < nC3; i++) {
+      const stiffness = 2 ** 5
+      const vs = c3xc0.row(i)
+      const x0 = verts.row(vs[0])
+      const x1 = verts.row(vs[1])
+      const x2 = verts.row(vs[2])
+      const x3 = verts.row(vs[3])
+      const u1_rest = vec3.sub(x1, x0)
+      const u2_rest = vec3.sub(x2, x0)
+      const u3_rest = vec3.sub(x3, x0)
+      const X_rest = [...u1_rest, ...u2_rest, ...u3_rest]
+
+      const A = Matrix.empty([9, 12])
+      A.setSlice([[0, 3], [0, 3]], eye3neg)
+      A.setSlice([[0, 3], [3, 6]], eye3)
+      A.setSlice([[3, 6], [0, 3]], eye3neg)
+      A.setSlice([[3, 6], [6, 9]], eye3)
+      A.setSlice([[6, 9], [0, 3]], eye3neg)
+      A.setSlice([[6, 9], [9, 12]], eye3)
+
+      // Matrix P \in SO(3) is represented as a single vector R^9 as in
+      // P u1 =  / u1^T          \  / Prow1^T \
+      //         |     u1^T      |  | Prow2^T |
+      //         \          u1^T /  \ Prow3^T /
+      const B = Matrix.empty([9, 9])
+      {
+        const m1 = Matrix.fromArray(u1_rest, [1, 3])
+        const m2 = Matrix.fromArray(u2_rest, [1, 3])
+        const m3 = Matrix.fromArray(u3_rest, [1, 3])
+        B.setSlice([[0, 1], [0, 3]], m1)
+        B.setSlice([[1, 2], [3, 6]], m1)
+        B.setSlice([[2, 3], [6, 9]], m1)
+        B.setSlice([[3, 4], [0, 3]], m2)
+        B.setSlice([[4, 5], [3, 6]], m2)
+        B.setSlice([[5, 6], [6, 9]], m2)
+        B.setSlice([[6, 7], [0, 3]], m3)
+        B.setSlice([[7, 8], [3, 6]], m3)
+        B.setSlice([[8, 9], [6, 9]], m3)
+      }
+
+      const { matmul, transpose, det } = mat3
+
+      const projection = (p, x0, x1, x2, x3) => {
+        const u1 = vec3.sub(x1, x0)
+        const u2 = vec3.sub(x2, x0)
+        const u3 = vec3.sub(x3, x0)
+        const X = [...u1, ...u2, ...u3]
+        const W = matmul(X_rest, transpose(X))
+
+        // TODO: SVD might be not robust enough
+        const [U, _D, VT] = mat3.svd(W) // eslint-disable-line
+        const E = mat3.diag([1, 1, det(U) * det(VT)])
+        const U_E_VT = matmul(U, matmul(E, VT))
+        p.set(U_E_VT)
+      }
+
+      const weight = stiffness
+      constraints.push({
+        projection,
+        selector: vs,
+        A: A.muleqs(sqrt(weight)),
+        B: B.muleqs(sqrt(weight))
+      })
+    }
+
+    //
+    // Precomputation
+    //
+    const M = Matrix.eye([3 * nV, 3 * nV]).muleqs(mass / nV)
+    const pCumsum = misc2.cumsum(constraints.map(c => c.B.shape[1]))
+    const nP = pCumsum[constraints.length]
+
+    const As = []
+    const Bs = []
+    for (const { selector, A, B } of constraints) {
+      if (!(A.shape[1] === 3 * selector.length)) {
+        throw new Error('[Example02.init]')
+      }
+      const S = Matrix.empty([3 * selector.length, 3 * nV])
+      for (let i = 0; i < selector.length; i++) {
+        const s = selector[i]
+        S.setSlice([[3 * i, 3 * i + 3], [3 * s, 3 * s + 3]], eye3)
+      }
+      As.push(A.matmul(S))
+      Bs.push(B)
+    }
+
+    const A = Matrix.stack(As) // volume strain (9 nC3 x 3 nV)
+    const B = Matrix.stackDiagonal(Bs) // volume strain (9 nC3 x 9 nC3)
+    const AT = A.transpose()
+    const AT_sparse = MatrixCSR.fromDense(AT) // Avoid dense matmul AT @ A and AT @ B
+    const AT_B = Matrix.empty([AT.shape[0], B.shape[1]])
+    const AT_A = Matrix.empty([AT.shape[0], A.shape[1]])
+    AT_sparse.matmul(AT_B, B)
+    AT_sparse.matmul(AT_A, A)
+
+    const Md = M.clone().diveqs(dt ** 2) // M / dt^2
+    const E = Md.clone().addeq(AT_A) // E = M / dt^2 + A^T A
+    const E_sparse = MatrixCSR.fromDense(E)
+    const E_cholesky = E_sparse.choleskyComputeV3()
+
+    // [ Debug choleskyCompute ]
+    // const LT = E_cholesky.toDense()
+    // const L = LT.transpose()
+    // console.log(E.clone().subeq(L.matmul(LT)).dotHS2())
+
+    const Md_vec = new Matrix(MatrixCSR.fromDense(Md).data, [3 * nV, 1])
+    const AT_B_sparse = MatrixCSR.fromDense(AT_B)
+
+    // Initial position
+    const xx = verts
+    const x = xx.reshape([-1, 1]) // Single vector view
+    const x0 = x.clone() // Need to keep previous state during `update`
+
+    // Initial velocity
+    const vv = Matrix.emptyLike(xx)
+    const v = vv.reshape([-1, 1]) // Single vector view
+
+    // Projection variable (used as temporary variable during `update`, so allocate it here)
+    const p = Matrix.empty([nP, 1])
+
+    // Temporary variables
+    const tmp1 = Matrix.emptyLike(x)
+    const tmp2 = Matrix.emptyLike(x)
+
+    _.assign(this, {
+      g, iterPD, dt, mass,
+      constraints, pCumsum,
+      Md_vec, AT_B_sparse, E_sparse, E_cholesky,
+      xx, x, x0, vv, v, p, tmp1, tmp2,
+      nV, nC3, nP,
+      verts, c3xc0
+    })
+  }
+
+  update () {
+    const {
+      g, iterPD, dt,
+      constraints, pCumsum,
+      Md_vec, AT_B_sparse, E_sparse, E_cholesky, // eslint-disable-line
+      xx, x, x0, vv, v, p, tmp1, tmp2,
+      nV
+    } = this
+
+    const { addeq, muls } = glm.vec3
+
+    // Define external force
+    const force = [0, -g, 0]
+
+    // Integrate velocity
+    for (let i = 0; i < nV; i++) {
+      addeq(vv.row(i), force)
+    }
+
+    // Integrate position
+    for (let i = 0; i < nV; i++) {
+      addeq(xx.row(i), muls(vv.row(i), dt))
+    }
+
+    // Projective dynamics iteration
+    for (let i = 0; i < iterPD; i++) {
+      // misc2.measure('projection', () => {
+
+      // Local step: invoke each constraint projection to obtain p
+      for (let j = 0; j < constraints.length; j++) {
+        const { projection, selector } = constraints[j]
+        const selectP = p.data.subarray(pCumsum[j], pCumsum[j + 1])
+        // NOTE: `_.map(selector, s => xx.row(s))` is terribly slow.
+        const selectXs = _.range(selector.length).map(i => xx.row(selector[i]))
+        projection(selectP, ...selectXs)
+      }
+
+      // }) // measure projection
+
+      // Global step: solve (Md + A^T A) x' = Md x + A^T B p
+      const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
+
+      // [ Compare with conjugateGradient ]
+      // misc2.measure('conjugateGradient', () => {
+      // E_sparse.conjugateGradient(x, rhs)
+      // })
+
+      // misc2.measure('choleskySolve', () => {
+
+      E_cholesky.choleskySolveV3(x, rhs)
+
+      // }) // measure choleskySolve
+
+      // [ Debug choleskySolve ]
+      // const Ex = E_sparse.matmul(Matrix.emptyLike(x), x)
+      // console.log(Ex.subeq(rhs).dotHS2())
+    }
+
+    // Reset velocity (v = (x - x0) / dt)
+    v.copy(x)
+    v.subeq(x0).diveqs(dt)
+
+    // Update previous state
+    x0.copy(x)
+  }
+}
+
+export { Example00, Example01, Example02 }
