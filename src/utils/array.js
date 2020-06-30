@@ -622,26 +622,36 @@ class MatrixCSR {
 
   // Y = A X
   matmul (y, x) {
-    y.data.fill(0)
+    const { indptr, indices, data } = this
+    const N = this.shape[0]
+    const K = x.shape[1]
 
-    // NOTE: `forEach` makes it about 2 tiems slower
-    // this.forEach((v, i, j) => {
-    //   for (let k = 0; k < x.shape[1]; k++) { // Loop X col
-    //     y.incr(i, k, v * x.get(j, k))
-    //   }
-    // })
-
-    let p0 = 0
-    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
-      const p1 = this.indptr[i + 1]
-      for (let p = p0; p < p1; p++) { // Loop A col
-        const j = this.indices[p]
-        const v = this.data[p]
-        for (let k = 0; k < x.shape[1]; k++) { // Loop X col
-          y.incr(i, k, v * x.get(j, k))
+    // Specialized path
+    if (K === 1) {
+      let p = 0
+      for (let i = 0; i < N; i++) { // Loop A row
+        y.data[i] = 0
+        const p1 = indptr[i + 1]
+        for (; p < p1; p++) { // Loop A col
+          const j = indices[p]
+          const Aij = data[p]
+          y.data[i] += Aij * x.data[j]
         }
       }
-      p0 = p1
+      return y
+    }
+
+    y.data.fill(0)
+    let p = 0
+    for (let i = 0; i < N; i++) { // Loop A row
+      const p1 = indptr[i + 1]
+      for (; p < p1; p++) { // Loop A col
+        const j = indices[p]
+        const Aij = data[p]
+        for (let k = 0; k < K; k++) { // Loop X col
+          y.incr(i, k, Aij * x.get(j, k))
+        }
+      }
     }
     return y
   }
@@ -1519,6 +1529,8 @@ class MatrixCSR {
   conjugateGradient (x, b, iterLim = 1024, residueLim = 1e-3) {
     const A = this
 
+    if (x.shape[1] !== 1) { throw new Error('[conjugateGradient]') }
+
     // r = A x - b
     const r = Matrix.emptyLike(x)
     A.matmul(r, x).subeq(b)
@@ -1539,10 +1551,11 @@ class MatrixCSR {
       const alpha = -rDot / pAp
 
       // x' = x + alpha p
-      x.forEach((v, i, j) => x.set(i, j, v + alpha * p.get(i, j)))
-
       // r' = r + alpha A p
-      r.forEach((v, i, j) => r.set(i, j, v + alpha * Ap.get(i, j)))
+      for (let i = 0; i < x.shape[0]; i++) {
+        x.data[i] += alpha * p.data[i]
+        r.data[i] += alpha * Ap.data[i]
+      }
 
       const _rDot = r.dotHS2()
       if (_rDot < residueLim) {
@@ -1553,7 +1566,9 @@ class MatrixCSR {
       const beta = _rDot / rDot
 
       // p' = r' + beta p
-      p.forEach((v, i, j) => p.set(i, j, r.get(i, j) + beta * v))
+      for (let i = 0; i < x.shape[0]; i++) {
+        p.data[i] = r.data[i] + beta * p.data[i]
+      }
 
       rDot = _rDot
     }
