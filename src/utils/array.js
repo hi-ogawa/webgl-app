@@ -658,16 +658,44 @@ class MatrixCSR {
 
   // A X = B
   stepGaussSeidel (x, b) {
-    let p0 = 0
-    for (let i = 0; i < this.shape[0]; i++) { // Loop A row
-      const p1 = this.indptr[i + 1]
+    const N = this.shape[0]
+    const K = x.shape[1]
+    const { indptr, indices, data } = this
 
-      for (let k = 0; k < x.shape[1]; k++) { // Loop X col
+    // Specialized path
+    if (K === 1) {
+      let p = 0
+      for (let i = 0; i < N; i++) { // Loop A row
+        const p1 = indptr[i + 1]
+        let diag = 0
+        let rhs = b.data[i]
+        for (; p < p1; p++) { // Loop A col
+          const j = indices[p]
+          const Aij = data[p]
+
+          if (j === i) {
+            diag += Aij
+            continue
+          }
+
+          rhs -= Aij * x.data[j]
+        }
+        x.data[i] = rhs / diag
+      }
+      return x
+    }
+
+    // Usual path
+    let p0 = 0
+    for (let i = 0; i < N; i++) { // Loop A row
+      const p1 = indptr[i + 1]
+
+      for (let k = 0; k < K; k++) { // Loop X col
         let diag = 0
         let rhs = b.get(i, k)
         for (let p = p0; p < p1; p++) { // Loop A col
-          const j = this.indices[p]
-          const v = this.data[p]
+          const j = indices[p]
+          const v = data[p]
 
           if (j === i) {
             diag += v
@@ -687,6 +715,7 @@ class MatrixCSR {
     for (let i = 0; i < iteration; i++) {
       this.stepGaussSeidel(x, b)
     }
+    return x
   }
 
   // I - h A (useful for implicit method for PDE)

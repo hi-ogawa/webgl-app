@@ -194,6 +194,8 @@ describe('array', () => {
         verts = new Matrix(verts, [verts.length / 3, 3])
         f2v = new Matrix(f2v, [f2v.length / 3, 3])
 
+        console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
+
         {
           const run = () => { Lcoo = ddg.computeLaplacianV2(verts, f2v) }
           const { resultString } = timeit('args.run()', '', '', { run })
@@ -229,6 +231,66 @@ describe('array', () => {
           // A.idsubmuls(1) // I - h A (make it positive definite)
           const run = () => { AL = A.choleskyComputeV3() }
           const { resultString } = timeit('args.run()', '', '', { run }, 1, 4)
+          console.log('MatrixCSR.choleskyCompute')
+          console.log(resultString)
+        }
+
+        {
+          const nV = verts.shape[0]
+          const b = Matrix.empty([nV, 1])
+          const x = Matrix.empty([nV, 1])
+          b.data.set(_.range(nV).map(hash11))
+          const run = () => { AL.choleskySolveV3(x, b) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.choleskySolve')
+          console.log(resultString)
+        }
+      })
+
+      it('works 1', () => {
+        const data = fs.readFileSync('thirdparty/libigl-tutorial-data/camelhead.off').toString()
+        let { verts, f2v } = readOFF(data, true)
+        let Lcoo, Lcsr, A, AL
+        verts = new Matrix(verts, [verts.length / 3, 3])
+        f2v = new Matrix(f2v, [f2v.length / 3, 3])
+
+        console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
+
+        {
+          const run = () => { Lcoo = ddg.computeLaplacianV2(verts, f2v) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('computeLaplacianV2')
+          console.log(resultString)
+        }
+
+        {
+          const run = () => { Lcsr = MatrixCSR.fromCOO(Lcoo) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.fromCOO')
+          console.log(resultString)
+        }
+
+        {
+          const run = () => { Lcsr.sumDuplicates() }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.sumDuplicates')
+          console.log(resultString)
+        }
+
+        {
+          const hn2 = Matrix.emptyLike(verts)
+          const run = () => { Lcsr.matmul(hn2, verts) }
+          const { resultString } = timeit('args.run()', '', '', { run })
+          console.log('MatrixCSR.matmul')
+          console.log(resultString)
+        }
+
+        {
+          A = Lcsr.clone()
+          A.negadddiags(1e-3) // -A + h I (make it positive definite)
+          // A.idsubmuls(1) // I - h A (make it positive definite)
+          const run = () => { AL = A.choleskyComputeV3() }
+          const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
           console.log('MatrixCSR.choleskyCompute')
           console.log(resultString)
         }

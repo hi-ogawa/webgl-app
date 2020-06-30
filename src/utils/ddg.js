@@ -1283,7 +1283,13 @@ class HarmonicParametrizationSolver {
       const ui = Matrix.empty([nC0I, 1])
       const rhs = Matrix.emptyLike(ui)
       Si_L.matmul(rhs, u) // we've filled boundary value "SbT . ub" directly in "u"
+
+      // [conjugateGradient]
       stats.u = neg_Si_L_SiT.conjugateGradient(ui, rhs, iteration, residue)
+
+      // [gaussSeidel] TODO: for gaussSeidel, we can run iteration for u and v at the same time.
+      // neg_Si_L_SiT.gaussSeidel(ui, rhs, 800)
+
       // u = Si^T ui + Sb^T ub
       const SiT_ui = Matrix.emptyLike(u)
       SiT.matmul(SiT_ui, ui)
@@ -1293,7 +1299,13 @@ class HarmonicParametrizationSolver {
       const vi = Matrix.empty([nC0I, 1])
       const rhs = Matrix.emptyLike(vi)
       Si_L.matmul(rhs, v)
+
+      // [conjugateGradient]
       stats.v = neg_Si_L_SiT.conjugateGradient(vi, rhs, iteration, residue)
+
+      // [gaussSeidel]
+      // neg_Si_L_SiT.gaussSeidel(vi, rhs, 800)
+
       const SiT_vi = Matrix.emptyLike(v)
       SiT.matmul(SiT_vi, vi)
       v.addeq(SiT_vi)
