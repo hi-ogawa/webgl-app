@@ -87,6 +87,29 @@ class Matrix {
     return result
   }
 
+  static sliceByBools (a, b) {
+    if (a.shape[0] !== b.length) {
+      throw new Error('sliceByBools')
+    }
+
+    let N = 0
+    for (let i = 0; i < b.length; i++) {
+      if (b[i] !== 0) {
+        N++
+      }
+    }
+
+    const M = a.shape[1]
+    const result = Matrix.empty([N, M], a.data.constructor)
+    let k = 0
+    for (let i = 0; i < b.length; i++) {
+      if (b[i] !== 0) {
+        result.row(k++).set(a.row(i))
+      }
+    }
+    return result
+  }
+
   setSlice ([[i0, i1], [j0, j1]], other) {
     for (let i = i0; i < i1; i++) {
       for (let j = j0; j < j1; j++) {

@@ -502,7 +502,7 @@ const delaunayBruteforce = (verts) => {
   if (n > 64) { throw new Error('[delaunayBruteforce]') }
 
   let ptr = 0
-  const c3xc0 = Matrix.empty([10 * n, 4], Uint32Array) // hopefully safe over-estimation
+  let c3xc0 = Matrix.empty([10 * n, 4], Uint32Array) // hopefully safe over-estimation
 
   const bn4 = binom(n, 4)
   for (let i = 0; i < bn4.shape[0]; i++) {
@@ -539,7 +539,7 @@ const delaunayBruteforce = (verts) => {
   }
 
   // shrink to fit
-  c3xc0.reshape([ptr, 4])
+  c3xc0 = c3xc0.reshape([ptr, 4])
   c3xc0.data = c3xc0.data.slice(0, 4 * ptr)
   return c3xc0
 }

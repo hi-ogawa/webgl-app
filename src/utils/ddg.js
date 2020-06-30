@@ -1113,6 +1113,19 @@ const computeBoundary = (f2v, d2) => {
   return f2vB
 }
 
+// Compute oriented 2-cell boundary (simpler version `comoputeBoundary` above. similar spirit to `computeBoundaryC2` below)
+const computeBoundaryC3 = (d2) => {
+  const [nC3, nC2] = d2.shape
+  const ones = Matrix.empty([nC3, 1], Int32Array)
+  ones.data.fill(1)
+
+  // c2B = (1, .., 1) . d2
+  const c2B = Matrix.empty([nC2, 1], Int32Array)
+  d2.matmulT(c2B, ones)
+
+  return { c2B }
+}
+
 // Compute 1-cell boundary (oriented) and 0-cell boundary (not oriented)
 const computeBoundaryC2 = (d0, d1) => {
   // |b1|. |b2 (1,..,1)^T | = (|(1,..,1) d1^T| |d0|^T)^T
@@ -1312,6 +1325,6 @@ export {
   computeF2f, computeSpanningTreeV3, computeFaceNormals, computeFaceCentroids,
   VectorFieldSolver,
   computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
-  computeBoundaryC2, computeBoundaryLoop,
+  computeBoundaryC3, computeBoundaryC2, computeBoundaryLoop,
   HarmonicParametrizationSolver, toSelectorMatrix
 }

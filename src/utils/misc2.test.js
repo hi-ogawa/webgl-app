@@ -215,6 +215,17 @@ describe('misc2', () => {
         0, 1, 2, 3,
         0, 1, 4, 2
       ])
+
+      const { c2xc0 } = ddg.computeD2(c3xc0, verts.shape[0])
+      deepCloseTo(c2xc0.data, [
+        0, 1, 2,
+        0, 1, 3,
+        0, 1, 4,
+        0, 2, 3,
+        0, 2, 4,
+        1, 2, 3,
+        1, 2, 4
+      ])
     })
 
     it('works 1', () => {
