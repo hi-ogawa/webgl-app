@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@tensorflow/tfjs": "^2.0.1",
+    "chai": "^4.2.0",
+    "lodash": "^4.17.15",
+    "mocha": "^8.0.1"
+  }
+}
