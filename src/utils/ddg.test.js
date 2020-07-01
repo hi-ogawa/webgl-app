@@ -934,4 +934,42 @@ describe('ddg', () => {
       assert(_.range(nC0).every(i => u.data[i] ** 2 + v.data[i] ** 2 <= 1.01))
     })
   })
+
+  describe('computeFrameSelectorC3', () => {
+    it('works 0', () => {
+      const nC0 = 5
+      const c3xc0 = Matrix.empty([2, 4], Uint32Array)
+      c3xc0.data.set([
+        0, 1, 2, 3,
+        1, 2, 3, 4
+      ])
+      const frame = ddg.computeFrameSelectorC3(c3xc0, nC0)
+      deepCloseTo(frame.toDense().data, [
+        -1, 1, 0, 0, 0,
+        -1, 0, 1, 0, 0,
+        -1, 0, 0, 1, 0,
+        0, -1, 1, 0, 0,
+        0, -1, 0, 1, 0,
+        0, -1, 0, 0, 1
+      ])
+    })
+
+    it('works 1', () => {
+      const nC0 = 5
+      const c3xc0 = Matrix.empty([2, 4], Uint32Array)
+      c3xc0.data.set([
+        3, 2, 1, 0,
+        3, 1, 2, 4
+      ])
+      const frame = ddg.computeFrameSelectorC3(c3xc0, nC0)
+      deepCloseTo(frame.toDense().data, [
+        0, 0, 1, -1, 0,
+        0, 1, 0, -1, 0,
+        1, 0, 0, -1, 0,
+        0, 1, 0, -1, 0,
+        0, 0, 1, -1, 0,
+        0, 0, 0, -1, 1
+      ])
+    })
+  })
 })

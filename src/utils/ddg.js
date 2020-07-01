@@ -1328,6 +1328,31 @@ const c3xc0Toc0xc3 = (c3xc0, nC0) => {
   return c0xc3
 }
 
+const computeFrameSelectorC3 = (c3xc0, nC0) => {
+  const nC3 = c3xc0.shape[0]
+  const a = MatrixCSR.empty([3 * nC3, nC0], 2 * 3 * nC3)
+
+  // indptr: 2 entry for each row
+  a.indptr.set(_.range(a.shape[0] + 1).map(i => 2 * i))
+
+  // indices, data
+  for (let i = 0; i < nC3; i++) {
+    const vs = c3xc0.row(i)
+    const v0 = vs[0]
+    for (let j = 0; j < 3; j++) {
+      const vj = vs[j + 1]
+      // Make sure indices are already sorted
+      const swap = v0 > vj
+      a.indices[2 * (3 * i + j) + 0] = swap ? vj : v0
+      a.indices[2 * (3 * i + j) + 1] = swap ? v0 : vj
+      a.data[2 * (3 * i + j) + 0] = swap ? 1 : -1
+      a.data[2 * (3 * i + j) + 1] = swap ? -1 : 1
+    }
+  }
+
+  return a
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
@@ -1338,5 +1363,6 @@ export {
   VectorFieldSolver,
   computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
   computeBoundaryC3, computeBoundaryC2, computeBoundaryLoop,
-  HarmonicParametrizationSolver, toSelectorMatrix
+  HarmonicParametrizationSolver, toSelectorMatrix,
+  computeFrameSelectorC3
 }

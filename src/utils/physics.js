@@ -534,7 +534,7 @@ class Example02 {
     //
     // Misc setup
     //
-    const { vec3, mat3 } = glm
+    const { vec3 } = glm
     const { sqrt } = Math
     const eye3 = Matrix.eye([3, 3])
     const eye3neg = eye3.clone().muleqs(-1)
@@ -575,7 +575,6 @@ class Example02 {
       const u1_rest = vec3.sub(x1, x0)
       const u2_rest = vec3.sub(x2, x0)
       const u3_rest = vec3.sub(x3, x0)
-      const X_rest = [...u1_rest, ...u2_rest, ...u3_rest]
 
       const A = Matrix.empty([9, 12])
       A.setSlice([[0, 3], [0, 3]], eye3neg)
@@ -605,21 +604,8 @@ class Example02 {
         B.setSlice([[8, 9], [6, 9]], m3)
       }
 
-      const { matmul, transpose, det } = mat3
-
-      const projection = (p, x0, x1, x2, x3) => {
-        const u1 = vec3.sub(x1, x0)
-        const u2 = vec3.sub(x2, x0)
-        const u3 = vec3.sub(x3, x0)
-        const X = [...u1, ...u2, ...u3]
-        const W = matmul(X_rest, transpose(X))
-
-        // TODO: SVD might be not robust enough
-        const [U, _D, VT] = mat3.svd(W) // eslint-disable-line
-        const E = mat3.diag([1, 1, det(U) * det(VT)])
-        const U_E_VT = matmul(U, matmul(E, VT))
-        p.set(U_E_VT)
-      }
+      // NOTE: projection is handled adhocly in `svdProjection`
+      const projection = () => {}
 
       const weight = stiffness
       constraints.push({
@@ -682,20 +668,57 @@ class Example02 {
     const tmp2 = Matrix.emptyLike(x)
     const tmp3 = Matrix.emptyLike(x)
 
+    // Adhocly handle strain constraint svd projection
+    const pSvdOffset = 3 * handles.length
+    const frameC3 = ddg.computeFrameSelectorC3(c3xc0, nV)
+    const F_rest = Matrix.empty([frameC3.shape[0], 3])
+    frameC3.matmul(F_rest, verts) // Precompute
+    const F = Matrix.emptyLike(F_rest) // Temporary variable used in `svdProjection`
+
     _.assign(this, {
       g, iterPD, dt, mass,
-      constraints, pCumsum,
+      constraints, pCumsum, handles,
       Md_vec, AT_B_sparse, E_sparse, E_cholesky,
       xx, x, x0, vv, v, p, tmp1, tmp2, tmp3,
       nV, nC3, nP,
-      verts, c3xc0
+      verts, c3xc0,
+      frameC3, F, F_rest, pSvdOffset
     })
+  }
+
+  // Reformulate in such a way that parallelization becomes obvious
+  svdProjection () {
+    const { verts, nC3, frameC3, F, F_rest, p, pSvdOffset } = this
+    const { mat3 } = glm
+
+    // Compute deformed frame
+    frameC3.matmul(F, verts)
+
+    // SVD projections
+    for (let i = 0; i < nC3; i++) {
+      const i9 = 9 * i
+      const X_rest = [
+        F_rest.data[i9 + 0], F_rest.data[i9 + 1], F_rest.data[i9 + 2],
+        F_rest.data[i9 + 3], F_rest.data[i9 + 4], F_rest.data[i9 + 5],
+        F_rest.data[i9 + 6], F_rest.data[i9 + 7], F_rest.data[i9 + 8]
+      ]
+      const XT = [
+        F.data[i9 + 0], F.data[i9 + 3], F.data[i9 + 6],
+        F.data[i9 + 1], F.data[i9 + 4], F.data[i9 + 7],
+        F.data[i9 + 2], F.data[i9 + 5], F.data[i9 + 8]
+      ]
+      const W = mat3.matmul(X_rest, XT)
+      const [U, D, VT] = mat3.svd(W) // eslint-disable-line
+      const E = mat3.diag([1, 1, mat3.det(U) * mat3.det(VT)])
+      const U_E_VT = mat3.matmul(U, mat3.matmul(E, VT))
+      p.data.set(U_E_VT, pSvdOffset + i9)
+    }
   }
 
   update () {
     const {
       g, iterPD, dt,
-      constraints, pCumsum,
+      constraints, pCumsum, handles,
       Md_vec, AT_B_sparse, E_sparse, E_cholesky, // eslint-disable-line
       xx, x, x0, vv, v, p, tmp1, tmp2, tmp3,
       nV
@@ -718,10 +741,8 @@ class Example02 {
 
     // Projective dynamics iteration
     for (let i = 0; i < iterPD; i++) {
-      // misc2.measure('projection', () => {
-
-      // Local step: invoke each constraint projection to obtain p
-      for (let j = 0; j < constraints.length; j++) {
+      // Local step for "handles"
+      for (let j = 0; j < handles.length; j++) {
         const { projection, selector } = constraints[j]
         const selectP = p.data.subarray(pCumsum[j], pCumsum[j + 1])
         // NOTE: `_.map(selector, s => xx.row(s))` is terribly slow.
@@ -729,20 +750,16 @@ class Example02 {
         projection(selectP, ...selectXs)
       }
 
-      // }) // measure projection
-
-      let rhs // eslint-disable-line
-      // misc2.measure('rhs', () => {
+      // Local step for strain svd projection
+      // misc2.measure('svdProjection', () => {
+      this.svdProjection(p)
+      // }) // measure svdProjection
 
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p
-      rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p)) // eslint-disable-line
-
-      // }) // measure rhs
+      const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
 
       // misc2.measure('choleskySolve', () => {
-
       E_cholesky.choleskySolveV3(x, rhs, tmp3)
-
       // }) // measure choleskySolve
     }
 
