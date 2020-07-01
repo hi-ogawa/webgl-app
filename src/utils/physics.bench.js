@@ -38,8 +38,8 @@ describe('physics', () => {
     })
 
     it('works 1', () => {
-      const n = 20
-      const { position, index } = misc2.makePlane(n, n, false, false, true, false)
+      const n = 16
+      const { position, index } = misc2.makePlane(n, n)
       const { verts, f2v } = misc2.toMatrices(position, index)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example01()
@@ -47,7 +47,7 @@ describe('physics', () => {
       console.log(`nV: ${verts.shape[0]}, nF: ${f2v.shape[0]}`)
       {
         const run = () => solver.init(verts, f2v, handles)
-        const { resultString } = timeit('args.run()', '', '', { run })
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
         console.log('Example01.init')
         console.log(resultString)
       }

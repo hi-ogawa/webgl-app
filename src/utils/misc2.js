@@ -225,7 +225,7 @@ const toMatrices = (position, index) => {
 }
 
 // TODO: Sadly this is copy-paste from misc.js to use this in physics.bench.js and avoid AFRAME dependency
-const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true, uniformTriangulation = true) => {
+const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = false, triangle = true, symmetric = false) => {
   const n = segmentsX
   const m = segmentsY
 
@@ -253,12 +253,11 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
         continue
       }
       const [a, b, c, d] = quad
-      if (uniformTriangulation) {
+      if (!symmetric) {
         index.push([a, b, c], [a, c, d])
         continue
       }
-      const cointoss = hash11(x * 123 + (y * 235) << 8) >= 0.5
-      const faces = cointoss ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]]
+      const faces = ((x + y) % 2 === 0) ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
       index.push(...faces)
     }
   }

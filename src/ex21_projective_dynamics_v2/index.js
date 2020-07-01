@@ -25,7 +25,7 @@ AFRAME.registerComponent('physics', {
   play () {
     // Define geometry
     const n = 16
-    const { position, index } = misc.makePlane(n, n, false, false, true, false)
+    const { position, index } = misc.makePlane(n, n, false, false, true, true)
     const { verts, f2v } = misc2.toMatrices(position, index)
     // [ Uniform triangles example ]
     // const { verts, f2v } = misc2.makeTriangle(n)
