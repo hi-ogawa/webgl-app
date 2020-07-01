@@ -412,6 +412,70 @@ class MatrixCSR {
     return { indices, data }
   }
 
+  static fromSelector (selector, width, dim) {
+    const shape0 = dim * selector.length
+    const shape1 = dim * width
+    const S = MatrixCSR.empty([shape0, shape1], shape0)
+    S.indptr.set(_.range(shape0 + 1))
+    S.data.fill(1)
+    for (let i = 0; i < selector.length; i++) {
+      for (let k = 0; k < dim; k++) {
+        S.indices[dim * i + k] = dim * selector[i] + k
+      }
+    }
+    return S
+  }
+
+  static stackCsr (ms) { // ms: Array<MatrixCSR>
+    const shape0 = _.sum(ms.map(m => m.shape[0]))
+    const shape1 = ms[0].shape[1]
+    const nnz = _.sum(ms.map(m => m.nnz()))
+    const a = MatrixCSR.empty([shape0, shape1], nnz, ms[0].data.constructor)
+    let row = 0
+    for (const m of ms) {
+      for (let i = 0; i < m.shape[0]; i++) {
+        let pA = a.indptr[row + i]
+        let pM = m.indptr[i]
+        for (; pM < m.indptr[i + 1]; pM++) {
+          const j = m.indices[pM]
+          const Mij = m.data[pM]
+          a.indices[pA] = j
+          a.data[pA] = Mij
+          pA++
+        }
+        a.indptr[row + i + 1] = pA
+      }
+      row += m.shape[0]
+    }
+    return a
+  }
+
+  static stackDiagonal (ms) { // ms: Array<Matrix>
+    const shape0 = _.sum(ms.map(m => m.shape[0]))
+    const shape1 = _.sum(ms.map(m => m.shape[1]))
+    const nnzReserve = _.sum(ms.map(m => m.shape[0] * m.shape[1]))
+    const a = MatrixCSR.empty([shape0, shape1], nnzReserve, ms[0].data.constructor)
+    let row = 0
+    let col = 0
+    for (const m of ms) {
+      for (let i = 0; i < m.shape[0]; i++) {
+        let p = a.indptr[row + i]
+        for (let j = 0; j < m.shape[1]; j++) {
+          const Bij = m.get(i, j)
+          if (Bij === 0) { continue }
+
+          a.indices[p] = col + j
+          a.data[p] = Bij
+          p++
+        }
+        a.indptr[row + i + 1] = p
+      }
+      row += m.shape[0]
+      col += m.shape[1]
+    }
+    return a
+  }
+
   static empty (shape, nnzMax, Klass = Float32Array) {
     const a = new MatrixCSR()
     a.shape = shape
@@ -592,6 +656,33 @@ class MatrixCSR {
     for (let i = 0; i < N; i++) {
       A.indptr[i + 1] = i + 1
       A.indices[i] = i
+    }
+    return A
+  }
+
+  // Assumes B[i, j] != 0 => A[i, j] != 0 (aka. supp(B) ⊆ supp(A))
+  // Assumes sortIndices and sumDuplicates
+  addeq (B) {
+    const A = this
+
+    // Loop A, B row
+    for (let i = 0; i < A.shape[0]; i++) {
+      // Loop A[i, *] and B[i, *] simultaneously
+      let pA = A.indptr[i]
+      let pB = B.indptr[i]
+      while (pA < A.indptr[i + 1] && pB < B.indptr[i + 1]) {
+        if (A.indices[pA] === B.indices[pB]) {
+          A.data[pA] += B.data[pB]
+          pA++
+          pB++
+        }
+        if (A.indices[pA] < B.indices[pB]) {
+          pA++
+        }
+        if (A.indices[pA] > B.indices[pB]) {
+          pB++
+        }
+      }
     }
     return A
   }
@@ -1168,7 +1259,7 @@ class MatrixCSR {
     C.data = new A.data.constructor(nnzReserve)
 
     for (let i = 0; i < A.shape[0]; i++) { // Loop A row
-      C.indptr[i + 1] = C.indptr[i]
+      let p = C.indptr[i]
 
       for (let Ap = A.indptr[i]; Ap < A.indptr[i + 1]; Ap++) { // Loop A[i, *]
         const k = A.indices[Ap]
@@ -1179,16 +1270,17 @@ class MatrixCSR {
           const Bkj = B.data[Bp]
 
           // Set C[i, j]
-          const p = C.indptr[i + 1]
           if (p > nnzReserve) {
             nnzReserve *= 2
             C.reserve(nnzReserve)
           }
           C.indices[p] = j
           C.data[p] = Aik * Bkj
-          C.indptr[i + 1] = p + 1
+          p++
         }
       }
+
+      C.indptr[i + 1] = p
     }
 
     C.sumDuplicates()

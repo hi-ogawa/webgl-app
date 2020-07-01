@@ -96,6 +96,78 @@ describe('array', () => {
   })
 
   describe('MatrixCSR', () => {
+    describe('stackDiagonal', () => {
+      it('works', () => {
+        const a = Matrix.empty([2, 3])
+        const b = Matrix.empty([4, 3])
+        a.data.set(_.range(3 * 2))
+        b.data.set(_.range(3 * 4))
+
+        const c = MatrixCSR.stackDiagonal([a, b])
+        deepCloseTo(c.toDense().data, [
+          0, 1, 2, 0, 0, 0,
+          3, 4, 5, 0, 0, 0,
+          0, 0, 0, 0, 1, 2,
+          0, 0, 0, 3, 4, 5,
+          0, 0, 0, 6, 7, 8,
+          0, 0, 0, 9, 10, 11
+        ])
+      })
+    })
+
+    describe('stackCsr', () => {
+      it('works', () => {
+        let a = Matrix.empty([2, 3])
+        let b = Matrix.empty([4, 3])
+        a.data.set(_.range(3 * 2))
+        b.data.set(_.range(3 * 4))
+        a = MatrixCSR.fromDense(a)
+        b = MatrixCSR.fromDense(b)
+        const c = MatrixCSR.stackCsr([a, b])
+        deepCloseTo(c.toDense().data, [
+          0, 1, 2,
+          3, 4, 5,
+          0, 1, 2,
+          3, 4, 5,
+          6, 7, 8,
+          9, 10, 11
+        ])
+      })
+    })
+
+    describe('addeq', () => {
+      it('works', () => {
+        let a = Matrix.empty([2, 3])
+        let b = Matrix.empty([2, 3])
+        a.data.set(_.range(6))
+        b.data.set(_.range(6).map(i => i * i))
+        a = MatrixCSR.fromDense(a)
+        b = MatrixCSR.fromDense(b)
+        a.addeq(b)
+        deepCloseTo(a.toDense().data, [
+          0 + 0, 1 + 1, 2 + 4,
+          3 + 9, 4 + 16, 5 + 25
+        ])
+      })
+    })
+
+    describe('fromSelector', () => {
+      it('works', () => {
+        const selector = [2, 0]
+        const width = 3
+        const dim = 3
+        const a = MatrixCSR.fromSelector(selector, width, dim)
+        deepCloseTo(a.toDense().data, [
+          0, 0, 0, 0, 0, 0, 1, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 1, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 1,
+          1, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 1, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 1, 0, 0, 0, 0, 0, 0
+        ])
+      })
+    })
+
     it('works 0', () => {
       const a = MatrixCOO.empty([2, 3], 5)
       a.set(1, 2, 7)

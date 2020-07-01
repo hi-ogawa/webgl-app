@@ -520,7 +520,7 @@ class Example01 {
   }
 }
 
-// Volume (mostly copy-and-paste of Example01)
+// Volume
 class Example02 {
   init (verts, c3xc0, handles) {
     //
@@ -633,46 +633,37 @@ class Example02 {
     //
     // Precomputation
     //
-    const M = Matrix.eye([3 * nV, 3 * nV]).muleqs(mass / nV)
+    const Md_vec = Matrix.empty([3 * nV, 1])
+    Md_vec.data.fill((mass / nV) / (dt ** 2)) // M / dt^2
+    const Md_sparse = MatrixCSR.fromDiagonal(Md_vec.data)
+
     const pCumsum = misc2.cumsum(constraints.map(c => c.B.shape[1]))
     const nP = pCumsum[constraints.length]
 
-    const As = []
+    const As_sparse = []
     const Bs = []
-    for (const { selector, A, B } of constraints) {
-      if (!(A.shape[1] === 3 * selector.length)) {
-        throw new Error('[Example02.init]')
-      }
-      const S = Matrix.empty([3 * selector.length, 3 * nV])
-      for (let i = 0; i < selector.length; i++) {
-        const s = selector[i]
-        S.setSlice([[3 * i, 3 * i + 3], [3 * s, 3 * s + 3]], eye3)
-      }
-      As.push(A.matmul(S))
+
+    constraints.forEach(({ A, B, selector }) => {
+      const S = MatrixCSR.fromSelector(selector, nV, 3)
+      const AS = MatrixCSR.fromDense(A).matmulCsr(S)
+      As_sparse.push(AS)
       Bs.push(B)
-    }
+    })
 
-    const A = Matrix.stack(As) // volume strain (9 nC3 x 3 nV)
-    const B = Matrix.stackDiagonal(Bs) // volume strain (9 nC3 x 9 nC3)
-    const AT = A.transpose()
-    const AT_sparse = MatrixCSR.fromDense(AT) // Avoid dense matmul AT @ A and AT @ B
-    const AT_B = Matrix.empty([AT.shape[0], B.shape[1]])
-    const AT_A = Matrix.empty([AT.shape[0], A.shape[1]])
-    AT_sparse.matmul(AT_B, B)
-    AT_sparse.matmul(AT_A, A)
+    const A_sparse = MatrixCSR.stackCsr(As_sparse)
+    const AT_sparse = A_sparse.transpose()
+    const AT_A_sparse = AT_sparse.matmulCsr(A_sparse)
 
-    const Md = M.clone().diveqs(dt ** 2) // M / dt^2
-    const E = Md.clone().addeq(AT_A) // E = M / dt^2 + A^T A
-    const E_sparse = MatrixCSR.fromDense(E)
-    const E_cholesky = E_sparse.choleskyComputeV3()
+    const B_sparse = MatrixCSR.stackDiagonal(Bs) // volume strain (9 nC3 x 9 nC3)
+    const AT_B_sparse = AT_sparse.matmulCsr(B_sparse)
+    const E_sparse = AT_A_sparse.addeq(Md_sparse)
+    let E_cholesky
 
-    // [ Debug choleskyCompute ]
-    // const LT = E_cholesky.toDense()
-    // const L = LT.transpose()
-    // console.log(E.clone().subeq(L.matmul(LT)).dotHS2())
+    // misc2.measure('choleskyCompute', () => {
 
-    const Md_vec = new Matrix(MatrixCSR.fromDense(Md).data, [3 * nV, 1])
-    const AT_B_sparse = MatrixCSR.fromDense(AT_B)
+    E_cholesky = E_sparse.choleskyComputeV3() // eslint-disable-line
+
+    // }) // measure projection
 
     // Initial position
     const xx = verts
@@ -742,20 +733,11 @@ class Example02 {
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p
       const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
 
-      // [ Compare with conjugateGradient ]
-      // misc2.measure('conjugateGradient', () => {
-      // E_sparse.conjugateGradient(x, rhs)
-      // })
-
       // misc2.measure('choleskySolve', () => {
 
       E_cholesky.choleskySolveV3(x, rhs)
 
       // }) // measure choleskySolve
-
-      // [ Debug choleskySolve ]
-      // const Ex = E_sparse.matmul(Matrix.emptyLike(x), x)
-      // console.log(Ex.subeq(rhs).dotHS2())
     }
 
     // Reset velocity (v = (x - x0) / dt)

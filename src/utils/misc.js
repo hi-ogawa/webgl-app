@@ -5,7 +5,6 @@ import AFRAME from '../../web_modules/aframe.js'
 import * as Utils from './index.js'
 import * as glm from './glm.js'
 import * as ddg from './ddg.js'
-import { hash11 } from './hash.js'
 
 const THREE = AFRAME.THREE
 
@@ -601,7 +600,7 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
         index.push([a, b, c], [a, c, d])
         continue
       }
-      const faces = ((x + y) % 2 === 0) ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
+      const faces = ((x + y) % 2 === 0) ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]]
       index.push(...faces)
     }
   }

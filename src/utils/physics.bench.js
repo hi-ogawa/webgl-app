@@ -63,7 +63,7 @@ describe('physics', () => {
 
   describe('Example02', () => {
     it('works 0', () => {
-      const n = 4
+      const n = 8
       const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example02()
@@ -71,7 +71,7 @@ describe('physics', () => {
       console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}`)
       {
         const run = () => solver.init(verts, c3xc0, handles)
-        const { resultString } = timeit('args.run()', '', '', { run })
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
         console.log('Example02.init')
         console.log(resultString)
       }

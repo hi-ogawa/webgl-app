@@ -6,7 +6,6 @@
 import _ from '../../web_modules/lodash.js'
 import * as glm from './glm.js'
 import { Matrix } from './array.js'
-import { hash11 } from './hash.js'
 
 // Scale a set of positions to [-1, 1]^3
 const normalizePositions = (verts) => {
@@ -257,7 +256,7 @@ const makePlane = (segmentsX = 1, segmentsY = 1, periodicX = false, periodicY = 
         index.push([a, b, c], [a, c, d])
         continue
       }
-      const faces = ((x + y) % 2 === 0) ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
+      const faces = ((x + y) % 2 === 0) ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]]
       index.push(...faces)
     }
   }
