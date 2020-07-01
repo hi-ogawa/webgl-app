@@ -972,4 +972,95 @@ describe('ddg', () => {
       ])
     })
   })
+
+  describe('computeC2xc1', () => {
+    it('works 0', () => {
+      const verts = Matrix.empty([4, 3])
+      const c2xc0 = Matrix.empty([2, 3], Uint32Array)
+      verts.data.set([
+        0, 0, 0,
+        1, 0, 0,
+        1, 1, 0,
+        0, 1, 0
+      ])
+      c2xc0.data.set([0, 1, 2, 0, 2, 3])
+
+      const nC0 = verts.shape[0]
+      const { c1xc0, d1 } = ddg.computeD1(c2xc0, nC0, /* checkTwoManiforld */ true)
+      const c2xc1 = ddg.computeC2xc1(c2xc0, c1xc0, d1)
+      deepCloseTo(c2xc1.data, [
+        0, 3, 1,
+        1, 4, 2
+      ])
+    })
+  })
+
+  describe('extrudeTrianglesToTetrahedra', () => {
+    it('works 0', () => {
+      const verts = Matrix.empty([3, 3])
+      const c2xc0 = Matrix.empty([1, 3], Uint32Array)
+      verts.data.set([
+        0, 0, 0,
+        1, 0, 0,
+        0, 1, 0
+      ])
+      c2xc0.data.set([0, 1, 2])
+
+      const [new_verts, c3xc0] = ddg.extrudeTrianglesToTetrahedra(verts, c2xc0, 1)
+      equal(new_verts.shape[0], 13)
+      equal(c3xc0.shape[0], 13)
+      deepCloseTo(c3xc0.data, [
+        [0, 3, 7, 6], [12, 3, 6, 7],
+        [1, 4, 6, 8], [12, 4, 8, 6],
+        [2, 5, 8, 7], [12, 5, 7, 8],
+        [12, 9, 6, 3], [12, 9, 4, 6],
+        [12, 11, 8, 4], [12, 11, 5, 8],
+        [12, 10, 7, 5], [12, 10, 3, 7],
+        [12, 6, 8, 7]
+      ].flat())
+
+      const new_nC0 = new_verts.shape[0]
+      const { c2xc0: new_c2xc0, d2 } = ddg.computeD2(c3xc0, new_nC0, /* checkThreeManifold */ true)
+      const { c1xc0 } = ddg.computeD1(new_c2xc0, new_nC0, /* checkTwoManiforld */ false)
+
+      // Check Euler characteristics
+      const new_nC3 = c3xc0.shape[0]
+      const new_nC2 = new_c2xc0.shape[0]
+      const new_nC1 = c1xc0.shape[0]
+      deepCloseTo([new_nC0, new_nC1, new_nC2, new_nC3], [13, 36, 37, 13])
+      deepCloseTo(new_nC0 - new_nC1 + new_nC2 - new_nC3, 1)
+
+      // Check boundary surface
+      const { c2B } = ddg.computeBoundaryC3(d2)
+      const nC2B = c2B.data.filter(v => v !== 0).length
+      equal(nC2B, 4 + 4 * 3 + 6)
+    })
+
+    it('works 1', () => {
+      const { position, index } = UtilsMisc.makeHedron20()
+      const verts = Matrix.empty([position.length, 3])
+      const c2xc0 = Matrix.empty([index.length, 3], Uint32Array)
+      verts.data.set(position.flat())
+      c2xc0.data.set(index.flat())
+      const nC2 = c2xc0.shape[0]
+
+      const [new_verts, c3xc0] = ddg.extrudeTrianglesToTetrahedra(verts, c2xc0, 1)
+
+      const new_nC0 = new_verts.shape[0]
+      const { c2xc0: new_c2xc0, d2 } = ddg.computeD2(c3xc0, new_nC0, /* checkThreeManifold */ true)
+      const { c1xc0 } = ddg.computeD1(new_c2xc0, new_nC0, /* checkTwoManiforld */ false)
+
+      // Check Euler characteristics
+      const new_nC3 = c3xc0.shape[0]
+      const new_nC2 = new_c2xc0.shape[0]
+      const new_nC1 = c1xc0.shape[0]
+      deepCloseTo([new_nC0, new_nC1, new_nC2, new_nC3], [104, 462, 620, 260])
+      deepCloseTo(new_nC0 - new_nC1 + new_nC2 - new_nC3, 2) // it has hollow
+
+      // Check boundary surface
+      const { c2B } = ddg.computeBoundaryC3(d2)
+      const nC2B = c2B.data.filter(v => v !== 0).length
+      equal(nC2B, 10 * nC2) // 4 (outward) + 6 (inward)
+    })
+  })
 })

@@ -1353,6 +1353,149 @@ const computeFrameSelectorC3 = (c3xc0, nC0) => {
   return a
 }
 
+// TODO: should it be possible to compute during `computeD1`?
+const computeC2xc1 = (c2xc0, c1xc0, d1) => {
+  const { min, max } = Math
+  const nC2 = c2xc0.shape[0]
+  const c2xc1 = Matrix.empty([nC2, 3], Uint32Array)
+  for (let i = 0; i < nC2; i++) {
+    const vs = c2xc0.row(i)
+    const es = d1.indices.slice(d1.indptr[i], d1.indptr[i] + 3)
+    const e0 = es.find(e => c1xc0.get(e, 0) === min(vs[0], vs[1]) && c1xc0.get(e, 1) === max(vs[0], vs[1]))
+    const e1 = es.find(e => c1xc0.get(e, 0) === min(vs[1], vs[2]) && c1xc0.get(e, 1) === max(vs[1], vs[2]))
+    const e2 = es.find(e => c1xc0.get(e, 0) === min(vs[2], vs[0]) && c1xc0.get(e, 1) === max(vs[2], vs[0]))
+    c2xc1.row(i).set([e0, e1, e2])
+  }
+  return c2xc1
+}
+
+const computeVertexNormals = (verts, c2xc0) => {
+  const nC0 = verts.shape[0]
+  const nC2 = c2xc0.shape[0]
+  const faceNormals = computeFaceNormals(verts, c2xc0)
+  const vertNormals = Matrix.empty([nC0, 3])
+  const counts = new Uint32Array(nC0)
+
+  const { addeq, diveqs, normalizeeq } = glm.vec3
+
+  // Accumulate face normals
+  for (let i = 0; i < nC2; i++) {
+    const n = faceNormals.row(i)
+    const vs = c2xc0.row(i)
+    addeq(vertNormals.row(vs[0]), n)
+    addeq(vertNormals.row(vs[1]), n)
+    addeq(vertNormals.row(vs[2]), n)
+    counts[vs[0]]++
+    counts[vs[1]]++
+    counts[vs[2]]++
+  }
+
+  // Average them and normalize
+  for (let i = 0; i < nC0; i++) {
+    normalizeeq(diveqs(vertNormals.row(i), counts[i]))
+  }
+
+  return vertNormals
+}
+
+//
+// Each triangle prism is subdivided to 13 tetrahedra by
+//
+//      2
+//     8 7
+//    0 6 1
+//
+//       5
+//   11 12 10
+//    3  9  4
+//
+//  where
+//   - [0, 1, 2] is the original triangle
+//   - [3, 4, 5] is the extruded triangle
+//
+const extrudeTrianglesToTetrahedra = (verts, c2xc0, depth) => {
+  const nC0 = verts.shape[0]
+  const nC2 = c2xc0.shape[0]
+
+  const { c1xc0, d1 } = computeD1(c2xc0, nC0, /* checkTwoManiforld */ true)
+  const nC1 = c1xc0.shape[0]
+  const c2xc1 = computeC2xc1(c2xc0, c1xc0, d1)
+
+  const new_nC0 = 2 * nC0 + 2 * nC1 + nC2
+  const new_nC3 = 13 * nC2
+  const new_verts = Matrix.empty([new_nC0, 3])
+  const new_c3xc0 = Matrix.empty([new_nC3, 4], Uint32Array)
+
+  // Offset of new vertices (3..12)
+  const offset0 = nC0 // 3, 4, 5
+  const offset1 = 2 * nC0 // 6, 7, 8
+  const offset2 = 2 * nC0 + nC1 // 9, 10, 11
+  const offset3 = 2 * nC0 + 2 * nC1 // 12
+
+  // c3xc0 (topology)
+  for (let i = 0; i < nC2; i++) {
+    const vs = c2xc0.row(i)
+    const es = c2xc1.row(i)
+    const v0 = vs[0]
+    const v1 = vs[1]
+    const v2 = vs[2]
+    const v3 = vs[0] + offset0
+    const v4 = vs[1] + offset0
+    const v5 = vs[2] + offset0
+    const v6 = es[0] + offset1
+    const v7 = es[1] + offset1
+    const v8 = es[2] + offset1
+    const v9 = es[0] + offset2
+    const v10 = es[1] + offset2
+    const v11 = es[2] + offset2
+    const v12 = i + offset3
+    new_c3xc0.row(13 * i + 0).set([v0, v3, v8, v6])
+    new_c3xc0.row(13 * i + 1).set([v12, v3, v6, v8])
+    new_c3xc0.row(13 * i + 2).set([v1, v4, v6, v7])
+    new_c3xc0.row(13 * i + 3).set([v12, v4, v7, v6])
+    new_c3xc0.row(13 * i + 4).set([v2, v5, v7, v8])
+    new_c3xc0.row(13 * i + 5).set([v12, v5, v8, v7])
+    new_c3xc0.row(13 * i + 6).set([v12, v9, v6, v3])
+    new_c3xc0.row(13 * i + 7).set([v12, v9, v4, v6])
+    new_c3xc0.row(13 * i + 8).set([v12, v10, v7, v4])
+    new_c3xc0.row(13 * i + 9).set([v12, v10, v5, v7])
+    new_c3xc0.row(13 * i + 10).set([v12, v11, v8, v5])
+    new_c3xc0.row(13 * i + 11).set([v12, v11, v3, v8])
+    new_c3xc0.row(13 * i + 12).set([v12, v6, v7, v8])
+  }
+
+  // new_verts (positions)
+  const { add, sub, muls, divs } = glm.vec3
+  const vertNormals = computeVertexNormals(verts, c2xc0)
+
+  for (let i = 0; i < nC0; i++) {
+    const p = verts.row(i)
+    const n = vertNormals.row(i)
+    new_verts.row(i).set(p)
+    new_verts.row(i + offset0).set(sub(p, muls(n, depth))) // extrude inward
+  }
+
+  for (let i = 0; i < nC1; i++) {
+    const vs = c1xc0.row(i)
+    const p0 = new_verts.row(vs[0])
+    const p1 = new_verts.row(vs[1])
+    const p2 = new_verts.row(vs[0] + offset0)
+    const p3 = new_verts.row(vs[1] + offset0)
+    new_verts.row(i + offset1).set(divs(add(p0, p1), 2))
+    new_verts.row(i + offset2).set(divs(add(p2, p3), 2))
+  }
+
+  for (let i = 0; i < nC2; i++) {
+    const vs = c2xc0.row(i)
+    const p0 = new_verts.row(vs[0] + offset0)
+    const p1 = new_verts.row(vs[1] + offset0)
+    const p2 = new_verts.row(vs[2] + offset0)
+    new_verts.row(i + offset3).set(divs(add(add(p0, p1), p2), 3))
+  }
+
+  return [new_verts, new_c3xc0]
+}
+
 export {
   computeTopology, computeMore, computeLaplacian, computeMeanCurvature,
   computeSpanningTree, computeSpanningTreeV2, computeTreeCotree,
@@ -1364,5 +1507,6 @@ export {
   computeD2, computeD1, computeD0, computeBoundary, c3xc0Toc0xc3,
   computeBoundaryC3, computeBoundaryC2, computeBoundaryLoop,
   HarmonicParametrizationSolver, toSelectorMatrix,
-  computeFrameSelectorC3
+  computeFrameSelectorC3,
+  extrudeTrianglesToTetrahedra, computeC2xc1
 }

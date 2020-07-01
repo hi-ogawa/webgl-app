@@ -1,3 +1,46 @@
+- Generate icosahedron extruded to tetrahedra (icosphere.mesh)
+
+```
+node scripts/literate.js misc/data/README.md icosphere-mesh 0.4 misc/data/icosphere.mesh
+```
+
+```js
+// icosphere-mesh
+import fs from 'fs'
+import '../../src/mocha_jsdom.js' // unfortunate dependency for misc
+import * as misc from '../../src/utils/misc.js'
+import * as ddg from '../../src/utils/ddg.js'
+import * as reader from '../../src/utils/reader.js'
+import * as glm from '../../src/utils/glm.js'
+import { Matrix } from '../../src/utils/array.js'
+
+const main = (depth, outfile) => {
+  depth = Number(depth)
+
+  // Icosahedron
+  const { position, index } = misc.makeHedron20()
+  const verts = Matrix.empty([position.length, 3])
+  const c2xc0 = Matrix.empty([index.length, 3], Uint32Array)
+  verts.data.set(position.flat())
+  c2xc0.data.set(index.flat())
+
+  // Extrude to tetrahedra
+  const [new_verts, c3xc0] = ddg.extrudeTrianglesToTetrahedra(verts, c2xc0, depth)
+
+  // Normalize position
+  const { normalizeeq, muleqs } = glm.vec3
+  for (let i = 0; i < new_verts.shape[0]; i++) {
+    const l = (i < 12 || (2 * 12 <= i && i < 2 * 12 + 30)) ? 1 : (1 - depth)
+    muleqs(normalizeeq(new_verts.row(i)), l)
+  }
+
+  const ostr = fs.createWriteStream(outfile)
+  reader.writeMESH(new_verts.data, c3xc0.data, ostr)
+}
+
+main(...process.argv.slice(2))
+```
+
 - Generate tetrahedralized cube (cube.mesh)
 
 ```
