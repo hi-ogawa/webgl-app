@@ -680,12 +680,13 @@ class Example02 {
     // Temporary variables
     const tmp1 = Matrix.emptyLike(x)
     const tmp2 = Matrix.emptyLike(x)
+    const tmp3 = Matrix.emptyLike(x)
 
     _.assign(this, {
       g, iterPD, dt, mass,
       constraints, pCumsum,
       Md_vec, AT_B_sparse, E_sparse, E_cholesky,
-      xx, x, x0, vv, v, p, tmp1, tmp2,
+      xx, x, x0, vv, v, p, tmp1, tmp2, tmp3,
       nV, nC3, nP,
       verts, c3xc0
     })
@@ -696,7 +697,7 @@ class Example02 {
       g, iterPD, dt,
       constraints, pCumsum,
       Md_vec, AT_B_sparse, E_sparse, E_cholesky, // eslint-disable-line
-      xx, x, x0, vv, v, p, tmp1, tmp2,
+      xx, x, x0, vv, v, p, tmp1, tmp2, tmp3,
       nV
     } = this
 
@@ -730,12 +731,17 @@ class Example02 {
 
       // }) // measure projection
 
+      let rhs // eslint-disable-line
+      // misc2.measure('rhs', () => {
+
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p
-      const rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p))
+      rhs = tmp1.copy(Md_vec).muleq(x).addeq(AT_B_sparse.matmul(tmp2, p)) // eslint-disable-line
+
+      // }) // measure rhs
 
       // misc2.measure('choleskySolve', () => {
 
-      E_cholesky.choleskySolveV3(x, rhs)
+      E_cholesky.choleskySolveV3(x, rhs, tmp3)
 
       // }) // measure choleskySolve
     }

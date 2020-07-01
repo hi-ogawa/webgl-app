@@ -1163,8 +1163,7 @@ class MatrixCSR {
   }
 
   // L L^T X = B
-  choleskySolveV3 (x, b) {
-    const y = Matrix.emptyLike(x)
+  choleskySolveV3 (x, b, y = Matrix.emptyLike(x)) {
     this.solveCscL(y, b) // L y = b
     this.solveCscLT(x, y) // L^T x = y
     return x

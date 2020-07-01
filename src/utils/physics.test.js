@@ -43,7 +43,7 @@ describe('physics', () => {
     it('works', function () {
       this.timeout(10000)
 
-      const n = 4
+      const n = 6
       const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example02()

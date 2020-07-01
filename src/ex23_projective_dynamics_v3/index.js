@@ -63,11 +63,13 @@ AFRAME.registerComponent('physics', {
   schema: {
     // 0: two side fixed and twist
     // 1: one side fixed
-    type: { default: 1, oneOf: [0, 1, 2] }
+    type: { default: 1, oneOf: [0, 1] },
+    iterPD: { default: 8, type: 'int' },
+    n: { default: 6, type: 'int' }
   },
 
   init () {
-    const n = 4
+    const { type, n, iterPD } = this.data
     const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
     this.n = n
 
@@ -90,7 +92,7 @@ AFRAME.registerComponent('physics', {
         for (let i = 0; i <= n; i++) {
           if (i > 0 && j > 0 && i < n && j < n) { continue }
           if (k > 0 && k < n) { continue }
-          if (this.data.type !== 0 && k === n) { continue }
+          if (type !== 0 && k === n) { continue } // Skip other side
 
           const v = (n + 1) * (n + 1) * k + (n + 1) * j + i
           const p = verts.row(v)
@@ -111,6 +113,7 @@ AFRAME.registerComponent('physics', {
     // solver
     this.solver = new physics.Example02()
     this.solver.init(verts, c3xc0, this.handles)
+    this.solver.iterPD = iterPD
   },
 
   tick () {
