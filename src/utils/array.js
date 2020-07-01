@@ -1141,6 +1141,18 @@ class MatrixCSR {
     return x
   }
 
+  reserve (newNnz) {
+    const oldIndices = this.indices
+    this.indices = new Uint32Array(newNnz)
+    this.indices.set(oldIndices)
+
+    const oldData = this.data
+    this.data = new this.data.constructor(newNnz)
+    this.data.set(oldData)
+
+    return this
+  }
+
   // C = A B
   // Time = \sum_i nnz(A[*, i]) . nnz(B[i, *])
   matmulCsr (B) {
@@ -1149,13 +1161,11 @@ class MatrixCSR {
     C.shape = [A.shape[0], B.shape[1]]
     assertf(() => A.shape[1] === B.shape[0])
 
-    // TODO: Can we estimate "nnz"? (Found that Eigen uses "nnz(lhs*rhs) ~= nnz(lhs) + nnz(rhs)")
     C.indptr = new Uint32Array(C.shape[0] + 1)
-    C.indices = []
-    C.data = []
-    // const nnzReserve = A.nnz() + B.nnz()
-    // C.indices = new Uint32Array(nnzReserve)
-    // C.data = new A.data.constructor(nnzReserve)
+    let nnzReserve = A.nnz() + B.nnz() // Expected value when assuming uniform distribution of non-zero entry
+    nnzReserve *= 2 // My arbitrary guess
+    C.indices = new Uint32Array(nnzReserve)
+    C.data = new A.data.constructor(nnzReserve)
 
     for (let i = 0; i < A.shape[0]; i++) { // Loop A row
       C.indptr[i + 1] = C.indptr[i]
@@ -1169,17 +1179,18 @@ class MatrixCSR {
           const Bkj = B.data[Bp]
 
           // Set C[i, j]
-          C.indices.push(j)
-          C.data.push(Aik * Bkj)
-          // C.indices[C.indptr[i + 1]] = j
-          // C.data[C.indptr[i + 1]] = Aik * Bkj
-          C.indptr[i + 1]++
+          const p = C.indptr[i + 1]
+          if (p > nnzReserve) {
+            nnzReserve *= 2
+            C.reserve(nnzReserve)
+          }
+          C.indices[p] = j
+          C.data[p] = Aik * Bkj
+          C.indptr[i + 1] = p + 1
         }
       }
     }
 
-    C.indices = new Uint32Array(C.indices)
-    C.data = new Float32Array(C.data)
     C.sumDuplicates()
     return C
   }
