@@ -1,3 +1,11 @@
+- CMake example
+
+```
+cmake misc/wasm/ex03 -B misc/wasm/ex03/build -G Ninja -DCMAKE_TOOLCHAIN_FILE=$HOME/code/others/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+ninja -C misc/wasm/ex03/build
+node misc/wasm/ex03/build/main.js
+```
+
 - C++ to WASM by Emscripten
 
 ```
