@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../../../node_modules/mocha/mocha.css" />
+</head>
+<body>
+  <div id="mocha"></div>
+  <script src="../../../node_modules/mocha/mocha.js"></script>
+
+  <script>
+    mocha.setup('bdd')
+  </script>
+
+  <script>
+    window.__EMSCRIPTEN_READY = new Promise(resolve => {
+      window.Module = { postRun: resolve }
+    })
+  </script>
+  <script src="./build/Release/em.js"></script>
+
+  <script>
+    const measure = (func, r = 32) => {
+      const t0 = performance.now()
+      for (let i = 0; i < r; i++) {
+        func()
+      }
+      const t1 = performance.now()
+      return ((t1 - t0) / 1000) / r
+    }
+
+    const sum = (data) => {
+      let result = 0
+      for (let i = 0; i < data.length; i++) {
+        result += data[i]
+      }
+      return result
+    }
+
+    describe('wasm', () => {
+      describe('ex04', () => {
+        before(async () => window.__EMSCRIPTEN_READY)
+
+        it('works', function () {
+          this.timeout(10000)
+
+          const { Vectorf } = Module
+          const a = new Vectorf()
+          a.resize(2 ** 24, 1)
+          const data = a.data()
+          console.log('sum_parallel:', measure(() => a.sum_parallel()))
+          console.log('sum:         ', measure(() => a.sum()))
+          console.log('sum (js):    ', measure(() => sum(data)))
+          a.delete()
+        })
+      })
+    })
+  </script>
+
+  <script>
+    mocha.run()
+  </script>
+</body>

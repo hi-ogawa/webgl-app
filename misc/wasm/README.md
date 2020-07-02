@@ -1,3 +1,22 @@
+- Pthread example
+  - TODO
+    - skim through glue code around worker pooling etc...
+    - process doesn't seem to exit automatically. probably need to terminate workers?
+    - it seems "--inspect-brk" cannot work with "--experimental-wasm-threads"
+    - find example which shows speed up with the number of threads
+
+```
+cmake misc/wasm/ex04 -B misc/wasm/ex04/build/Release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$HOME/code/others/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+ninja -C misc/wasm/ex04/build/Release
+node --experimental-wasm-threads misc/wasm/ex04/build/Release/main.js
+node --experimental-wasm-threads $(npm bin)/mocha --exit -t 0 misc/wasm/ex04/test.js
+  wasm
+    ex04
+sum_parallel: 0.016748924342915417
+sum:          0.02025205803103745
+sum (js):     0.027053148686885832
+```
+
 - CMake example
 
 ```
