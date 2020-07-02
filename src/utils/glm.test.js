@@ -306,6 +306,37 @@ describe('glm', () => {
           deepCloseTo(matmul(transpose(VT), VT), eye())
           deepCloseTo(matmul(U, matmul(diag(D), VT)), A)
         }
+
+        // Version 2
+        {
+          const A1 = [
+            1, 2, 3,
+            4, 5, 6,
+            0, 0, 0
+          ]
+          const A2 = [
+            7, 8, 9,
+            10, 11, 12,
+            0, 0, 0
+          ]
+          const A = matmul(A1, transpose(A2))
+          const [U, D, VT] = mat3.svdV2(A)
+          deepCloseTo(matmul(transpose(U), U), eye())
+          deepCloseTo(matmul(transpose(VT), VT), eye())
+          deepCloseTo(matmul(U, matmul(diag(D), VT)), A)
+        }
+
+        {
+          const A = [
+            2, 3, 5,
+            3, 5, 7,
+            5, 7, 11
+          ]
+          const [U, D, VT] = mat3.svdV2(A)
+          deepCloseTo(matmul(transpose(U), U), eye())
+          deepCloseTo(matmul(transpose(VT), VT), eye())
+          deepCloseTo(matmul(U, matmul(diag(D), VT)), A)
+        }
       })
     })
   })

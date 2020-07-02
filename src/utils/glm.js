@@ -861,12 +861,112 @@ const mat3 = {
     return [U, D, VT]
   },
 
-  // TODO: Analyze http://pages.cs.wisc.edu/~sifakis/project_pages/svd.html
   svd: (A) => {
     if (Math.abs(mat3.det(A)) < 1e-7) {
       return mat3.svdNonInvertible(A)
     }
     return mat3.svdInvertible(A)
+  },
+
+  permutation: (a, s) => {
+    const a0x = [a[0], a[3], a[6]]
+    const a1x = [a[1], a[4], a[7]]
+    const a2x = [a[2], a[5], a[8]]
+    a[0] = a0x[s[0]]
+    a[1] = a1x[s[0]]
+    a[2] = a2x[s[0]]
+    a[3] = a0x[s[1]]
+    a[4] = a1x[s[1]]
+    a[5] = a2x[s[1]]
+    a[6] = a0x[s[2]]
+    a[7] = a1x[s[2]]
+    a[8] = a2x[s[2]]
+    return a
+  },
+
+  // Cf. http://pages.cs.wisc.edu/~sifakis/project_pages/svd.html
+  // TODO: Use Givens rotation for eigenPSD and QR decomp
+  svdV2: (A) => {
+    //
+    // [ Overview ]
+    //
+    // 1. AT A = P W PT (cf. spectral theorem)
+    // 2. B = A P
+    // 3. C = B S (where S: permutation s.t. C's colume vectors have decreasing length)
+    // 4. C = Q R = Q D (cf. QR decomposition where R turns out to be diagonal)
+    // 5. A = B PT = C ST PT = Q D (ST PT)
+    //
+    // [ Prop. R is diagonal at the 4th step above ]
+    //
+    //   Noting that
+    //     B = A P = P W
+    //     BT B = (P W)T P W = WT W : diagonal
+    //     CT C = ST BT B S = ST (WT W) S : diagonal (since permutation of diagonals)
+    //     CT C = RT QT Q R = RT R
+    //
+    //   Also, due to 3rd step and QT is unitary, we know that
+    //     R = QT C = QT (B S) has decreasing column vector lengths
+    //
+    //   Therefore, even if R is not invertible, its non-zero invertible part is at the top-left block.
+    //   Thus, below lemma similary applies to R and we have R diagonal.
+    //
+    // [ Lemma. R is upper tri. and invertible and RT R is diagonal then R is diagonal ]
+    //    Proof. noting RT and (RT)^{-1} are lower triangle, we see RT R = D ==> R = D RT^{-1} also lower triangle
+    //
+
+    const { matmul, transpose } = mat3
+    const { length } = vec3
+
+    // 1.
+    const AT_A = matmul(transpose(A), A)
+    const [P, _W] = mat3.eigenPSD(AT_A) // eslint-disable-line
+
+    // 2.
+    const B = matmul(A, P)
+
+    // 3.
+    const B0 = [B[0], B[1], B[2]]
+    const B1 = [B[3], B[4], B[5]]
+    const B2 = [B[6], B[7], B[8]]
+    const l0 = length(B0)
+    const l1 = length(B1)
+    const l2 = length(B2)
+
+    // inlined insertion sort
+    let S
+    // [0, (1), 2]
+    if (l1 > l0) {
+      // [1, 0, (2)]
+      if (l2 > l0) {
+        // [1, (2), 0]
+        if (l2 > l1) {
+          S = [2, 1, 0]
+        }
+        S = [1, 2, 0]
+      }
+      S = [1, 0, 2]
+    }
+
+    // [0, 1, (2)]
+    if (l2 > l1) {
+      // [0, (2), 1]
+      if (l2 > l0) {
+        S = [2, 0, 1]
+      }
+      S = [0, 2, 1]
+    }
+    S = [0, 1, 2]
+
+    const C = mat3.permutation(B, S)
+    const [Q, D] = mat3.householderQR(C)
+    const PT = transpose(P)
+    const S_PT = mat3.permutation(PT, S)
+
+    return [
+      Q,
+      [D[0], D[4], D[8]],
+      S_PT
+    ]
   }
 }
 
