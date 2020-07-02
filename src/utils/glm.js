@@ -150,6 +150,10 @@ const vec3 = {
     return Math.sqrt(vec3.dot2(a))
   },
 
+  distance: (a, b) => {
+    return vec3.length(vec3.sub(a, b))
+  },
+
   normalize: (a) => {
     return vec3.divs(a, vec3.length(a))
   },
@@ -226,6 +230,10 @@ const vec2 = {
 
   length: (a) => {
     return Math.sqrt(vec2.dot2(a))
+  },
+
+  distance: (a, b) => {
+    return vec2.length(vec2.sub(a, b))
   },
 
   normalizeeq: (a) => {

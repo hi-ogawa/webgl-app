@@ -1,8 +1,10 @@
 /* global describe, it */
 
+import fs from 'fs'
 import * as physics from './physics.js'
 import { timeit } from './timeit.js'
 import * as misc2 from './misc2.js'
+import * as reader from './reader.js'
 
 describe('physics', () => {
   describe('Example00', () => {
@@ -65,6 +67,30 @@ describe('physics', () => {
     it('works 0', () => {
       const n = 6
       const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new physics.Example02()
+
+      console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}`)
+      {
+        const run = () => solver.init(verts, c3xc0, handles)
+        const { resultString } = timeit('args.run()', '', '', { run }, 1, 1)
+        console.log('Example02.init')
+        console.log(resultString)
+      }
+
+      const { AT_B_sparse, E_sparse } = solver // eslint-disable-line
+      console.log(`AT_B: [${AT_B_sparse.shape}], E.nnz: ${E_sparse.nnz()}`)
+      {
+        const run = () => solver.update()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example02.update')
+        console.log(resultString)
+      }
+    })
+
+    it('works 1', () => {
+      const data = fs.readFileSync('misc/data/monkey.mesh').toString()
+      const { verts, c3xc0 } = reader.readMESH(data)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example02()
 

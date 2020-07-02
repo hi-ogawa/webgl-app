@@ -522,12 +522,12 @@ class Example01 {
 
 // Volume
 class Example02 {
-  init (verts, c3xc0, handles) {
+  init (verts, c3xc0, handles, strainStiffness = 2 ** 5) {
     //
     // Configuration
     //
     const g = 9.8
-    const iterPD = 16
+    const iterPD = 8
     const dt = 1 / 60
     const mass = 1
 
@@ -566,7 +566,7 @@ class Example02 {
 
     // Volume strain constraint
     for (let i = 0; i < nC3; i++) {
-      const stiffness = 2 ** 5
+      const stiffness = strainStiffness
       const vs = c3xc0.row(i)
       const x0 = verts.row(vs[0])
       const x1 = verts.row(vs[1])

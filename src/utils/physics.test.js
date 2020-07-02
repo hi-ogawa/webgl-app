@@ -1,8 +1,10 @@
 /* global describe, it */
 
 import assert from 'assert'
+import fs from 'fs'
 import * as physics from './physics.js'
 import * as misc2 from './misc2.js'
+import * as reader from './reader.js'
 
 describe('physics', () => {
   describe('Example00', () => {
@@ -40,11 +42,47 @@ describe('physics', () => {
   })
 
   describe('Example02', () => {
-    it('works', function () {
+    it('works 0', function () {
       this.timeout(10000)
 
       const n = 6
       const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new physics.Example02()
+      solver.init(verts, c3xc0, handles)
+
+      const { x, AT_B_sparse } = solver // eslint-disable-line
+      console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}, AT_B: [${AT_B_sparse.shape}]`)
+
+      for (let i = 0; i < 60; i++) {
+        solver.update()
+        assert(x.data.every(i => !Number.isNaN(i)))
+      }
+    })
+
+    it('works 1', function () {
+      this.timeout(10000)
+
+      const data = fs.readFileSync('misc/data/icosphere.mesh').toString()
+      const { verts, c3xc0 } = reader.readMESH(data)
+      const handles = [{ vertex: 0, target: [0, 0, 0] }]
+      const solver = new physics.Example02()
+      solver.init(verts, c3xc0, handles)
+
+      const { x, AT_B_sparse } = solver // eslint-disable-line
+      console.log(`nC0: ${verts.shape[0]}, nC3: ${c3xc0.shape[0]}, AT_B: [${AT_B_sparse.shape}]`)
+
+      for (let i = 0; i < 60; i++) {
+        solver.update()
+        assert(x.data.every(i => !Number.isNaN(i)))
+      }
+    })
+
+    it('works 1', function () {
+      this.timeout(10000)
+
+      const data = fs.readFileSync('misc/data/monkey.mesh').toString()
+      const { verts, c3xc0 } = reader.readMESH(data)
       const handles = [{ vertex: 0, target: [0, 0, 0] }]
       const solver = new physics.Example02()
       solver.init(verts, c3xc0, handles)

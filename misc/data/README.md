@@ -1,3 +1,38 @@
+- Generate monkey.mesh (monkey.obj is from Blender with its geometry simplified by hand and modifiers)
+
+```
+node scripts/literate.js misc/data/README.md obj-to-mesh 0.1 misc/data/monkey.obj misc/data/monkey.mesh
+```
+
+```js
+// obj-to-mesh
+import fs from 'fs'
+import * as ddg from '../../src/utils/ddg.js'
+import * as reader from '../../src/utils/reader.js'
+import { Matrix } from '../../src/utils/array.js'
+
+const main = (depth, infile, outfile) => {
+  depth = Number(depth)
+
+  // Load data
+  const data = fs.readFileSync(infile).toString()
+  const { verts: x, f2v: y } = reader.readOBJ(data)
+  const verts = Matrix.empty([x.length, 3])
+  const c2xc0 = Matrix.empty([y.length, 3], Uint32Array)
+  verts.data.set(x.flat())
+  c2xc0.data.set(y.flat())
+
+  // Extrude to tetrahedra
+  const [new_verts, c3xc0] = ddg.extrudeTrianglesToTetrahedra(verts, c2xc0, depth)
+
+  // Write to file
+  const ostr = fs.createWriteStream(outfile)
+  reader.writeMESH(new_verts.data, c3xc0.data, ostr)
+}
+
+main(...process.argv.slice(2))
+```
+
 - Generate icosahedron extruded to tetrahedra (icosphere.mesh)
 
 ```
