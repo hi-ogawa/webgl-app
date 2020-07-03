@@ -715,6 +715,40 @@ class Example02 {
     }
   }
 
+  // Assume `Module` is from "misc/wasm/ex05/build/js/Release/em.js"
+  setupWasm (Module) {
+    const { nC3, F_rest } = this
+    const { Vector, solve } = Module
+
+    const w_u1 = Vector.zeros(9 * nC3)
+    const w_u2 = Vector.zeros(9 * nC3)
+    const w_p = Vector.zeros(9 * nC3)
+    const u1 = w_u1.data()
+    const u2 = w_u2.data()
+    const p = w_p.data()
+
+    u2.set(F_rest.data) // Copy "F_rest" beforehand
+
+    this.wasm = { w_u1, w_u2, w_p, u1, u2, p, solve }
+  }
+
+  svdProjectionWasm () {
+    const { verts, frameC3, F, p, pSvdOffset } = this
+    const { wasm } = this
+
+    // Deformed frame
+    frameC3.matmul(F, verts)
+
+    // Copy "F" to wasm
+    wasm.u1.set(F.data)
+
+    // Solve in wasm
+    wasm.solve(wasm.w_u1, wasm.w_u2, wasm.w_p)
+
+    // Copy "p" from wasm
+    p.data.set(wasm.p, pSvdOffset)
+  }
+
   update () {
     const {
       g, iterPD, dt,
@@ -752,7 +786,7 @@ class Example02 {
 
       // Local step for strain svd projection
       // misc2.measure('svdProjection', () => {
-      this.svdProjection(p)
+      this.wasm ? this.svdProjectionWasm() : this.svdProjection()
       // }) // measure svdProjection
 
       // Global step: solve (Md + A^T A) x' = Md x + A^T B p

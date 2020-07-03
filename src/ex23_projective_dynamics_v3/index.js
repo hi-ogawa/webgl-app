@@ -24,6 +24,22 @@ import * as reader from '../utils/reader.js'
 const THREE = AFRAME.THREE
 const { $, stringToElement } = misc
 
+let wasm_ex05
+const wasm_ex05_promise = new Promise(resolve => {
+  // cf. misc/wasm/ex05/em-pre.js
+  const dir = '../../misc/wasm/ex05/build/js/Release/'
+  const js = dir + 'em.js'
+  const wasm = dir + 'em.wasm'
+  window.__PRE_JS = (Module) => {
+    Module.locateFile = () => wasm
+    Module.postRun = resolve
+    wasm_ex05 = Module
+  }
+  import(js).catch(() => {
+    console.error('TODO: wasm_ex05 is not available')
+  })
+})
+
 AFRAME.registerComponent('physics-twist', {
   tick () {
     const { keysPressed } = this.el.sceneEl.systems.input.state
@@ -158,6 +174,12 @@ AFRAME.registerComponent('physics', {
     this.solver.init(verts, c3xc0, this.handles, stiffness)
     this.solver.iterPD = iterPD
     this.ready = true
+
+    // Use wasm code if available
+    await wasm_ex05_promise
+    if (wasm_ex05) {
+      this.solver.setupWasm(wasm_ex05)
+    }
   },
 
   tick () {

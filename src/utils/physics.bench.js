@@ -1,4 +1,5 @@
-/* global describe, it */
+/* eslint camelcase: 0 */
+/* global describe, it, before */
 
 import fs from 'fs'
 import * as physics from './physics.js'
@@ -64,6 +65,19 @@ describe('physics', () => {
   })
 
   describe('Example02', () => {
+    // Load wasm if avilable (not available in CI for now)
+    // TODO: Fix not loading emscripten in "*.test.js" due to "mocha_jsdom.js"
+    let wasm_ex05
+    before(async () => {
+      try {
+        const { default: Module } = await import('../../misc/wasm/ex05/build/js/Release/em.js')
+        await new Promise(resolve => {
+          Module.postRun = resolve // Wait until emscripten is ready
+          wasm_ex05 = Module
+        })
+      } catch {}
+    })
+
     it('works 0', () => {
       const n = 6
       const { verts, c3xc0 } = misc2.makeTetrahedralizedCubeSymmetric(n / 2)
@@ -84,6 +98,21 @@ describe('physics', () => {
         const run = () => solver.update()
         const { resultString } = timeit('args.run()', '', '', { run }, 5)
         console.log('Example02.update')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.svdProjection()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example02.svdProjection')
+        console.log(resultString)
+      }
+
+      if (wasm_ex05) {
+        solver.setupWasm(wasm_ex05)
+        const run = () => solver.svdProjectionWasm()
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('Example02.svdProjectionWasm')
         console.log(resultString)
       }
     })
@@ -108,6 +137,21 @@ describe('physics', () => {
         const run = () => solver.update()
         const { resultString } = timeit('args.run()', '', '', { run }, 5)
         console.log('Example02.update')
+        console.log(resultString)
+      }
+
+      {
+        const run = () => solver.svdProjection()
+        const { resultString } = timeit('args.run()', '', '', { run }, 5)
+        console.log('Example02.svdProjection')
+        console.log(resultString)
+      }
+
+      if (wasm_ex05) {
+        solver.setupWasm(wasm_ex05)
+        const run = () => solver.svdProjectionWasm()
+        const { resultString } = timeit('args.run()', '', '', { run })
+        console.log('Example02.svdProjectionWasm')
         console.log(resultString)
       }
     })
