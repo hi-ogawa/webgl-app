@@ -933,6 +933,7 @@ const mat3 = {
     const l2 = length(B2)
 
     // inlined insertion sort
+    // TODO: fix overwriting S after branch...
     let S
     // [0, (1), 2]
     if (l1 > l0) {

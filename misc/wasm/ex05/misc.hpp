@@ -12,29 +12,31 @@ static_assert(sizeof(vec3) == 3 * 4, "Make sure `vec3 = float32 x 3`");
 void _jacobi2(
     float a, float b, float d,
     float& a_next, float& d_next, float& co, float& si) {
-  using glm::sqrt;
-  float x = 0.5 * (a - d);
-  float y = b;
+  //
+  // QT A Q : diagonal
+  //
+  // <=> b (c2 - s2) - (a - d) c s = 0
+  //
+  // <=> | c2 - s2 |  orthog to   |     b      |
+  //     |   2cs   |              | -(a - d)/2 |
+  //
+  // <=> | cos(2t) |  parallel to | (a - d)/2 |
+  //     | sin(2t) |              |    b      |
+  //
+  using glm::sqrt, glm::sign;
+  float x = 0.5 * (a - d); // | x | parallel to | cos(2t) |
+  float y = b;             // | y |             | sin(2t) |
   float l2 = x * x + y * y;
   float l = sqrt(l2);
-  float p = x + l;
-  float q = y;
-  float r2 = p * p + q * q;
-  if (r2 < 1e-14) {
-    a_next = a;
-    d_next = d;
-    co = 1;
-    si = 0;
-    return;
-  }
-  float r = sqrt(r2);
-  co = p / r;
-  si = q / r;
-  float co2 = p * p / r2;
-  float si2 = q * q / r2;
-  float cosi = p * q / r2;
-  a_next = a * co2 + d * si2 + 2 * b * cosi;
-  d_next = a * si2 + d * co2 - 2 * b * cosi;
+  // NOTE: we assume b != 0 thus l != 0
+  float cos2t = x / l; // cos(2t)
+  float sin2t = y / l; // sin(2t)
+  float co2 = 0.5 * (cos2t + 1);
+  float si2 = 0.5 * (1 - cos2t);
+  a_next = a * co2 + d * si2 + b * sin2t; // a cos(t)^2 + d sin(t)^2 + 2 b cos(t) sin(t)
+  d_next = a * si2 + d * co2 - b * sin2t; // a sin(t)^2 + d cos(t)^2 - 2 b cos(t) sin(t)
+  co = sqrt(co2);
+  si = sign(b) * sqrt(si2); // sign(sin2t) = sign(y) = sign(b)
 }
 
 void jacobi2(const mat2& A, vec2& U, vec2& D) {
