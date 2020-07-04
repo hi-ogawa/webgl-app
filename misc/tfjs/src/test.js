@@ -3,6 +3,7 @@
 import * as ex00 from './ex00.js'
 import * as ex01 from './ex01.js'
 import * as ex02 from './ex02.js'
+import * as ex03 from './ex03.js'
 
 describe('ex00', () => {
   it('works', async () => {
@@ -22,5 +23,11 @@ describe('ex01', () => {
 describe('ex02', () => {
   it('works', async () => {
     await ex02.main()
+  })
+})
+
+describe('ex03', () => {
+  it('works', async function () {
+    await ex03.main()
   })
 })

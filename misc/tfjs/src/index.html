@@ -12,7 +12,7 @@
   <script src="../node_modules/lodash/lodash.js"></script>
 
   <script>
-    const options = { ui: 'bdd' }
+    const options = { ui: 'bdd', timeout: 0 }
     options.reporter = window.__HEADLESS ? 'spec' : 'html'
     mocha.setup(options)
     window.assert = chai.assert
