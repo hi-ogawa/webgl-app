@@ -1,5 +1,5 @@
 /* eslint camelcase: 0 */
-/* global _, assert, tf */
+/* global _, tf */
 
 //
 // blazeface model
@@ -24,10 +24,6 @@ for (const [stride, numAnchors] of kAnchorConfig) {
   }
 }
 
-const sortIndices = (a) => {
-  return _.range(a.length).sort((i, j) => a[j] - a[i])
-}
-
 const main = async () => {
   await tf.setBackend('webgl')
 
@@ -36,7 +32,7 @@ const main = async () => {
   const url_image = 'https://picsum.photos/id/237/200'
   // const url_image = 'https://upload.wikimedia.org/wikipedia/commons/b/b7/Lueg_im_SWR1_Studio.jpg' // cf. https://en.wikipedia.org/wiki/Selfie
 
-  const model = await tf.loadGraphModel(url, { fromTFHub: true } )
+  const model = await tf.loadGraphModel(url, { fromTFHub: true })
 
   let x = await decodeImage(url_image) // shape (H, W, 3) with value in [0, 1]
   x = x.resizeBilinear(model.inputs[0].shape.slice(1, 3)) // shape should be (128, 128, 3)
