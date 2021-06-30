@@ -1,4 +1,13 @@
-WebGL shader examples using three.js
+Various demo with three.js and A-Frame
+
+https://webgl-app-hiogawa.vercel.app/src/
+
+Examples
+
+- WebGL shader
+- Computational geometry
+- Soft body simulation
+- Visualization
 
 ```
 # Development

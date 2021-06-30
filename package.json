@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "start": "serve -c config/serve.json",
-    "deploy": "now -d -A config/now.json",
+    "deploy": "bash misc/deploy.sh",
     "test": "mocha --file src/mocha_jsdom.js --file src/mocha_preload.js 'src/**/*.test.js'",
     "bench": "mocha --file src/mocha_preload.js -t 0 'src/**/*.bench.js'",
     "build": "snowpack install --config config/snowpack.config.json",
@@ -18,10 +18,10 @@
     "jsdom": "^16.2.2",
     "mocha": "^7.1.2",
     "nodemon": "^2.0.4",
-    "now": "^19.0.0",
     "serve": "^11.3.0",
     "snowpack": "^2.0.0-beta.16",
-    "standard": "^14.3.4"
+    "standard": "^14.3.4",
+    "vercel": "^23.0.1"
   },
   "dependencies": {
     "aframe": "^1.0.4",
