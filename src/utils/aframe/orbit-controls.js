@@ -42,6 +42,9 @@ AFRAME.registerComponent('orbit-controls', {
       })
     )
     this.el.sceneEl.object3D.add(this.objectLookat)
+
+    // Support right click for control
+    document.addEventListener('contextmenu', event => event.preventDefault())
   },
 
   tick () {
@@ -61,7 +64,7 @@ AFRAME.registerComponent('orbit-controls', {
       this.helper.zoom(-wheel / 800)
     }
 
-    if (buttons === 4) { // Blender's keyboard shortcut
+    if (buttons === 4 || buttons === 2) { // Blender's keyboard shortcut
       // Move
       if (keys.Shift) {
         const windowToCamera = mat3(UtilsMisc.makeWindowToCamera(w, h, camera))
