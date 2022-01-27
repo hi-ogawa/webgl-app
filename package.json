@@ -27,6 +27,6 @@
     "aframe": "^1.0.4",
     "aframe-inspector": "^1.0.0",
     "lodash": "^4.17.15",
-    "three": "^0.116.1"
+    "three": "^0.137.0"
   }
 }
