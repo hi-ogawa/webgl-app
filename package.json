@@ -2,10 +2,10 @@
   "type": "module",
   "scripts": {
     "start": "serve -c config/serve.json",
-    "deploy": "bash misc/deploy.sh",
+    "deploy": "npx wrangler deploy",
     "test": "mocha --file src/mocha_jsdom.js --file src/mocha_preload.js 'src/**/*.test.js'",
     "bench": "mocha --file src/mocha_preload.js -t 0 'src/**/*.bench.js'",
-    "build": "snowpack install --config config/snowpack.config.json",
+    "build": "snowpack install --config config/snowpack.config.json && bash misc/build-dist.sh",
     "lint": "standard -v",
     "lint_all": "standard -v 'src/**/*.js'",
     "lint_diff": "standard -v $(git diff --staged --name-only | grep '.js$')",

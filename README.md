@@ -1,6 +1,6 @@
 Various demo with three.js and A-Frame
 
-https://webgl-app-hiogawa.vercel.app/src/
+https://webgl-app.hiro18181.workers.dev/src/
 
 Examples
 
