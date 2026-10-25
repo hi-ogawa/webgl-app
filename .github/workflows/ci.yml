@@ -1,6 +1,15 @@
 # Based on three.js's ci.yml (https://github.com/mrdoob/three.js/blob/dev/.github/workflows/ci.yml)
 name: CI
-on: [push]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Linting
