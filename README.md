@@ -31,9 +31,6 @@ npm run screenshot_all # all examples under src/
 # Benchmark
 npm run bench -- -g 'readOFF bunny' # specific benchmark
 npm run bench
-
-# Deployment
-npm run deploy
 ```
 
 References
