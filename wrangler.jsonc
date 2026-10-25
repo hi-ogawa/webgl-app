@@ -4,5 +4,6 @@
   "assets": {
     "directory": "./dist"
   },
+  "preview_urls": true,
   "previews": {}
 }
