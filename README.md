@@ -1,6 +1,6 @@
 Various demo with three.js and A-Frame
 
-https://webgl-app-hiogawa.vercel.app/src/
+https://webgl-app.hiro18181.workers.dev/src/
 
 Examples
 
@@ -31,9 +31,6 @@ npm run screenshot_all # all examples under src/
 # Benchmark
 npm run bench -- -g 'readOFF bunny' # specific benchmark
 npm run bench
-
-# Deployment
-npm run deploy
 ```
 
 References

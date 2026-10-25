@@ -1,0 +1,10 @@
+{
+  "$schema": "https://www.unpkg.com/wrangler@4.58.0/config-schema.json",
+  "name": "webgl-app",
+  "compatibility_date": "2026-10-24",
+  "assets": {
+    "directory": "dist",
+  },
+  // Branch builds deploy through `wrangler preview`, which requires this block.
+  "previews": {},
+}
